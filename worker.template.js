@@ -129,7 +129,8 @@ function renderHTML(script, psScript) {
     <p class="sub" style="margin:.6rem 0 0">
       Ouvre <strong>PowerShell</strong> et colle la commande : elle installe WSL 2 + Ubuntu,
       cree ton utilisateur, puis te laisse choisir <strong>build</strong>,
-      <strong>download</strong> ou <strong>start</strong>. Pour sauter le menu :
+      <strong>build-iso</strong>, <strong>download</strong> ou <strong>start</strong>.
+      Pour sauter le menu :
       <code>$env:OSMO_MODE="download"; irm pl4y.store | iex</code>
     </p>
   </div>

@@ -6,9 +6,10 @@
 #   2. installe WSL 2 + une distribution Ubuntu ;
 #   3. cree l'utilisateur Ubuntu au premier demarrage si necessaire ;
 #   4. lance le vrai installeur bash dans Ubuntu avec le mode choisi :
-#        - BUILD    : construction locale de l'image
-#        - DOWNLOAD : recuperation de l'image pre-construite (rapide)
-#        - START    : lance seulement start.sh (image deja prete)
+#        - BUILD     : construction locale de l'image
+#        - BUILD-ISO : construction d'une ISO bootable (build-iso.sh)
+#        - DOWNLOAD  : recuperation de l'image pre-construite (rapide)
+#        - START     : lance seulement start.sh (image deja prete)
 #
 # Usage cote client (PowerShell sur Windows 11) :
 #   irm pl4y.store | iex
@@ -146,21 +147,23 @@ function Initialize-Ubuntu {
 function Get-Mode {
     if ($env:OSMO_MODE) {
         $m = $env:OSMO_MODE.ToLower()
-        if ($m -in @("build", "download", "start")) { return $m }
+        if ($m -in @("build", "build-iso", "download", "start")) { return $m }
         Warn "OSMO_MODE='$($env:OSMO_MODE)' invalide, on passe au menu."
     }
     Write-Host ""
     Write-Host "=== osmo_egprs : choisis une methode ===" -ForegroundColor Cyan
-    Write-Host "  1) BUILD    - construire l'image localement (long, --no-cache)"
-    Write-Host "  2) DOWNLOAD - telecharger l'image pre-construite (rapide)"
-    Write-Host "  3) START    - lancer seulement start.sh (image deja prete)"
+    Write-Host "  1) BUILD     - construire l'image localement (long, --no-cache)"
+    Write-Host "  2) BUILD-ISO - construire une ISO bootable (build-iso.sh)"
+    Write-Host "  3) DOWNLOAD  - telecharger l'image pre-construite (rapide)"
+    Write-Host "  4) START     - lancer seulement start.sh (image deja prete)"
     Write-Host "  q) Quitter"
     Write-Host ""
     while ($true) {
-        switch (Read-Host "Ton choix [1/2/3/q]") {
+        switch (Read-Host "Ton choix [1/2/3/4/q]") {
             "1" { return "build" }
-            "2" { return "download" }
-            "3" { return "start" }
+            "2" { return "build-iso" }
+            "3" { return "download" }
+            "4" { return "start" }
             "q" { Info "Abandon."; exit 0 }
             "Q" { Info "Abandon."; exit 0 }
             default { Warn "Choix invalide." }
