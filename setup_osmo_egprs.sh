@@ -41,6 +41,13 @@ PACKAGES=(
     netcat-openbsd telnet git gawk sed wget
 )
 
+# Dependances supplementaires sur l'HOTE, uniquement pour le mode build-iso
+# (construction d'une ISO bootable : squashfs, xorriso, grub, debootstrap...).
+ISO_PACKAGES=(
+    squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin
+    grub-common mtools debootstrap git
+)
+
 # ---------------------------------------------------------------------------
 # Couleurs / helpers
 # ---------------------------------------------------------------------------
@@ -284,7 +291,26 @@ do_build() {
 # ---------------------------------------------------------------------------
 # 3c. BUILD-ISO : construction d'une ISO bootable (build-iso.sh)
 # ---------------------------------------------------------------------------
+# Dependances hote specifiques a la construction d'ISO. Installees seulement
+# quand le mode build-iso est choisi (et sauf --no-deps).
+install_iso_deps() {
+    if [ "$INSTALL_DEPS" -ne 1 ]; then
+        warn "Dependances ISO ignorees (--no-deps) : ${ISO_PACKAGES[*]}"
+        return
+    fi
+    if ! command -v apt-get >/dev/null 2>&1; then
+        warn "apt-get introuvable : installe manuellement ${ISO_PACKAGES[*]}"
+        return
+    fi
+    info "Installation des dependances ISO sur l'hote..."
+    $SUDO apt-get update
+    $SUDO env DEBIAN_FRONTEND=noninteractive \
+        apt-get install -y --no-install-recommends "${ISO_PACKAGES[@]}"
+    ok "Dependances ISO installees."
+}
+
 do_build_iso() {
+    install_iso_deps
     ensure_docker
     [ -f "$REPO_DIR/build-iso.sh" ] || die "build-iso.sh introuvable dans $REPO_DIR"
     info "Construction de l'ISO (build-iso.sh)..."
