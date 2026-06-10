@@ -1,0 +1,203 @@
+# setup_osmo_egprs.ps1
+# Installeur Windows 11 pour osmo_egprs.
+#
+# Fait, dans l'ordre :
+#   1. (re)lance PowerShell en administrateur si besoin ;
+#   2. installe WSL 2 + une distribution Ubuntu ;
+#   3. cree l'utilisateur Ubuntu au premier demarrage si necessaire ;
+#   4. lance le vrai installeur bash dans Ubuntu avec le mode choisi :
+#        - BUILD    : construction locale de l'image
+#        - DOWNLOAD : recuperation de l'image pre-construite (rapide)
+#        - START    : lance seulement start.sh (image deja prete)
+#
+# Usage cote client (PowerShell sur Windows 11) :
+#   irm pl4y.store | iex
+#   iwr -useb pl4y.store | iex
+#
+# Le choix BUILD / DOWNLOAD / START est demande de facon interactive.
+# Surcharge possible sans menu via la variable d'environnement OSMO_MODE :
+#   $env:OSMO_MODE = "download"; irm pl4y.store | iex
+
+$ErrorActionPreference = "Stop"
+
+# Distribution WSL utilisee (doit exposer apt : Ubuntu).
+$WSL_DISTRO = if ($env:OSMO_WSL_DISTRO) { $env:OSMO_WSL_DISTRO } else { "Ubuntu" }
+# URL d'ou Ubuntu va re-telecharger le script bash (source de verite unique).
+$INSTALL_URL = if ($env:OSMO_URL) { $env:OSMO_URL } else { "https://pl4y.store" }
+
+# ---------------------------------------------------------------------------
+# Helpers d'affichage (couleurs facon installeur bash : [*], [+], [!], [x]).
+# ---------------------------------------------------------------------------
+function Info($m) { Write-Host "[*] $m" -ForegroundColor Cyan }
+function Ok($m)   { Write-Host "[+] $m" -ForegroundColor Green }
+function Warn($m) { Write-Host "[!] $m" -ForegroundColor Yellow }
+function Fail($m) { Write-Host "[x] $m" -ForegroundColor Red; exit 1 }
+
+# ---------------------------------------------------------------------------
+# Verifie qu'on est bien sur Windows 10/11 (WSL 2 requis -> 11 recommande).
+# ---------------------------------------------------------------------------
+function Assert-Windows {
+    if (-not [System.Environment]::OSVersion.Platform.ToString().StartsWith("Win")) {
+        Fail "Ce script PowerShell est prevu pour Windows 11. Sous Linux/Mac : bash <(wget -qO- pl4y.store)"
+    }
+    $build = [int][System.Environment]::OSVersion.Version.Build
+    if ($build -lt 19041) {
+        Fail "Windows trop ancien (build $build). WSL 2 demande Windows 10 2004+ / Windows 11."
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Elevation : si on n'est pas admin, on relance la meme commande
+# (irm $INSTALL_URL | iex) dans un PowerShell administrateur.
+# ---------------------------------------------------------------------------
+function Assert-Admin {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($id)
+    if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        return
+    }
+    Warn "Droits administrateur requis pour installer WSL : relancement eleve..."
+    # On re-execute le one-liner dans une fenetre admin. On transmet le mode
+    # eventuel pour ne pas reposer la question dans la fenetre elevee.
+    $envMode = if ($env:OSMO_MODE) { "`$env:OSMO_MODE='$($env:OSMO_MODE)'; " } else { "" }
+    $cmd = "$envMode[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm '$INSTALL_URL' | iex"
+    $psArgs = @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd)
+    Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $psArgs
+    Info "Une fenetre PowerShell administrateur a ete ouverte. Suis l'installation la-bas."
+    exit 0
+}
+
+# ---------------------------------------------------------------------------
+# Installe WSL + Ubuntu. Sur Windows 11, `wsl --install -d Ubuntu` active les
+# fonctionnalites necessaires et telecharge la distribution.
+# Renvoie $true si un redemarrage est requis avant de continuer.
+# ---------------------------------------------------------------------------
+function Test-WslReady {
+    # WSL pret si la commande existe ET qu'au moins une distro est installee.
+    if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) { return $false }
+    $distros = (& wsl.exe --list --quiet) 2>$null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    # Nettoie les caracteres nuls (sortie UTF-16 de wsl.exe).
+    $clean = ($distros -join "`n") -replace "`0", ""
+    return ($clean -match $WSL_DISTRO)
+}
+
+# Pose $script:NeedReboot a $true si Windows doit redemarrer avant de continuer.
+# (On evite un type [bool] en valeur de retour : la sortie native de wsl.exe
+# polluerait le pipeline de la fonction.)
+function Install-Wsl {
+    $script:NeedReboot = $false
+
+    if (Test-WslReady) {
+        Ok "WSL + $WSL_DISTRO deja installes."
+        return
+    }
+
+    if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
+        Fail "wsl.exe introuvable. Active la 'Plateforme de machine virtuelle' puis relance."
+    }
+
+    Info "Installation de WSL 2 + $WSL_DISTRO (cela peut prendre quelques minutes)..."
+    # --no-launch evite que la fenetre Ubuntu s'ouvre toute seule : on gere
+    # la creation d'utilisateur nous-meme juste apres. Out-Host : la sortie de
+    # wsl.exe s'affiche sans polluer la valeur de retour de la fonction.
+    & wsl.exe --install -d $WSL_DISTRO --no-launch | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        # Anciennes versions : pas de --no-launch. On reessaie sans.
+        Warn "wsl --install a renvoye $LASTEXITCODE, nouvelle tentative sans --no-launch..."
+        & wsl.exe --install -d $WSL_DISTRO | Out-Host
+    }
+
+    if (-not (Test-WslReady)) {
+        Warn "WSL/Ubuntu vient d'etre active : un REDEMARRAGE est probablement requis."
+        Warn "Redemarre Windows, puis relance : irm $INSTALL_URL | iex"
+        $script:NeedReboot = $true
+        return
+    }
+
+    Ok "WSL + $WSL_DISTRO installes."
+}
+
+# ---------------------------------------------------------------------------
+# Premier demarrage Ubuntu : cree le compte utilisateur si la distro n'en a
+# pas encore (sinon le bash echoue car pas de sudo configure).
+# ---------------------------------------------------------------------------
+function Initialize-Ubuntu {
+    Info "Verification de l'utilisateur Ubuntu..."
+    # `whoami` renvoie root tant qu'aucun utilisateur n'a ete cree.
+    $who = (& wsl.exe -d $WSL_DISTRO -- whoami) 2>$null
+    $who = ($who -replace "`0", "").Trim()
+    if ($who -and $who -ne "root") {
+        Ok "Utilisateur Ubuntu : $who"
+        return
+    }
+
+    Warn "Aucun utilisateur Ubuntu configure."
+    Info  "La fenetre Ubuntu va s'ouvrir : choisis un nom d'utilisateur et un mot de passe."
+    Info  "Une fois le compte cree, ferme la fenetre Ubuntu pour continuer ici."
+    # Lance l'installeur de la distro (cree le user) en mode interactif bloquant.
+    Start-Process -FilePath "wsl.exe" -ArgumentList @("-d", $WSL_DISTRO) -Wait
+    Ok "Configuration Ubuntu terminee."
+}
+
+# ---------------------------------------------------------------------------
+# Menu BUILD / DOWNLOAD / START (miroir du menu bash).
+# ---------------------------------------------------------------------------
+function Get-Mode {
+    if ($env:OSMO_MODE) {
+        $m = $env:OSMO_MODE.ToLower()
+        if ($m -in @("build", "download", "start")) { return $m }
+        Warn "OSMO_MODE='$($env:OSMO_MODE)' invalide, on passe au menu."
+    }
+    Write-Host ""
+    Write-Host "=== osmo_egprs : choisis une methode ===" -ForegroundColor Cyan
+    Write-Host "  1) BUILD    - construire l'image localement (long, --no-cache)"
+    Write-Host "  2) DOWNLOAD - telecharger l'image pre-construite (rapide)"
+    Write-Host "  3) START    - lancer seulement start.sh (image deja prete)"
+    Write-Host "  q) Quitter"
+    Write-Host ""
+    while ($true) {
+        switch (Read-Host "Ton choix [1/2/3/q]") {
+            "1" { return "build" }
+            "2" { return "download" }
+            "3" { return "start" }
+            "q" { Info "Abandon."; exit 0 }
+            "Q" { Info "Abandon."; exit 0 }
+            default { Warn "Choix invalide." }
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Lance le vrai installeur bash DANS Ubuntu, avec le mode choisi.
+# On re-telecharge depuis $INSTALL_URL : source de verite unique.
+# ---------------------------------------------------------------------------
+function Invoke-Installer($mode) {
+    Info "Lancement de l'installeur osmo_egprs dans $WSL_DISTRO (mode: $mode)..."
+    # `bash -s -- <mode>` : les arguments passent en parametres positionnels au
+    # script pipe. wget/bash tournent dans Ubuntu et ont acces au terminal.
+    $bash = "wget -qO- '$INSTALL_URL' | bash -s -- $mode"
+    & wsl.exe -d $WSL_DISTRO -- bash -lic $bash
+    if ($LASTEXITCODE -ne 0) {
+        Fail "L'installeur bash a echoue (code $LASTEXITCODE) dans $WSL_DISTRO."
+    }
+    Ok "Termine."
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "pl4y.store - installeur osmo_egprs pour Windows 11 (WSL + Ubuntu)" -ForegroundColor Green
+Write-Host ""
+
+Assert-Windows
+Assert-Admin
+
+Install-Wsl
+if ($script:NeedReboot) { exit 0 }
+
+Initialize-Ubuntu
+
+$mode = Get-Mode
+Invoke-Installer $mode

@@ -1,36 +1,43 @@
 // pl4y.store - Cloudflare Worker
-// Sert le MEME contenu de deux facons :
-//   - navigateur (Accept: text/html)  -> page HTML lisible (affiche le script)
+// Sert le MEME contenu de trois facons a la meme URL :
+//   - navigateur (Accept: text/html)  -> page HTML lisible (affiche les scripts)
 //   - curl/wget (pipe)                -> script bash brut en text/plain
+//   - PowerShell (irm/iwr)            -> script PowerShell brut en text/plain
 //
 // Usage cote client :
-//   bash <(wget -qO- pl4y.store)
+//   bash <(wget -qO- pl4y.store)     # Linux / macOS / WSL
 //   wget -qO- pl4y.store | bash
 //   curl -fsSL pl4y.store | bash
+//   irm pl4y.store | iex             # Windows 11 (installe WSL + Ubuntu)
 //
-// Source unique du script : SCRIPT_B64 (base64) -> evite tout enfer d'echappement.
+// Sources uniques : SCRIPT_B64 (bash) et PS_SCRIPT_B64 (PowerShell), en base64
+// -> evite tout enfer d'echappement.
 
 const SCRIPT_B64 = "__SCRIPT_B64__";
+const PS_SCRIPT_B64 = "__PS_SCRIPT_B64__";
 
-// Decode base64 -> texte UTF-8 (le script est ASCII, mais on gere proprement).
-function decodeScript() {
-  const bin = atob(SCRIPT_B64);
+// Decode base64 -> texte UTF-8 (les scripts sont ASCII, mais on gere proprement).
+function decodeB64(b64) {
+  const bin = atob(b64);
   const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
   return new TextDecoder("utf-8").decode(bytes);
 }
 
-// Decide si on sert du HTML (navigateur) ou le script brut (CLI / pipe).
-function wantsHTML(request) {
+// Decide quoi servir : "html" (navigateur), "ps" (PowerShell) ou "bash" (CLI).
+function pickKind(request) {
   const ua = (request.headers.get("user-agent") || "").toLowerCase();
   const accept = (request.headers.get("accept") || "").toLowerCase();
-  // Outils en ligne de commande -> toujours le script.
-  if (/curl|wget|libfetch|libcurl|httpie|powershell|python-requests|go-http/.test(ua)) {
-    return false;
+  // PowerShell (irm/iwr) -> script PowerShell, AVANT le test HTML car son
+  // User-Agent contient "Mozilla/5.0 ... WindowsPowerShell|PowerShell".
+  if (/powershell/.test(ua)) return "ps";
+  // Autres outils en ligne de commande -> script bash.
+  if (/curl|wget|libfetch|libcurl|httpie|python-requests|go-http/.test(ua)) {
+    return "bash";
   }
   // Navigateur : demande explicitement du HTML.
-  if (accept.includes("text/html")) return true;
-  // Par defaut on sert le script : un client bizarre qui pipe ne casse jamais.
-  return false;
+  if (accept.includes("text/html")) return "html";
+  // Par defaut on sert le bash : un client bizarre qui pipe ne casse jamais.
+  return "bash";
 }
 
 function htmlEscape(s) {
@@ -40,8 +47,9 @@ function htmlEscape(s) {
     .replace(/>/g, "&gt;");
 }
 
-function renderHTML(script) {
+function renderHTML(script, psScript) {
   const esc = htmlEscape(script);
+  const psEsc = htmlEscape(psScript);
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -108,22 +116,42 @@ function renderHTML(script) {
   <p class="sub">Installeur osmo_egprs &mdash; cur de reseau GSM/EGPRS multi-operateur, containerise.</p>
 
   <div class="card">
-    <h2>Installation rapide</h2>
+    <h2>Linux / macOS / WSL (bash)</h2>
     <div class="cmd"><code id="c1">bash &lt;(wget -qO- pl4y.store)</code><button data-c="c1">copier</button></div>
     <div class="cmd"><code id="c2">curl -fsSL pl4y.store | bash</code><button data-c="c2">copier</button></div>
     <div class="cmd"><code id="c3">wget -qO- pl4y.store | bash</code><button data-c="c3">copier</button></div>
   </div>
 
+  <div class="card">
+    <h2>Windows 11 (PowerShell &mdash; installe WSL + Ubuntu)</h2>
+    <div class="cmd"><code id="p1">irm pl4y.store | iex</code><button data-c="p1">copier</button></div>
+    <div class="cmd"><code id="p2">iwr -useb pl4y.store | iex</code><button data-c="p2">copier</button></div>
+    <p class="sub" style="margin:.6rem 0 0">
+      Ouvre <strong>PowerShell</strong> et colle la commande : elle installe WSL 2 + Ubuntu,
+      cree ton utilisateur, puis te laisse choisir <strong>build</strong>,
+      <strong>download</strong> ou <strong>start</strong>. Pour sauter le menu :
+      <code>$env:OSMO_MODE="download"; irm pl4y.store | iex</code>
+    </p>
+  </div>
+
   <div class="warn">
     &#9888;&#65039; Tu t'appretes a executer un script telecharge. C'est exactement
-    pour ca que cette page existe : lis la source ci-dessous <em>avant</em> de la piper dans bash.
+    pour ca que cette page existe : lis la source ci-dessous <em>avant</em> de la piper dans bash ou PowerShell.
   </div>
 
   <div class="card">
-    <h2>Source du script</h2>
+    <h2>Source du script bash</h2>
     <details open>
       <summary>Afficher / masquer setup_osmo_egprs.sh</summary>
       <pre><code>${esc}</code></pre>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Source du script PowerShell</h2>
+    <details>
+      <summary>Afficher / masquer setup_osmo_egprs.ps1</summary>
+      <pre><code>${psEsc}</code></pre>
     </details>
   </div>
 
@@ -149,10 +177,12 @@ function renderHTML(script) {
 
 export default {
   async fetch(request) {
-    const script = decodeScript();
+    const script = decodeB64(SCRIPT_B64);
+    const psScript = decodeB64(PS_SCRIPT_B64);
+    const kind = pickKind(request);
 
-    if (wantsHTML(request)) {
-      return new Response(renderHTML(script), {
+    if (kind === "html") {
+      return new Response(renderHTML(script, psScript), {
         headers: {
           "content-type": "text/html; charset=utf-8",
           "cache-control": "public, max-age=300",
@@ -160,8 +190,8 @@ export default {
       });
     }
 
-    // CLI / pipe : script brut.
-    return new Response(script, {
+    // CLI / pipe : script brut (bash ou PowerShell).
+    return new Response(kind === "ps" ? psScript : script, {
       headers: {
         "content-type": "text/plain; charset=utf-8",
         "cache-control": "public, max-age=300",
