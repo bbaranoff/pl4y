@@ -154,16 +154,13 @@ function renderHTML(script, psScript) {
   <div class="card">
     <h2>Materiel de reference</h2>
     <div class="moto">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Motorola_C123_OsmocomBB.jpg/360px-Motorola_C123_OsmocomBB.jpg"
-           alt="Motorola C123 (chipset TI Calypso) utilise avec OsmocomBB"
-           loading="lazy" referrerpolicy="no-referrer"
-           onerror="this.style.display='none'">
+      <img src="data:image/jpeg;base64,__MOTO_JPG_B64__"
+           alt="Motorola C123 (chipset TI Calypso) sous OsmocomBB, scan DCS a l'ecran"
+           loading="lazy" width="500" height="667">
       <p class="cap">
         <strong>Motorola C123</strong> &mdash; combine GSM 2G a chipset TI Calypso,
         la reference historique pour <a href="https://osmocom.org" target="_blank" rel="noopener">OsmocomBB</a>
-        et l'experimentation reseau. Photo&nbsp;:
-        <a href="https://commons.wikimedia.org/wiki/File:Motorola_C123_OsmocomBB.jpg"
-           target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0).
+        et l'experimentation reseau. Ici en plein scan de spectre.
       </p>
     </div>
   </div>
