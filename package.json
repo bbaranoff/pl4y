@@ -1,0 +1,15 @@
+{
+  "name": "pl4y-store",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "pl4y.store — Cloudflare Worker servant l'installeur osmo_egprs (bash pour curl/wget, HTML lisible pour navigateur)",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "npm run build && wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

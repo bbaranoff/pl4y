@@ -1,0 +1,14 @@
+name = "pl4y-store"
+main = "src/worker.js"
+compatibility_date = "2025-06-01"
+
+# Regenere src/worker.js depuis setup_osmo_egprs.sh AVANT chaque deploiement.
+# Pas de dependances : uniquement les builtins Node.
+[build]
+command = "node build.mjs"
+
+# Sert le Worker sur l'apex du domaine. Le domaine doit etre actif sur
+# Cloudflare (DNS proxifie). custom_domain = true cree l'enregistrement.
+[[routes]]
+pattern = "pl4y.store"
+custom_domain = true
