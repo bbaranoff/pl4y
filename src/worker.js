@@ -70,9 +70,20 @@ function renderHTML(script, psScript) {
     line-height:1.5; padding:2rem 1rem;
   }
   .wrap { max-width:920px; margin:0 auto; }
-  h1 { font-size:1.6rem; margin:0 0 .2rem; }
+  .brand { display:flex; align-items:center; gap:.6rem; margin:0 0 .2rem; }
+  .brand .phone { flex:none; width:34px; height:34px; color:var(--accent); }
+  h1 { font-size:1.6rem; margin:0; }
   h1 .dot { color:var(--green); }
   .sub { color:var(--muted); margin:0 0 1.8rem; font-size:.95rem; }
+  .moto {
+    display:flex; gap:1rem; align-items:center; flex-wrap:wrap;
+  }
+  .moto img {
+    width:160px; max-width:40%; border-radius:8px; border:1px solid var(--border);
+    background:#010409; display:block;
+  }
+  .moto .cap { color:var(--muted); font-size:.9rem; }
+  .moto .cap strong { color:var(--fg); }
   .card {
     background:var(--panel); border:1px solid var(--border);
     border-radius:10px; padding:1rem 1.2rem; margin-bottom:1.2rem;
@@ -112,8 +123,50 @@ function renderHTML(script, psScript) {
 </head>
 <body>
 <div class="wrap">
-  <h1>pl4y<span class="dot">.</span>store</h1>
+  <div class="brand">
+    <svg class="phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round" aria-label="Telephone 2G" role="img">
+      <!-- antenne -->
+      <line x1="17" y1="2.5" x2="17" y2="6"/>
+      <!-- corps candybar -->
+      <rect x="6" y="4" width="12" height="18" rx="2"/>
+      <!-- ecran -->
+      <rect x="8" y="6" width="8" height="5" rx=".5"/>
+      <!-- barres de reseau 2G -->
+      <line x1="9.5" y1="9.5" x2="9.5" y2="8.5"/>
+      <line x1="11.5" y1="9.5" x2="11.5" y2="7.7"/>
+      <line x1="13.5" y1="9.5" x2="13.5" y2="6.9"/>
+      <!-- clavier -->
+      <circle cx="9.5" cy="14" r=".6" fill="currentColor" stroke="none"/>
+      <circle cx="12" cy="14" r=".6" fill="currentColor" stroke="none"/>
+      <circle cx="14.5" cy="14" r=".6" fill="currentColor" stroke="none"/>
+      <circle cx="9.5" cy="16.5" r=".6" fill="currentColor" stroke="none"/>
+      <circle cx="12" cy="16.5" r=".6" fill="currentColor" stroke="none"/>
+      <circle cx="14.5" cy="16.5" r=".6" fill="currentColor" stroke="none"/>
+      <circle cx="9.5" cy="19" r=".6" fill="currentColor" stroke="none"/>
+      <circle cx="12" cy="19" r=".6" fill="currentColor" stroke="none"/>
+      <circle cx="14.5" cy="19" r=".6" fill="currentColor" stroke="none"/>
+    </svg>
+    <h1>pl4y<span class="dot">.</span>store</h1>
+  </div>
   <p class="sub">Installeur osmo_egprs &mdash; cur de reseau GSM/EGPRS multi-operateur, containerise.</p>
+
+  <div class="card">
+    <h2>Materiel de reference</h2>
+    <div class="moto">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Motorola_C123_OsmocomBB.jpg/360px-Motorola_C123_OsmocomBB.jpg"
+           alt="Motorola C123 (chipset TI Calypso) utilise avec OsmocomBB"
+           loading="lazy" referrerpolicy="no-referrer"
+           onerror="this.style.display='none'">
+      <p class="cap">
+        <strong>Motorola C123</strong> &mdash; combine GSM 2G a chipset TI Calypso,
+        la reference historique pour <a href="https://osmocom.org" target="_blank" rel="noopener">OsmocomBB</a>
+        et l'experimentation reseau. Photo&nbsp;:
+        <a href="https://commons.wikimedia.org/wiki/File:Motorola_C123_OsmocomBB.jpg"
+           target="_blank" rel="noopener">Wikimedia Commons</a> (CC BY-SA 4.0).
+      </p>
+    </div>
+  </div>
 
   <div class="card">
     <h2>Linux / macOS / WSL (bash)</h2>
@@ -158,6 +211,7 @@ function renderHTML(script, psScript) {
 
   <footer>
     Depot : <a href="https://github.com/bbaranoff/osmo_egprs">github.com/bbaranoff/osmo_egprs</a>
+    &middot; <a href="https://osmocom.org" target="_blank" rel="noopener">osmocom.org</a>
   </footer>
 </div>
 <script>
