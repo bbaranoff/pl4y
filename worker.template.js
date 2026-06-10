@@ -76,10 +76,12 @@ function renderHTML(script, psScript) {
   h1 .dot { color:var(--green); }
   .sub { color:var(--muted); margin:0 0 1.8rem; font-size:.95rem; }
   .moto {
-    display:flex; gap:1rem; align-items:center; flex-wrap:wrap;
+    display:flex; gap:1rem; align-items:center; flex-wrap:nowrap;
   }
   .moto img {
-    width:160px; max-width:40%; border-radius:8px; border:1px solid var(--border);
+    flex:none; width:160px; height:auto; aspect-ratio:500 / 667;
+    object-fit:contain; margin-left:1.5rem;
+    border-radius:8px; border:1px solid var(--border);
     background:#010409; display:block;
   }
   .moto .cap { color:var(--muted); font-size:.9rem; }
