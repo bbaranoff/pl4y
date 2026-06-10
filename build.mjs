@@ -9,18 +9,27 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
 const SCRIPT = "setup_osmo_egprs.sh";
+const PS_SCRIPT = "setup_osmo_egprs.ps1";
 const TEMPLATE = "worker.template.js";
 const OUT = "src/worker.js";
 
 const b64 = readFileSync(SCRIPT).toString("base64");
+const psB64 = readFileSync(PS_SCRIPT).toString("base64");
 const tpl = readFileSync(TEMPLATE, "utf8");
 
-if (!tpl.includes("__SCRIPT_B64__")) {
-  console.error(`[build] ERREUR: placeholder __SCRIPT_B64__ introuvable dans ${TEMPLATE}`);
-  process.exit(1);
+for (const ph of ["__SCRIPT_B64__", "__PS_SCRIPT_B64__"]) {
+  if (!tpl.includes(ph)) {
+    console.error(`[build] ERREUR: placeholder ${ph} introuvable dans ${TEMPLATE}`);
+    process.exit(1);
+  }
 }
 
 mkdirSync("src", { recursive: true });
-writeFileSync(OUT, tpl.replace("__SCRIPT_B64__", b64));
+writeFileSync(
+  OUT,
+  tpl.replace("__SCRIPT_B64__", b64).replace("__PS_SCRIPT_B64__", psB64),
+);
 
-console.log(`[build] ${OUT} genere — ${b64.length} octets base64 depuis ${SCRIPT}`);
+console.log(
+  `[build] ${OUT} genere — bash ${b64.length} o / powershell ${psB64.length} o base64`,
+);

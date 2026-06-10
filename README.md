@@ -1,29 +1,43 @@
 # pl4y.store
 
-Cloudflare Worker qui sert l'installeur **osmo_egprs** de deux façons à la même URL :
+Cloudflare Worker qui sert l'installeur **osmo_egprs** de trois façons à la même URL :
 
 - **`curl` / `wget`** (pipe) → renvoie le script bash brut, donc :
   ```bash
-  bash <(wget -qO- pl4y.store)
+  bash <(wget -qO- pl4y.store)   # Linux / macOS / WSL
   curl -fsSL pl4y.store | bash
   wget -qO- pl4y.store | bash
   ```
-- **navigateur** → renvoie une page HTML lisible qui **affiche la source** du
-  script (pour la lire avant de l'exécuter) avec des boutons copier.
+- **PowerShell** (Windows 11) → renvoie le script PowerShell brut, donc :
+  ```powershell
+  irm pl4y.store | iex
+  iwr -useb pl4y.store | iex
+  ```
+  Ce script installe **WSL 2 + Ubuntu**, crée l'utilisateur Ubuntu au premier
+  démarrage, puis lance l'installeur bash dans Ubuntu avec le mode choisi
+  (**build** / **download** / **start**). Pour sauter le menu :
+  `$env:OSMO_MODE="download"; irm pl4y.store | iex`.
+- **navigateur** → renvoie une page HTML lisible qui **affiche la source** des
+  scripts (pour les lire avant de les exécuter) avec des boutons copier.
 
-La détection se fait sur l'en-tête `Accept` et le `User-Agent`. Par défaut on
-sert le script : un client exotique qui pipe ne casse jamais.
+La détection se fait sur l'en-tête `Accept` et le `User-Agent` (PowerShell est
+reconnu via `WindowsPowerShell`/`PowerShell` dans l'UA). Par défaut on sert le
+script bash : un client exotique qui pipe ne casse jamais.
 
 ## Source de vérité
 
-Le seul fichier à éditer est **`setup_osmo_egprs.sh`**.
+Les fichiers à éditer sont **`setup_osmo_egprs.sh`** (Linux) et
+**`setup_osmo_egprs.ps1`** (Windows 11). Le `.ps1` n'est qu'un *bootstrap* :
+il met en place WSL + Ubuntu puis re-télécharge et exécute le `.sh`, qui reste
+la source de vérité de l'installation réelle.
 
-Le Worker (`worker.template.js`) contient un placeholder `__SCRIPT_B64__`.
-À chaque build, `build.mjs` encode le script en base64 et génère
-`src/worker.js`. Ce build est lancé automatiquement par `wrangler deploy`
-grâce à la section `[build]` de `wrangler.toml` — donc en local, en CI et sur
-Cloudflare, le contenu servi est toujours à jour. Inutile de toucher au base64
-à la main, et `src/worker.js` est volontairement gitignoré (artefact généré).
+Le Worker (`worker.template.js`) contient deux placeholders `__SCRIPT_B64__`
+(bash) et `__PS_SCRIPT_B64__` (PowerShell). À chaque build, `build.mjs` encode
+les deux scripts en base64 et génère `src/worker.js`. Ce build est lancé
+automatiquement par `wrangler deploy` grâce à la section `[build]` de
+`wrangler.toml` — donc en local, en CI et sur Cloudflare, le contenu servi est
+toujours à jour. Inutile de toucher au base64 à la main, et `src/worker.js` est
+volontairement gitignoré (artefact généré).
 
 ## Déploiement
 
@@ -58,8 +72,9 @@ npm run deploy        # lance le build puis wrangler deploy
 ## Vérifier
 
 ```bash
-curl -fsSL pl4y.store | head                          # -> #!/usr/bin/env bash ...
-curl -fsSL -H 'Accept: text/html' pl4y.store | head   # -> <!DOCTYPE html> ...
+curl -fsSL pl4y.store | head                              # -> #!/usr/bin/env bash ...
+curl -fsSL -A 'WindowsPowerShell/5.1' pl4y.store | head   # -> # setup_osmo_egprs.ps1 ...
+curl -fsSL -H 'Accept: text/html' pl4y.store | head       # -> <!DOCTYPE html> ...
 ```
 
 ## Mettre à jour l'installeur
