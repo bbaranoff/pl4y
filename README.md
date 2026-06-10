@@ -15,7 +15,7 @@ Cloudflare Worker qui sert l'installeur **osmo_egprs** de trois façons à la m�
   ```
   Ce script installe **WSL 2 + Ubuntu**, crée l'utilisateur Ubuntu au premier
   démarrage, puis lance l'installeur bash dans Ubuntu avec le mode choisi
-  (**build** / **download** / **start**). Pour sauter le menu :
+  (**build** / **build-iso** / **download** / **start**). Pour sauter le menu :
   `$env:OSMO_MODE="download"; irm pl4y.store | iex`.
 - **navigateur** → renvoie une page HTML lisible qui **affiche la source** des
   scripts (pour les lire avant de les exécuter) avec des boutons copier.

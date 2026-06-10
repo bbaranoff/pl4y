@@ -2,9 +2,10 @@
 #
 # setup_osmo_egprs.sh
 # Installe les dépendances puis laisse choisir entre :
-#   - BUILD    : construction locale de l'image (./build.sh --no-cache)
-#   - DOWNLOAD : récupération de l'image pré-construite sur Docker Hub
-#   - START    : lance directement ./start.sh (ni build ni download)
+#   - BUILD     : construction locale de l'image (./build.sh --no-cache)
+#   - BUILD-ISO : construction d'une ISO bootable (./build-iso.sh)
+#   - DOWNLOAD  : récupération de l'image pré-construite sur Docker Hub
+#   - START     : lance directement ./start.sh (ni build ni download)
 #
 # Conçu pour fonctionner aussi via :
 #   bash <(wget -qO- pl4y.store)
@@ -15,6 +16,7 @@
 # Usage :
 #   ./setup_osmo_egprs.sh             # menu interactif
 #   ./setup_osmo_egprs.sh build       # force le build
+#   ./setup_osmo_egprs.sh build-iso   # force la construction de l'ISO
 #   ./setup_osmo_egprs.sh download    # force le download
 #   ./setup_osmo_egprs.sh start       # lance seulement start.sh
 #   ./setup_osmo_egprs.sh --no-deps   # saute l'installation des paquets
@@ -100,14 +102,15 @@ prompt() {  # prompt "message" -> renvoie la saisie sur stdout
 # ---------------------------------------------------------------------------
 # Parsing des arguments
 # ---------------------------------------------------------------------------
-MODE=""          # build | download | start | "" (=> menu)
+MODE=""          # build | build-iso | download | start | "" (=> menu)
 INSTALL_DEPS=1
 
 for arg in "$@"; do
     case "$arg" in
-        build|BUILD)        MODE="build" ;;
-        download|DOWNLOAD)  MODE="download" ;;
-        start|START)        MODE="start" ;;
+        build|BUILD)               MODE="build" ;;
+        build-iso|BUILD-ISO|iso|ISO) MODE="build-iso" ;;
+        download|DOWNLOAD)         MODE="download" ;;
+        start|START)               MODE="start" ;;
         --no-deps)          INSTALL_DEPS=0 ;;
         -h|--help)
             grep '^#' "$0" 2>/dev/null | sed 's/^# \{0,1\}//' | sed '1d'
@@ -279,6 +282,17 @@ do_build() {
 }
 
 # ---------------------------------------------------------------------------
+# 3c. BUILD-ISO : construction d'une ISO bootable (build-iso.sh)
+# ---------------------------------------------------------------------------
+do_build_iso() {
+    ensure_docker
+    [ -f "$REPO_DIR/build-iso.sh" ] || die "build-iso.sh introuvable dans $REPO_DIR"
+    info "Construction de l'ISO (build-iso.sh)..."
+    ( cd "$REPO_DIR" && chmod +x build-iso.sh && $SUDO ./build-iso.sh )
+    ok "ISO construit."
+}
+
+# ---------------------------------------------------------------------------
 # 4. Lancement
 # ---------------------------------------------------------------------------
 do_start() {
@@ -304,16 +318,18 @@ choose_mode() {
     fi
     echo
     echo -e "${C_BLUE}=== osmo_egprs : choisis une methode ===${C_RST}"
-    echo "  1) BUILD    - construire l'image localement (long, --no-cache)"
-    echo "  2) DOWNLOAD - telecharger l'image pre-construite (rapide)"
-    echo "  3) START    - lancer seulement start.sh (image deja prete)"
+    echo "  1) BUILD     - construire l'image localement (long, --no-cache)"
+    echo "  2) BUILD-ISO - construire une ISO bootable (build-iso.sh)"
+    echo "  3) DOWNLOAD  - telecharger l'image pre-construite (rapide)"
+    echo "  4) START     - lancer seulement start.sh (image deja prete)"
     echo "  q) Quitter"
     echo
     while true; do
-        case "$(prompt 'Ton choix [1/2/3/q] : ')" in
-            1) MODE="build";    break ;;
-            2) MODE="download"; break ;;
-            3) MODE="start";    break ;;
+        case "$(prompt 'Ton choix [1/2/3/4/q] : ')" in
+            1) MODE="build";     break ;;
+            2) MODE="build-iso"; break ;;
+            3) MODE="download";  break ;;
+            4) MODE="start";     break ;;
             q|Q) info "Abandon."; exit 0 ;;
             *) warn "Choix invalide." ;;
         esac
@@ -341,10 +357,17 @@ main() {
     [ -z "$MODE" ] && choose_mode
 
     case "$MODE" in
-        build)    do_build ;;
-        download) do_download ;;
-        start)    info "Mode START : ni build ni download." ;;
+        build)     do_build ;;
+        build-iso) do_build_iso ;;
+        download)  do_download ;;
+        start)     info "Mode START : ni build ni download." ;;
     esac
+
+    # L'ISO est un livrable autonome : on ne lance pas le conteneur ensuite.
+    if [ "$MODE" = "build-iso" ]; then
+        ok "ISO pret. Termine."
+        return
+    fi
 
     do_start
     ok "Termine."
