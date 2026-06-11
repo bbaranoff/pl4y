@@ -28,6 +28,9 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 REPO_URL="https://github.com/bbaranoff/osmo_egprs"
 REPO_DIR="${OSMO_DIR:-$HOME/osmo_egprs}"
+# Ref git (branche ou tag) sur laquelle se cale le depot. Surchargeable :
+#   OSMO_REF=main bash <(wget -qO- pl4y.store) start
+OSMO_REF="${OSMO_REF:-checkpoint}"
 DOCKER_IMAGE="bastienbaranoff/free-bb"
 DOCKER_TAG="osmocom-nitb"
 
@@ -255,14 +258,18 @@ ensure_docker() {
 fetch_repo() {
     command -v git >/dev/null 2>&1 || die "git introuvable (relance sans --no-deps)."
     if [ -d "$REPO_DIR/.git" ]; then
-        info "Depot deja present ($REPO_DIR), mise a jour..."
-        git -C "$REPO_DIR" pull --ff-only || warn "git pull a echoue, on continue."
+        info "Depot deja present ($REPO_DIR), bascule sur '$OSMO_REF'..."
+        git -C "$REPO_DIR" fetch origin || warn "git fetch a echoue, on continue."
+        git -C "$REPO_DIR" checkout "$OSMO_REF" || die "checkout '$OSMO_REF' impossible dans $REPO_DIR."
+        # Met a jour si '$OSMO_REF' est une branche ; benin si tag/detached.
+        git -C "$REPO_DIR" pull --ff-only origin "$OSMO_REF" 2>/dev/null \
+            || warn "Pas de fast-forward pour '$OSMO_REF', on garde l'etat local."
     else
-        info "Clonage de $REPO_URL -> $REPO_DIR ..."
-        git clone "$REPO_URL" "$REPO_DIR"
-        cd "$REPO_DIR" && git checkout checkpoint
+        info "Clonage de $REPO_URL ($OSMO_REF) -> $REPO_DIR ..."
+        git clone --branch "$OSMO_REF" "$REPO_URL" "$REPO_DIR" \
+            || die "Clonage de '$OSMO_REF' depuis $REPO_URL a echoue."
     fi
-    ok "Depot pret : $REPO_DIR"
+    ok "Depot pret : $REPO_DIR (ref: $OSMO_REF)"
 }
 
 # ---------------------------------------------------------------------------
