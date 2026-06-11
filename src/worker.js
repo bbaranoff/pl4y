@@ -209,8 +209,14 @@ function renderHTML(script, psScript) {
   </div>
 
   <footer>
-    Depot : <a href="https://github.com/bbaranoff/osmo_egprs">github.com/bbaranoff/osmo_egprs</a>
-    &middot; <a href="https://osmocom.org" target="_blank" rel="noopener">osmocom.org</a>
+    <div class="repos">
+      <a href="https://github.com/bbaranoff/qemu" target="_blank" rel="noopener">github.com/bbaranoff/qemu</a>
+      &middot; <a href="https://github.com/bbaranoff/osmo_egprs" target="_blank" rel="noopener">github.com/bbaranoff/osmo_egprs</a>
+      &middot; <a href="https://github.com/bbaranoff/pl4y" target="_blank" rel="noopener">github.com/bbaranoff/pl4y</a>
+    </div>
+    <div style="margin-top:.4rem">
+      <a href="https://osmocom.org" target="_blank" rel="noopener">osmocom.org</a>
+    </div>
   </footer>
 </div>
 <script>
