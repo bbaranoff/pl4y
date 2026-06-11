@@ -317,6 +317,7 @@ install_iso_deps() {
 }
 
 do_build_iso() {
+    warn "Mode BUILD-ISO EXPERIMENTAL : la generation d'ISO bootable n'est pas garantie et peut echouer/changer."
     install_iso_deps
     ensure_docker
     [ -f "$REPO_DIR/build-iso.sh" ] || die "build-iso.sh introuvable dans $REPO_DIR"
@@ -364,7 +365,7 @@ choose_mode() {
     echo
     echo -e "${C_BLUE}=== osmo_egprs : choisis une methode ===${C_RST}"
     echo "  1) BUILD     - construire l'image localement (long, --no-cache)"
-    echo "  2) BUILD-ISO - construire une ISO bootable (build-iso.sh)"
+    echo "  2) BUILD-ISO - construire une ISO bootable (build-iso.sh)  [EXPERIMENTAL]"
     echo "  3) DOWNLOAD  - telecharger l'image pre-construite (rapide)"
     echo "  4) START     - lancer seulement start.sh (image deja prete)"
     echo "  q) Quitter"

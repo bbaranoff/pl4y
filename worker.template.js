@@ -5,7 +5,7 @@
 //   - PowerShell (irm/iwr)            -> script PowerShell brut en text/plain
 //
 // Usage cote client :
-//   bash <(wget -qO- pl4y.store)     # Linux / macOS / WSL
+//   bash <(wget -qO- pl4y.store)     # Linux / WSL
 //   wget -qO- pl4y.store | bash
 //   curl -fsSL pl4y.store | bash
 //   irm pl4y.store | iex             # Windows 11 (installe WSL + Ubuntu)
@@ -168,7 +168,7 @@ function renderHTML(script, psScript) {
   </div>
 
   <div class="card">
-    <h2>Linux / macOS / WSL (bash)</h2>
+    <h2>Linux / WSL (bash)</h2>
     <div class="cmd"><code id="c1">bash &lt;(wget -qO- pl4y.store)</code><button data-c="c1">copier</button></div>
     <div class="cmd"><code id="c2">curl -fsSL pl4y.store | bash</code><button data-c="c2">copier</button></div>
     <div class="cmd"><code id="c3">wget -qO- pl4y.store | bash</code><button data-c="c3">copier</button></div>
@@ -181,7 +181,7 @@ function renderHTML(script, psScript) {
     <p class="sub" style="margin:.6rem 0 0">
       Ouvre <strong>PowerShell</strong> et colle la commande : elle installe WSL 2 + Ubuntu,
       cree ton utilisateur, puis te laisse choisir <strong>build</strong>,
-      <strong>build-iso</strong>, <strong>download</strong> ou <strong>start</strong>.
+      <strong>build-iso</strong> <em>(experimental)</em>, <strong>download</strong> ou <strong>start</strong>.
       Pour sauter le menu :
       <code>$env:OSMO_MODE="download"; irm pl4y.store | iex</code>
     </p>

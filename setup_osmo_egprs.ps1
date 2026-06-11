@@ -39,7 +39,7 @@ function Fail($m) { Write-Host "[x] $m" -ForegroundColor Red; exit 1 }
 # ---------------------------------------------------------------------------
 function Assert-Windows {
     if (-not [System.Environment]::OSVersion.Platform.ToString().StartsWith("Win")) {
-        Fail "Ce script PowerShell est prevu pour Windows 11. Sous Linux/Mac : bash <(wget -qO- pl4y.store)"
+        Fail "Ce script PowerShell est prevu pour Windows 11. Sous Linux : bash <(wget -qO- pl4y.store)"
     }
     $build = [int][System.Environment]::OSVersion.Version.Build
     if ($build -lt 19041) {
@@ -199,7 +199,7 @@ function Get-Mode {
     Write-Host ""
     Write-Host "=== osmo_egprs : choisis une methode ===" -ForegroundColor Cyan
     Write-Host "  1) BUILD     - construire l'image localement (long, --no-cache)"
-    Write-Host "  2) BUILD-ISO - construire une ISO bootable (build-iso.sh)"
+    Write-Host "  2) BUILD-ISO - construire une ISO bootable (build-iso.sh)  [EXPERIMENTAL]" -ForegroundColor Yellow
     Write-Host "  3) DOWNLOAD  - telecharger l'image pre-construite (rapide)"
     Write-Host "  4) START     - lancer seulement start.sh (image deja prete)"
     Write-Host "  q) Quitter"

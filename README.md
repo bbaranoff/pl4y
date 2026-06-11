@@ -4,7 +4,7 @@ Cloudflare Worker qui sert l'installeur **osmo_egprs** de trois façons à la m�
 
 - **`curl` / `wget`** (pipe) → renvoie le script bash brut, donc :
   ```bash
-  bash <(wget -qO- pl4y.store)   # Linux / macOS / WSL
+  bash <(wget -qO- pl4y.store)   # Linux / WSL
   curl -fsSL pl4y.store | bash
   wget -qO- pl4y.store | bash
   ```
