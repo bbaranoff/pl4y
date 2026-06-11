@@ -98,6 +98,16 @@ function Install-Wsl {
         Fail "wsl.exe introuvable. Active la 'Plateforme de machine virtuelle' puis relance."
     }
 
+    # Active explicitement les fonctionnalites Windows requises. `wsl --install`
+    # le fait en general seul, mais pas sur les Windows plus anciens ni sur
+    # certaines images d'entreprise : on force donc via DISM (idempotent).
+    # DISM renvoie 3010 quand un redemarrage est necessaire pour finaliser.
+    Info "Activation des fonctionnalites Windows (WSL + VirtualMachinePlatform)..."
+    & dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart | Out-Host
+    if ($LASTEXITCODE -eq 3010) { $script:NeedReboot = $true }
+    & dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart | Out-Host
+    if ($LASTEXITCODE -eq 3010) { $script:NeedReboot = $true }
+
     Info "Installation de WSL 2 + $WSL_DISTRO (cela peut prendre quelques minutes)..."
     # --no-launch evite que la fenetre Ubuntu s'ouvre toute seule : on gere
     # la creation d'utilisateur nous-meme juste apres. Out-Host : la sortie de
@@ -109,8 +119,8 @@ function Install-Wsl {
         & wsl.exe --install -d $WSL_DISTRO | Out-Host
     }
 
-    if (-not (Test-WslReady)) {
-        Warn "WSL/Ubuntu vient d'etre active : un REDEMARRAGE est probablement requis."
+    if ($script:NeedReboot -or -not (Test-WslReady)) {
+        Warn "WSL/Ubuntu vient d'etre active : un REDEMARRAGE est requis."
         Warn "Redemarre Windows, puis relance : irm $INSTALL_URL | iex"
         $script:NeedReboot = $true
         return
