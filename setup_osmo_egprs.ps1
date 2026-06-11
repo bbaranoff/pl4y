@@ -83,30 +83,55 @@ function Test-WslReady {
     return ($clean -match $WSL_DISTRO)
 }
 
+# Active les fonctionnalites Windows requises via DISM (idempotent). `wsl
+# --install` le fait en general seul, mais pas sur les Windows plus anciens ni
+# sur certaines images d'entreprise. DISM renvoie 3010 si un redemarrage est
+# necessaire pour finaliser -> on pose alors $script:NeedReboot.
+function Enable-WslFeatures {
+    Info "Activation des fonctionnalites Windows (WSL + VirtualMachinePlatform)..."
+    & dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart | Out-Host
+    if ($LASTEXITCODE -eq 3010) { $script:NeedReboot = $true }
+    & dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart | Out-Host
+    if ($LASTEXITCODE -eq 3010) { $script:NeedReboot = $true }
+}
+
+# Verifie que la VM WSL2 DEMARRE reellement (pas juste que la distro est listee).
+# Echoue avec HCS_E_SERVICE_NOT_AVAILABLE si VirtualMachinePlatform n'est pas
+# active/finalisee ou si la virtualisation est desactivee dans le BIOS/UEFI.
+function Test-WslVmUsable {
+    & wsl.exe -d $WSL_DISTRO -- true 2>&1 | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
 # Pose $script:NeedReboot a $true si Windows doit redemarrer avant de continuer.
 # (On evite un type [bool] en valeur de retour : la sortie native de wsl.exe
 # polluerait le pipeline de la fonction.)
 function Install-Wsl {
     $script:NeedReboot = $false
 
-    if (Test-WslReady) {
-        Ok "WSL + $WSL_DISTRO deja installes."
-        return
-    }
-
     if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
         Fail "wsl.exe introuvable. Active la 'Plateforme de machine virtuelle' puis relance."
     }
 
-    # Active explicitement les fonctionnalites Windows requises. `wsl --install`
-    # le fait en general seul, mais pas sur les Windows plus anciens ni sur
-    # certaines images d'entreprise : on force donc via DISM (idempotent).
-    # DISM renvoie 3010 quand un redemarrage est necessaire pour finaliser.
-    Info "Activation des fonctionnalites Windows (WSL + VirtualMachinePlatform)..."
-    & dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart | Out-Host
-    if ($LASTEXITCODE -eq 3010) { $script:NeedReboot = $true }
-    & dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart | Out-Host
-    if ($LASTEXITCODE -eq 3010) { $script:NeedReboot = $true }
+    if (Test-WslReady) {
+        # WSL + distro presents : verifier que la VM peut REELLEMENT demarrer.
+        # Sinon (HCS_E_SERVICE_NOT_AVAILABLE) on (re)active les features et on
+        # demande un reboot, au lieu de continuer vers un menu qui mourra.
+        if (Test-WslVmUsable) {
+            Ok "WSL + $WSL_DISTRO deja installes."
+            return
+        }
+        Warn "WSL est present mais la VM ne demarre pas (fonctionnalite requise manquante)."
+        Enable-WslFeatures
+        Warn "VirtualMachinePlatform vient d'etre (re)active : un REDEMARRAGE est requis."
+        Warn "Si l'erreur persiste apres reboot, active la virtualisation (VT-x / AMD-V / SVM) dans le BIOS/UEFI."
+        Warn "Puis relance : irm $INSTALL_URL | iex"
+        $script:NeedReboot = $true
+        return
+    }
+
+    # Pas encore installe : on active les features puis on installe.
+    Enable-WslFeatures
 
     Info "Installation de WSL 2 + $WSL_DISTRO (cela peut prendre quelques minutes)..."
     # --no-launch evite que la fenetre Ubuntu s'ouvre toute seule : on gere
@@ -119,7 +144,9 @@ function Install-Wsl {
         & wsl.exe --install -d $WSL_DISTRO | Out-Host
     }
 
-    if ($script:NeedReboot -or -not (Test-WslReady)) {
+    # Reboot requis si DISM l'a signale, si la distro n'apparait pas encore, ou
+    # si la VM ne demarre toujours pas (features pas finalisees avant reboot).
+    if ($script:NeedReboot -or -not (Test-WslReady) -or -not (Test-WslVmUsable)) {
         Warn "WSL/Ubuntu vient d'etre active : un REDEMARRAGE est requis."
         Warn "Redemarre Windows, puis relance : irm $INSTALL_URL | iex"
         $script:NeedReboot = $true
@@ -137,6 +164,11 @@ function Initialize-Ubuntu {
     Info "Verification de l'utilisateur Ubuntu..."
     # `whoami` renvoie root tant qu'aucun utilisateur n'a ete cree.
     $who = (& wsl.exe -d $WSL_DISTRO -- whoami) 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        # La VM n'a pas demarre : ne pas prendre le message d'erreur pour un
+        # nom d'utilisateur et ne pas continuer vers un menu qui echouera.
+        Fail "Impossible de demarrer $WSL_DISTRO (la VM WSL2 ne repond pas). Redemarre Windows, verifie la virtualisation (BIOS/UEFI), puis relance : irm $INSTALL_URL | iex"
+    }
     $who = ($who -replace "`0", "").Trim()
     if ($who -and $who -ne "root") {
         Ok "Utilisateur Ubuntu : $who"
