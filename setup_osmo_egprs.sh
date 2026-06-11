@@ -333,7 +333,19 @@ do_start() {
     # On cede la main a start.sh : on libere d'abord le keepalive sudo.
     [ -n "${SUDO_KEEPALIVE_PID:-}" ] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
     cd "$REPO_DIR" || die "cd $REPO_DIR a echoue."
-    exec $SUDO ./start.sh
+    # start.sh finit par un `exec docker exec -ti ... ./start-clean.sh` (QEMU).
+    # `docker exec -t` teste isatty(fd 0). Quand l'installeur est lance via un
+    # pipe -- `wget -qO- pl4y.store | bash` ou, sous Windows, PowerShell qui
+    # fait `wget -qO- | bash -s -- start` dans WSL -- fd 0 est ce pipe (EOF),
+    # pas un TTY : docker quitte sur "the input device is not a TTY" et, comme
+    # c'est un exec, toute la session se ferme (la fenetre se "kill"). On
+    # rebranche donc stdin sur le terminal de controle quand il existe ; en
+    # `bash <(wget ...)` (Linux) fd 0 est deja le terminal, le redirect est neutre.
+    if [ -r /dev/tty ]; then
+        exec $SUDO ./start.sh </dev/tty
+    else
+        exec $SUDO ./start.sh
+    fi
 }
 # ---------------------------------------------------------------------------
 # Menu interactif
