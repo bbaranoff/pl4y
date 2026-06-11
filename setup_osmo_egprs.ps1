@@ -99,7 +99,11 @@ function Enable-WslFeatures {
 # Echoue avec HCS_E_SERVICE_NOT_AVAILABLE si VirtualMachinePlatform n'est pas
 # active/finalisee ou si la virtualisation est desactivee dans le BIOS/UEFI.
 function Test-WslVmUsable {
-    & wsl.exe -d $WSL_DISTRO -- true 2>&1 | Out-Null
+    # IMPORTANT : `2>$null` et PAS `2>&1`. Sous Windows PowerShell 5.1 avec
+    # $ErrorActionPreference='Stop', fusionner le stderr d'un .exe dans le flux
+    # succes (2>&1) leve un NativeCommandError FATAL des que wsl.exe ecrit une
+    # ligne d'erreur -> la fenetre se fermerait. On jette donc stderr.
+    & wsl.exe -d $WSL_DISTRO -- true 2>$null | Out-Null
     return ($LASTEXITCODE -eq 0)
 }
 
