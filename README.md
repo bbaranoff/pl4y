@@ -24,6 +24,18 @@ La détection se fait sur l'en-tête `Accept` et le `User-Agent` (PowerShell est
 reconnu via `WindowsPowerShell`/`PowerShell` dans l'UA). Par défaut on sert le
 script bash : un client exotique qui pipe ne casse jamais.
 
+## Pages
+
+- **`/`** — page d'accueil (installeur + source des scripts).
+- **`/wiki`** — wiki technique complet **QEMU Calypso / osmo_egprs / EGPRS**
+  (architecture multi-PLMN, pile Osmocom, émulation baseband Calypso, plan SS7,
+  GPRS/EGPRS, VTY, débogage, références). Lié depuis l'accueil et le pied de page.
+
+Les deux pages proposent un **bascule de thème clair / sombre** (bouton en haut
+à droite) : le défaut suit `prefers-color-scheme` et le choix est mémorisé dans
+`localStorage` (clé `pl4y-theme`), appliqué avant le premier rendu pour éviter
+tout flash.
+
 ## Source de vérité
 
 Les fichiers à éditer sont **`setup_osmo_egprs.sh`** (Linux) et

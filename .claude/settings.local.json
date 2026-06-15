@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(node build.mjs)",
+      "Bash(node -e \"import\\('./src/worker.js'\\).then\\(m=>{const r=m.default; ['/wiki','/'].forEach\\(async p=>{const res=await r.fetch\\(new Request\\('https://pl4y.store'+p,{headers:{accept:'text/html'}}\\)\\);console.log\\(p, res.status, res.headers.get\\('content-type'\\), \\(await res.text\\(\\)\\).length\\)}\\)}\\)\")",
+      "Bash(command -v nodejs node npm)",
+      "Read(//usr/bin/**)",
+      "Read(//root/.nvm/versions/**)",
+      "Read(//usr/local/bin/**)",
+      "Bash(grep -n '`' worker.template.js)",
+      "Bash(grep -n '\\\\${' worker.template.js)"
+    ]
+  }
+}
