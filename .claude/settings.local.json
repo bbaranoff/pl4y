@@ -9,7 +9,8 @@
       "Read(//root/.nvm/versions/**)",
       "Read(//usr/local/bin/**)",
       "Bash(grep -n '`' worker.template.js)",
-      "Bash(grep -n '\\\\${' worker.template.js)"
+      "Bash(grep -n '\\\\${' worker.template.js)",
+      "Bash(python3 *)"
     ]
   }
 }

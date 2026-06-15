@@ -139,8 +139,7 @@ function renderHTML(script, psScript) {
 <script>
   (function () {
     try {
-      var t = localStorage.getItem("pl4y-theme");
-      if (!t) t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      var t = localStorage.getItem("pl4y-theme") || "dark";
       document.documentElement.setAttribute("data-theme", t);
     } catch (e) {}
   })();
@@ -368,8 +367,7 @@ function renderWiki() {
 <script>
   (function () {
     try {
-      var t = localStorage.getItem("pl4y-theme");
-      if (!t) t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      var t = localStorage.getItem("pl4y-theme") || "dark";
       document.documentElement.setAttribute("data-theme", t);
     } catch (e) {}
   })();
