@@ -24,13 +24,19 @@ La détection se fait sur l'en-tête `Accept` et le `User-Agent` (PowerShell est
 reconnu via `WindowsPowerShell`/`PowerShell` dans l'UA). Par défaut on sert le
 script bash : un client exotique qui pipe ne casse jamais.
 
-## Pages
+## Page unique (accueil + wiki fusionnés)
 
-- **`/`** — page d'accueil (installeur + source des scripts).
-- **`/wiki`** — wiki technique complet **QEMU Calypso / osmo_egprs / EGPRS**
-  (téléchargements ISO/MEGA, installation VirtualBox, architecture multi-PLMN,
-  pile Osmocom, émulation baseband Calypso, plan SS7, GPRS/EGPRS, VTY, débogage,
-  bugs observés, références). Lié depuis l'accueil et le pied de page.
+Une **seule page** regroupe l'accueil (installeur + source des scripts) **et**
+tout le wiki technique **QEMU Calypso / osmo_egprs / EGPRS** (téléchargements
+ISO/MEGA, GIFs d'install, installation VirtualBox, architecture multi-PLMN, pile
+Osmocom, émulation baseband Calypso, plan SS7, GPRS/EGPRS, VTY, débogage, bugs
+observés, références). Les routes **`/` et `/wiki` renvoient cette même page** ;
+le sommaire pointe vers des ancres (`#wiki`, `#virtualbox`, `#bugs`, …). En CLI
+(`curl`/`wget`/PowerShell), `/` renvoie toujours le script brut.
+
+Les GIFs du screencast d'install sont servis par le Worker sur
+`/m/iso.gif`, `/m/launch.gif`, `/m/console.gif` (cache 24 h) et affichés
+dans les étapes VirtualBox du wiki.
 
 Les deux pages proposent un **bascule de thème clair / sombre** (bouton en haut
 à droite) : le défaut suit `prefers-color-scheme` et le choix est mémorisé dans
@@ -45,8 +51,9 @@ il met en place WSL + Ubuntu puis re-télécharge et exécute le `.sh`, qui rest
 la source de vérité de l'installation réelle.
 
 Le Worker (`worker.template.js`) contient des placeholders `__SCRIPT_B64__`
-(bash), `__PS_SCRIPT_B64__` (PowerShell), `__MOTO_JPG_B64__` (photo C123) et
-`__DEMO_JPG_B64__` (capture du système en fonction). À chaque build, `build.mjs`
+(bash), `__PS_SCRIPT_B64__` (PowerShell), `__MOTO_JPG_B64__` (photo C123),
+`__DEMO_JPG_B64__` (capture du système en fonction) et `__ISO_GIF_B64__` /
+`__LAUNCH_GIF_B64__` / `__CONSOLE_GIF_B64__` (GIFs d'install). À chaque build, `build.mjs`
 encode les scripts et images en base64 et génère `src/worker.js`. Ce build est
 lancé automatiquement par `wrangler deploy` grâce à la section `[build]` de
 `wrangler.toml` — donc en local, en CI et sur Cloudflare, le contenu servi est
