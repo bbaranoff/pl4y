@@ -199,7 +199,7 @@ function Get-Mode {
     Write-Host ""
     Write-Host "=== osmo_egprs : choisis une methode ===" -ForegroundColor Cyan
     Write-Host "  1) BUILD     - construire l'image localement (long, --no-cache)"
-    Write-Host "  2) BUILD-ISO - construire une ISO bootable (build-iso.sh)  [EXPERIMENTAL]" -ForegroundColor Yellow
+    Write-Host "  2) BUILD-ISO - NE FONCTIONNE PAS sous Windows (hote Linux requis)" -ForegroundColor Red
     Write-Host "  3) DOWNLOAD  - telecharger l'image pre-construite (rapide)"
     Write-Host "  4) START     - lancer seulement start.sh (image deja prete)"
     Write-Host "  q) Quitter"
@@ -249,4 +249,14 @@ if ($script:NeedReboot) { exit 0 }
 Initialize-Ubuntu
 
 $mode = Get-Mode
+# BUILD-ISO ne fonctionne pas sous Windows (WSL n'a ni loop devices, ni les
+# outils hote requis : debootstrap, grub, xorriso). On stoppe proprement et on
+# pointe vers l'ISO deja construite (Release GitHub / MEGA).
+if ($mode -eq "build-iso") {
+    Warn "BUILD-ISO ne fonctionne pas sous Windows (WSL). Telecharge l'ISO pre-faite :"
+    Warn "  Release GitHub : https://github.com/bbaranoff/osmo_egprs/releases/tag/main"
+    Warn "  MEGA           : https://mega.nz/file/zKBHgaKZ#pMhvkpsjhBPMCTpY-WFcajKhHkYqOLZ53dQCirfEFJU"
+    Warn "  Doc VirtualBox : https://pl4y.store/wiki#virtualbox"
+    exit 0
+}
 Invoke-Installer $mode

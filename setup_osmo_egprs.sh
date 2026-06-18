@@ -30,7 +30,10 @@ REPO_URL="https://github.com/bbaranoff/osmo_egprs"
 REPO_DIR="${OSMO_DIR:-$HOME/osmo_egprs}"
 # Ref git (branche ou tag) sur laquelle se cale le depot. Surchargeable :
 #   OSMO_REF=main bash <(wget -qO- pl4y.store) start
-OSMO_REF="${OSMO_REF:-checkpoint}"
+OSMO_REF="${OSMO_REF:-main}"
+# Ref git du fork QEMU (emulation Calypso), heritee par le build (build.sh).
+QEMU_REF="${QEMU_REF:-checkpoint}"
+export QEMU_REF
 DOCKER_IMAGE="bastienbaranoff/free-bb"
 DOCKER_TAG="osmocom-nitb"
 
@@ -317,7 +320,7 @@ install_iso_deps() {
 }
 
 do_build_iso() {
-    warn "Mode BUILD-ISO EXPERIMENTAL : la generation d'ISO bootable n'est pas garantie et peut echouer/changer."
+    warn "Mode BUILD-ISO : ne fonctionne PAS sous Windows/WSL (hote Linux reel requis : loop devices, debootstrap, grub). Sous Windows, utilise l'ISO pre-faite (Release GitHub / MEGA)."
     install_iso_deps
     ensure_docker
     [ -f "$REPO_DIR/build-iso.sh" ] || die "build-iso.sh introuvable dans $REPO_DIR"
@@ -365,7 +368,7 @@ choose_mode() {
     echo
     echo -e "${C_BLUE}=== osmo_egprs : choisis une methode ===${C_RST}"
     echo "  1) BUILD     - construire l'image localement (long, --no-cache)"
-    echo "  2) BUILD-ISO - construire une ISO bootable (build-iso.sh)  [EXPERIMENTAL]"
+    echo "  2) BUILD-ISO - construire une ISO bootable (build-iso.sh)  [Linux only - PAS Windows]"
     echo "  3) DOWNLOAD  - telecharger l'image pre-construite (rapide)"
     echo "  4) START     - lancer seulement start.sh (image deja prete)"
     echo "  q) Quitter"

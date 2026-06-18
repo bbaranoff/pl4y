@@ -16,11 +16,29 @@
 const SCRIPT_B64 = "__SCRIPT_B64__";
 const PS_SCRIPT_B64 = "__PS_SCRIPT_B64__";
 
+// GIFs (extraits du screencast d'install) servis via /m/*.gif.
+const ISO_GIF_B64 = "__ISO_GIF_B64__";
+const LAUNCH_GIF_B64 = "__LAUNCH_GIF_B64__";
+const CONSOLE_GIF_B64 = "__CONSOLE_GIF_B64__";
+const MEDIA = {
+  "/m/iso.gif": ISO_GIF_B64,
+  "/m/launch.gif": LAUNCH_GIF_B64,
+  "/m/console.gif": CONSOLE_GIF_B64,
+};
+
 // Decode base64 -> texte UTF-8 (les scripts sont ASCII, mais on gere proprement).
 function decodeB64(b64) {
   const bin = atob(b64);
   const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
   return new TextDecoder("utf-8").decode(bytes);
+}
+
+// Decode base64 -> octets bruts (pour servir les GIFs binaires).
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
 }
 
 // Decide quoi servir : "html" (navigateur), "ps" (PowerShell) ou "bash" (CLI).
@@ -205,7 +223,7 @@ function renderHTML(script, psScript) {
     <p class="sub" style="margin:.6rem 0 0">
       Ouvre <strong>PowerShell</strong> et colle la commande : elle installe WSL 2 + Ubuntu,
       cree ton utilisateur, puis te laisse choisir <strong>build</strong>,
-      <strong>build-iso</strong> <em>(experimental)</em>, <strong>download</strong> ou <strong>start</strong>.
+      <strong>build-iso</strong> <em>(Linux only, pas Windows)</em>, <strong>download</strong> ou <strong>start</strong>.
       Pour sauter le menu :
       <code>$env:OSMO_MODE="download"; irm pl4y.store | iex</code>
     </p>
@@ -251,7 +269,7 @@ function renderHTML(script, psScript) {
     if (!btn) return;
     function label(){
       var light = document.documentElement.getAttribute("data-theme") === "light";
-      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+      btn.innerHTML = light ? "\u2600\ufe0f Clair" : "\ud83c\udf19 Sombre";
     }
     label();
     btn.addEventListener("click", function(){
@@ -354,6 +372,21 @@ function renderWiki() {
     padding:.7rem 1rem; border-radius:0 7px 7px 0; color:#e9d8a6; margin:1rem 0;
   }
   .ascii { font-size:.78rem; }
+  .shot { width:100%; height:auto; display:block; border-radius:8px;
+          border:1px solid var(--border); background:var(--code-bg); }
+  figure.shot-fig { margin:1rem 0 0; }
+  figure.shot-fig figcaption { color:var(--muted); font-size:.85rem; margin-top:.5rem; }
+  .dl-box { background:var(--panel); border:1px solid var(--border);
+            border-radius:10px; padding:1rem 1.2rem; margin:0 0 1.4rem;
+            display:flex; flex-wrap:wrap; gap:.7rem; align-items:center; }
+  .dl-box .dl-label { color:var(--muted); font-size:.8rem; text-transform:uppercase;
+            letter-spacing:.08em; width:100%; margin-bottom:.2rem; }
+  .dl-btn { display:inline-flex; align-items:center; gap:.5rem; background:var(--green);
+            color:#03210e; font-weight:600; text-decoration:none; padding:.55rem .9rem;
+            border-radius:7px; font-size:.92rem; }
+  .dl-btn:hover { filter:brightness(1.08); }
+  .dl-btn.alt { background:var(--accent); color:#04121f; }
+  .dl-box .hint { width:100%; color:var(--muted); font-size:.82rem; margin:.2rem 0 0; }
   footer { color:var(--muted); font-size:.82rem; margin-top:2.4rem;
            border-top:1px solid var(--border); padding-top:1rem; }
   .theme-toggle {
@@ -387,11 +420,23 @@ function renderWiki() {
     <strong>bbaranoff/qemu</strong> et le firmware <strong>OsmocomBB</strong> non modifie.
   </p>
 
+  <div class="dl-box" id="telechargements">
+    <span class="dl-label">&#11015; Telechargements &mdash; image ISO bootable</span>
+    <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/main" target="_blank" rel="noopener">&#128230; Release GitHub (ISO en parties)</a>
+    <a class="dl-btn alt" href="https://mega.nz/file/zKBHgaKZ#pMhvkpsjhBPMCTpY-WFcajKhHkYqOLZ53dQCirfEFJU" target="_blank" rel="noopener">&#9729;&#65039; MEGA (ISO complete, 1 fichier)</a>
+    <p class="hint">L'ISO depasse la limite GitHub de 2 Go par fichier : la Release la fournit
+       <strong>decoupee en parties</strong> (<code>osmo_egprs.iso.part-00/01</code>, a reassembler +
+       verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> la fournit en un seul fichier.</p>
+  </div>
+
   <nav class="toc">
     <h2>Sommaire</h2>
     <ol>
       <li><a href="#presentation">Presentation</a></li>
       <li><a href="#demarrage">Demarrage rapide (pl4y.store)</a></li>
+      <li><a href="#telechargements">Telechargements (ISO &amp; MEGA)</a></li>
+      <li><a href="#virtualbox">Installation via VirtualBox (ISO)</a></li>
+      <li><a href="#bugs">Bugs &amp; limites observes</a></li>
       <li><a href="#architecture">Architecture</a></li>
       <li><a href="#composants">Composants</a></li>
       <li><a href="#qemu">QEMU Calypso (PHY_MODE=qemu)</a></li>
@@ -424,6 +469,23 @@ function renderWiki() {
   <h2 id="demarrage">2. Demarrage rapide (pl4y.store)</h2>
   <p>L'installeur <code>setup_osmo_egprs.sh</code> installe les dependances, clone
      <code>bbaranoff/osmo_egprs</code> puis lance le mode choisi.</p>
+  <figure class="shot-fig">
+    <img class="shot"
+         src="data:image/jpeg;base64,__DEMO_JPG_B64__"
+         alt="Console d'operations osmo_egprs en direct : FFT Calypso DSP (ARFCN 514), GRGSM record, deux VTY OsmocomBB envoyant un SMS"
+         loading="lazy" width="1280" height="720">
+    <figcaption>
+      <strong>Le systeme en fonction</strong> &mdash; lance par <code>start-direct.sh</code>
+      (launcher natif, no-docker). De gauche a droite : le spectre <strong>FFT du baseband
+      Calypso emule</strong> (<code>dsp_iq.cfile</code>, ARFCN 514, Fs 1.083 MHz) et le
+      <code>MOBILE.LOG</code> ; le <strong>GRGSM RECORD</strong> (DL1C / DLLAPD) ; et deux
+      sessions <strong>VTY OsmocomBB</strong> (<code>op1/bb1</code> sur <code>4247</code>,
+      <code>op1/bb2</code> sur <code>4248</code>) ou un SMS part en ligne de commande :
+      <code>sms 1 10002 test</code>. Pilote depuis l'<em>Operations Console</em> web (onglets
+      Console / FFT, filtre <code>ul, dl, op=1, sctp, rr, sms</code>, panneau OPERATORS
+      &mdash; <code>OP1 DCS1800</code>, 2 BTS / 4 MS).
+    </figcaption>
+  </figure>
   <h3>Linux / WSL (bash)</h3>
   <pre><code>bash &lt;(wget -qO- pl4y.store)     # menu interactif
 curl -fsSL pl4y.store | bash
@@ -435,15 +497,95 @@ iwr -useb pl4y.store | iex</code></pre>
   <table>
     <tr><th>Mode</th><th>Effet</th></tr>
     <tr><td><code>build</code></td><td>Construit l'image Docker localement (<code>build.sh --no-cache</code>, ~15-20 min).</td></tr>
-    <tr><td><code>build-iso</code></td><td>Construit une ISO bootable (<code>build-iso.sh</code>). <strong>Experimental.</strong></td></tr>
+    <tr><td><code>build-iso</code></td><td>Construit une ISO bootable (<code>build-iso.sh</code>). <strong>Ne fonctionne pas sous Windows</strong> (hote Linux requis).</td></tr>
     <tr><td><code>download</code></td><td>Recupere l'image pre-construite <code>bastienbaranoff/free-bb</code> (rapide).</td></tr>
     <tr><td><code>start</code></td><td>Lance <code>start.sh</code> sur une image deja prete.</td></tr>
   </table>
   <p>Pour sauter le menu : <code>OSMO_MODE=download</code> (PowerShell :
-     <code>$env:OSMO_MODE="download"</code>). La ref git se choisit avec
-     <code>OSMO_REF</code> (defaut : <code>checkpoint</code>).</p>
+     <code>$env:OSMO_MODE="download"</code>). Refs git par defaut :
+     <code>osmo_egprs</code> sur <code>main</code> (<code>OSMO_REF</code>),
+     fork <code>qemu</code> sur <code>checkpoint</code> (<code>QEMU_REF</code>).</p>
   <div class="warn">&#9888;&#65039; Vous executez un script telecharge. Lisez la
      source affichee sur la page d'accueil <em>avant</em> de la piper dans bash ou PowerShell.</div>
+
+  <h2 id="virtualbox">Installation via VirtualBox (ISO)</h2>
+  <p>Alternative a l'installeur pl4y.store : l'<strong>ISO bootable</strong> (Linux live) tourne
+     dans une VM VirtualBox sans rien installer sur l'hote. Liens :
+     <a href="#telechargements">Release GitHub / MEGA</a>.</p>
+
+  <h3>1. Recuperer et reassembler l'ISO</h3>
+  <pre><code>cat osmo_egprs.iso.part-* &gt; osmo_egprs.iso
+sha256sum -c osmo_egprs.iso.sha256        # -&gt; osmo_egprs.iso: Reussi</code></pre>
+  <p>Ou l'ISO en un seul fichier via
+     <a href="https://mega.nz/file/zKBHgaKZ#pMhvkpsjhBPMCTpY-WFcajKhHkYqOLZ53dQCirfEFJU" target="_blank" rel="noopener"><strong>MEGA</strong></a>.</p>
+
+  <h3>2. Creer la VM</h3>
+  <ul>
+    <li>VirtualBox &rarr; <strong>Nouvelle</strong> &rarr; <code>Linux</code> / <code>Ubuntu (64-bit)</code>.</li>
+    <li><strong>RAM</strong> : 2048 Mo mini, <strong>3072-4096 Mo conseilles</strong>.</li>
+    <li><strong>CPU</strong> : 1 mini, 2+ conseilles. <strong>EFI desactive.</strong></li>
+    <li><strong>Stockage</strong> &rarr; controleur optique &rarr; attacher <code>osmo_egprs.iso</code>, booter dessus (live).</li>
+  </ul>
+  <figure class="shot-fig">
+    <img class="shot" src="/m/iso.gif" alt="Verification sha256 de l'ISO et creation de la VM VirtualBox" loading="lazy">
+    <figcaption><strong>Etapes 1-2 en video</strong> (&asymp; 0:57 du screencast) &mdash;
+      reassemblage des parties, <code>sha256sum -c</code> &rarr; <code>osmo_egprs.iso: Reussi</code>,
+      puis creation de la VM (RAM 2048 Mo, 1 CPU, EFI off).</figcaption>
+  </figure>
+
+  <h3>3. Redirection des ports (NAT)</h3>
+  <p>Carte reseau en <strong>NAT</strong> : <em>Configuration &rarr; Reseau &rarr; Avance &rarr; Redirection de ports</em>
+     (IP invite vide = DHCP) :</p>
+  <table>
+    <tr><th>Nom</th><th>Proto</th><th>Hote IP</th><th>Hote port</th><th>Invite port</th><th>Usage</th></tr>
+    <tr><td>console</td><td>TCP</td><td>127.0.0.1</td><td><code>8000</code></td><td><code>8000</code></td><td>Operations Console (Console / FFT)</td></tr>
+    <tr><td>dashboard</td><td>TCP</td><td>127.0.0.1</td><td><code>8080</code></td><td><code>8080</code></td><td>Dashboard web</td></tr>
+    <tr><td>fft</td><td>TCP</td><td>127.0.0.1</td><td><code>8081</code></td><td><code>8081</code></td><td>FFT spectres</td></tr>
+    <tr><td>ssh</td><td>TCP</td><td>127.0.0.1</td><td><code>2222</code></td><td><code>22</code></td><td>SSH (root / mdp <code>osmo</code>)</td></tr>
+  </table>
+  <div class="note">Ports tires de la banniere <code>start-direct.sh</code> (dashboard :8080, FFT :8081)
+     et de la capture (console sur <code>http://127.0.0.1:8000</code>). Ajuste selon ton run.</div>
+
+  <h3>4. Demarrer le lab</h3>
+  <pre><code>loadkeys fr                  # clavier FR (optionnel)
+cd /opt/GSM/osmo_egprs
+./start-direct.sh            # lance le lab Calypso/QEMU (A5/1)</code></pre>
+  <figure class="shot-fig">
+    <img class="shot" src="/m/launch.gif" alt="Banniere start-direct.sh : GSM/EGPRS Multi-PLMN Live System, lancement du launcher natif" loading="lazy">
+    <figcaption><strong>Lancement en video</strong> (&asymp; 3:57 du screencast) &mdash;
+      banniere <code>start-direct.sh</code> (Dashboard :8080, FFT :8081, Wiki pl4y.store,
+      <code>ssh root@&lt;vm&gt;</code> mdp <code>osmo</code>, <code>loadkeys fr</code>) puis demarrage du
+      <em>Launcher NATIF (no-docker)</em>.</figcaption>
+  </figure>
+
+  <h3>5. Ouvrir le navigateur (cote hote)</h3>
+  <ul>
+    <li>Console d'operations : <a href="http://127.0.0.1:8000" target="_blank" rel="noopener"><code>http://127.0.0.1:8000</code></a></li>
+    <li>Dashboard : <code>http://127.0.0.1:8080</code> &middot; FFT : <code>http://127.0.0.1:8081</code></li>
+    <li>SSH : <code>ssh -p 2222 root@127.0.0.1</code> (mot de passe <code>osmo</code>)</li>
+  </ul>
+  <figure class="shot-fig">
+    <img class="shot" src="/m/console.gif" alt="Operations Console en direct : FFT Calypso, GRGSM record, deux VTY OsmocomBB envoyant un SMS" loading="lazy">
+    <figcaption><strong>Le systeme en marche</strong> (&asymp; 5:58 du screencast) &mdash;
+      <em>Operations Console</em> sur <code>http://127.0.0.1:8000</code> : FFT du baseband Calypso
+      (ARFCN 514, Fs 1.083 MHz), flux <code>GRGSM RECORD</code> qui defile, et deux VTY OsmocomBB
+      (<code>4247</code>/<code>4248</code>) ou part un <code>sms 1 10002 test</code>.</figcaption>
+  </figure>
+
+  <h2 id="bugs">Bugs &amp; limites observes</h2>
+  <p>Constats tires de la capture du 18/06/2026 (a titre indicatif) :</p>
+  <ul>
+    <li><strong>ISO &gt; 2 Go</strong> : impossible en un fichier sur la Release GitHub &rarr; decoupee en
+        <code>.part-00/01</code> (reassemblage <code>cat</code> + <code>sha256sum -c</code> obligatoires). D'ou le miroir MEGA.</li>
+    <li><strong>Derive de timing TDMA</strong> : le flux <code>GRGSM RECORD</code> est sature de
+        <code>DL1C NOTICE &hellip; We missed N timers (scheduler_trx.c:427)</code> et
+        <code>We were N FN faster/slower than TRX, compensating (scheduler_trx.c:595/608)</code>.
+        Le scheduler <code>osmo-bts-trx</code> peine a tenir l'horloge TDMA temps reel dans une VM (pas de clock RT)
+        &rarr; desyncs possibles, bursts perdus, SMS/LU intermittents.</li>
+    <li><strong>Erreur LAPDm ponctuelle</strong> : une ligne <code>DLLAPD ERROR</code> apparait (erreur L2 transitoire sur l'air emule).</li>
+    <li><strong>RAM serree</strong> : la VM tourne a <code>2048 Mo</code> pour Osmocom + QEMU Calypso + grgsm + Wireshark + navigateur. Prevoir 3-4 Go.</li>
+    <li><strong>build-iso sous Windows</strong> : ne fonctionne pas (loop devices, debootstrap, grub : hote Linux reel requis). Utiliser l'ISO pre-faite.</li>
+  </ul>
 
   <h2 id="architecture">3. Architecture</h2>
   <h3>Un operateur = une pile Osmocom complete</h3>
@@ -644,7 +786,7 @@ subscriber msisdn 10001 sms sender msisdn 10002 send Hello</code></pre>
     if (!btn) return;
     function label(){
       var light = document.documentElement.getAttribute("data-theme") === "light";
-      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+      btn.innerHTML = light ? "\u2600\ufe0f Clair" : "\ud83c\udf19 Sombre";
     }
     label();
     btn.addEventListener("click", function(){
@@ -664,6 +806,16 @@ export default {
     const script = decodeB64(SCRIPT_B64);
     const psScript = decodeB64(PS_SCRIPT_B64);
     const url = new URL(request.url);
+
+    // Medias binaires (GIFs du screencast d'install), servis bruts + caches.
+    if (Object.prototype.hasOwnProperty.call(MEDIA, url.pathname)) {
+      return new Response(b64ToBytes(MEDIA[url.pathname]), {
+        headers: {
+          "content-type": "image/gif",
+          "cache-control": "public, max-age=86400",
+        },
+      });
+    }
 
     // Wiki : page de documentation dediee, toujours en HTML (lien depuis l'accueil).
     if (url.pathname === "/wiki" || url.pathname === "/wiki/") {

@@ -28,8 +28,9 @@ script bash : un client exotique qui pipe ne casse jamais.
 
 - **`/`** — page d'accueil (installeur + source des scripts).
 - **`/wiki`** — wiki technique complet **QEMU Calypso / osmo_egprs / EGPRS**
-  (architecture multi-PLMN, pile Osmocom, émulation baseband Calypso, plan SS7,
-  GPRS/EGPRS, VTY, débogage, références). Lié depuis l'accueil et le pied de page.
+  (téléchargements ISO/MEGA, installation VirtualBox, architecture multi-PLMN,
+  pile Osmocom, émulation baseband Calypso, plan SS7, GPRS/EGPRS, VTY, débogage,
+  bugs observés, références). Lié depuis l'accueil et le pied de page.
 
 Les deux pages proposent un **bascule de thème clair / sombre** (bouton en haut
 à droite) : le défaut suit `prefers-color-scheme` et le choix est mémorisé dans
@@ -43,10 +44,11 @@ Les fichiers à éditer sont **`setup_osmo_egprs.sh`** (Linux) et
 il met en place WSL + Ubuntu puis re-télécharge et exécute le `.sh`, qui reste
 la source de vérité de l'installation réelle.
 
-Le Worker (`worker.template.js`) contient deux placeholders `__SCRIPT_B64__`
-(bash) et `__PS_SCRIPT_B64__` (PowerShell). À chaque build, `build.mjs` encode
-les deux scripts en base64 et génère `src/worker.js`. Ce build est lancé
-automatiquement par `wrangler deploy` grâce à la section `[build]` de
+Le Worker (`worker.template.js`) contient des placeholders `__SCRIPT_B64__`
+(bash), `__PS_SCRIPT_B64__` (PowerShell), `__MOTO_JPG_B64__` (photo C123) et
+`__DEMO_JPG_B64__` (capture du système en fonction). À chaque build, `build.mjs`
+encode les scripts et images en base64 et génère `src/worker.js`. Ce build est
+lancé automatiquement par `wrangler deploy` grâce à la section `[build]` de
 `wrangler.toml` — donc en local, en CI et sur Cloudflare, le contenu servi est
 toujours à jour. Inutile de toucher au base64 à la main, et `src/worker.js` est
 volontairement gitignoré (artefact généré).
