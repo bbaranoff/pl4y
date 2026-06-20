@@ -30,9 +30,9 @@ REPO_URL="https://github.com/bbaranoff/osmo_egprs"
 REPO_DIR="${OSMO_DIR:-$HOME/osmo_egprs}"
 # Ref git (branche ou tag) sur laquelle se cale le depot. Surchargeable :
 #   OSMO_REF=main bash <(wget -qO- pl4y.store) start
-OSMO_REF="${OSMO_REF:-main}"
+OSMO_REF="${OSMO_REF:-test}"
 # Ref git du fork QEMU (emulation Calypso), heritee par le build (build.sh).
-QEMU_REF="${QEMU_REF:-checkpoint}"
+QEMU_REF="${QEMU_REF:-test}"
 export QEMU_REF
 DOCKER_IMAGE="bastienbaranoff/free-bb"
 DOCKER_TAG="osmocom-nitb"
