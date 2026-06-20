@@ -416,13 +416,11 @@ sha256sum -c osmo_egprs.iso.sha256        # -&gt; osmo_egprs.iso: Reussi</code><
      (IP invite vide = DHCP) :</p>
   <table>
     <tr><th>Nom</th><th>Proto</th><th>Hote IP</th><th>Hote port</th><th>Invite port</th><th>Usage</th></tr>
-    <tr><td>console</td><td>TCP</td><td>127.0.0.1</td><td><code>8000</code></td><td><code>8000</code></td><td>Operations Console (Console / FFT)</td></tr>
-    <tr><td>dashboard</td><td>TCP</td><td>127.0.0.1</td><td><code>8080</code></td><td><code>8080</code></td><td>Dashboard web</td></tr>
-    <tr><td>fft</td><td>TCP</td><td>127.0.0.1</td><td><code>8081</code></td><td><code>8081</code></td><td>FFT spectres</td></tr>
+    <tr><td>console</td><td>TCP</td><td>127.0.0.1</td><td><code>8000</code></td><td><code>8080</code></td><td>Operations Console (Console / FFT)</td></tr>
     <tr><td>ssh</td><td>TCP</td><td>127.0.0.1</td><td><code>2222</code></td><td><code>22</code></td><td>SSH (root / mdp <code>osmo</code>)</td></tr>
   </table>
-  <div class="note">Ports tires de la banniere <code>start-direct.sh</code> (dashboard :8080, FFT :8081)
-     et de la capture (console sur <code>http://127.0.0.1:8000</code>). Ajuste selon ton run.</div>
+  <div class="note">Tout passe par l'<em>Operations Console</em> : hote <code>:8000</code> &rarr; invite <code>:8080</code>
+     (console sur <code>http://127.0.0.1:8000</code>). Ajuste selon ton run.</div>
 
   <h3>4. Demarrer le lab</h3>
   <pre><code>loadkeys fr                  # clavier FR (optionnel)
@@ -438,8 +436,7 @@ cd /opt/GSM/osmo_egprs
 
   <h3>5. Ouvrir le navigateur (cote hote)</h3>
   <ul>
-    <li>Console d'operations : <a href="http://127.0.0.1:8000" target="_blank" rel="noopener"><code>http://127.0.0.1:8000</code></a></li>
-    <li>Dashboard : <code>http://127.0.0.1:8080</code> &middot; FFT : <code>http://127.0.0.1:8081</code></li>
+    <li>Console d'operations (Console / FFT) : <a href="http://127.0.0.1:8000" target="_blank" rel="noopener"><code>http://127.0.0.1:8000</code></a></li>
     <li>SSH : <code>ssh -p 2222 root@127.0.0.1</code> (mot de passe <code>osmo</code>)</li>
   </ul>
   <figure class="shot-fig">
