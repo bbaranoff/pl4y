@@ -299,6 +299,9 @@ function renderPage(script, psScript) {
     <span class="dl-label">&#11015; Telechargements &mdash; image ISO bootable</span>
     <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/main" target="_blank" rel="noopener">&#128230; Release GitHub (ISO en parties)</a>
     <a class="dl-btn alt" href="https://mega.nz/file/zKBHgaKZ#pMhvkpsjhBPMCTpY-WFcajKhHkYqOLZ53dQCirfEFJU" target="_blank" rel="noopener">&#9729;&#65039; MEGA (ISO complete, 1 fichier)</a>
+    <a class="dl-btn" href="http://127.0.0.1:8000/" target="_blank" rel="noopener">&#127760; Serveur local (http://127.0.0.1:8000/)</a>
+    <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/test" target="_blank" rel="noopener">&#128295; Release GitHub testing (ISO en parties)</a>
+    <a class="dl-btn alt" href="https://mega.nz/file/We5RyaAD#6altKUvrl9rHOSUjYBaV2dBRTeBrLiSS3WJWGxAoLtU" target="_blank" rel="noopener">&#9729;&#65039; MEGA testing (ISO complete, 1 fichier)</a>
     <p class="hint">L'ISO depasse la limite GitHub de 2 Go par fichier : la Release la fournit
        <strong>decoupee en parties</strong> (<code>osmo_egprs.iso.part-00/01</code>, a reassembler +
        verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> la fournit en un seul fichier.</p>
