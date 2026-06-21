@@ -243,27 +243,13 @@ function Invoke-Installer($mode) {
     # La substitution de processus `<(...)` donne au script fd 0 = le terminal
     # (pty WSL), exactement comme en natif. `-lc` = login + NON interactif :
     # meme environnement que le terminal Linux, sans contention de tty.
+    # On lance WSL EN LIGNE dans la console courante (PAS de Start-Process : pas de
+    # fenetre Ubuntu separee). Les TUI whiptail et sudo de start.sh heritent du pty
+    # de cette console -> navigation fluide, comme `bash <(wget ...)` natif.
     $bash = "bash <(wget -qO- '$INSTALL_URL') $mode"
-
-    # POURQUOI une fenetre console DEDIEE (Start-Process SANS -NoNewWindow) et
-    # pas un `& wsl.exe ...` inline dans la console courante :
-    #   start.sh finit par des TUI whiptail (menu quick/normal du conteneur QEMU)
-    #   et l'installeur appelle `sudo` : tous deux LISENT les touches sur un pty
-    #   reel. Or une console HERITEE — d'une elevation `Start-Process -Verb RunAs`
-    #   ou d'un hote sans vraie console (PowerShell ISE, terminal VS Code) — n'a
-    #   pas toujours de pty exploitable : whiptail s'affiche puis se fige ("figé")
-    #   et sudo attend une saisie invisible. Une fenetre console NEUVE a, elle,
-    #   toujours un pty propre -> meme comportement que `bash <(wget ...)` natif.
-    #   C'est exactement le pattern deja fiable de Initialize-Ubuntu.
-    # -Wait + -PassThru : on attend la fermeture de la fenetre du lab (start.sh
-    #   occupe le terminal avec QEMU) et on recupere le code de sortie. Le relais
-    #   dashboard tourne deja en tache de fond -> localhost reste joignable.
-    Ok "Le lab s'ouvre dans une fenetre Ubuntu dediee — suis-le la-bas (ferme-la pour revenir ici)."
-    $p = Start-Process -FilePath "wsl.exe" `
-        -ArgumentList @("-d", $WSL_DISTRO, "--", "bash", "-lc", $bash) `
-        -Wait -PassThru
-    if ($p.ExitCode -ne 0) {
-        Fail "L'installeur bash a echoue (code $($p.ExitCode)) dans $WSL_DISTRO."
+    & wsl.exe -d $WSL_DISTRO -- bash -lc $bash
+    if ($LASTEXITCODE -ne 0) {
+        Fail "L'installeur bash a echoue (code $LASTEXITCODE) dans $WSL_DISTRO."
     }
     Ok "Termine."
 }
