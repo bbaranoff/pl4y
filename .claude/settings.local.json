@@ -13,7 +13,16 @@
       "Bash(python3 *)",
       "Bash(cd *)",
       "Bash(bash -n setup_osmo_egprs.sh)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(grep -n \"^echo -e \\\\\"\\\\${GREEN}\\\\[[0-9]/5\\\\]\\\\|firewall-wan\\\\|SMS_RELAY\\\\|setup-wan-sms\\\\|N_OPS=\\\\|REMOTE_IP=\\\\|LOCAL_IP=\\\\|WAN_PREFIX=\" setup-wan-interop.sh)",
+      "Bash(bash -n setup-wan-interop.sh)",
+      "Bash(bash -n firewall-wan.sh)",
+      "Bash(git -C /root/osmo_egprs status --short)",
+      "Read(//home/nirvana/osmo_egprs/**)",
+      "Bash(git -C /home/nirvana/osmo_egprs rev-parse --is-inside-work-tree)",
+      "Bash(git -C /home/nirvana/osmo_egprs status --short)",
+      "Bash(git -C /root/osmo_egprs remote -v)",
+      "Bash(git -C /home/nirvana/osmo_egprs remote -v)"
     ]
   }
 }

@@ -227,10 +227,18 @@ function Get-Mode {
 # ---------------------------------------------------------------------------
 function Invoke-Installer($mode) {
     Info "Lancement de l'installeur osmo_egprs dans $WSL_DISTRO (mode: $mode)..."
-    # `bash -s -- <mode>` : les arguments passent en parametres positionnels au
-    # script pipe. wget/bash tournent dans Ubuntu et ont acces au terminal.
-    $bash = "wget -qO- '$INSTALL_URL' | bash -s -- $mode"
-    & wsl.exe -d $WSL_DISTRO -- bash -lic $bash
+    # MIROIR EXACT de l'invocation Linux qui marche sans lag :
+    #     bash <(wget -qO- pl4y.store) <mode>
+    # La substitution de processus `<(...)` donne au script fd 0 = le terminal
+    # (pty WSL), exactement comme en natif. On EVITE volontairement l'ancienne
+    # forme `wget | bash -s -- <mode>` : elle donnait fd 0 = PIPE, forcant le
+    # script a se rabattre sur /dev/tty, et tournait sous `bash -lic` (shell
+    # INTERACTIF) qui se dispute le terminal. Ces deux points faisaient ramer la
+    # navigation (fleches) des menus whiptail de start.sh sous la console WSL.
+    # `-lc` = login + NON interactif : meme environnement que le terminal Linux,
+    # sans la contention de tty du mode interactif.
+    $bash = "bash <(wget -qO- '$INSTALL_URL') $mode"
+    & wsl.exe -d $WSL_DISTRO -- bash -lc $bash
     if ($LASTEXITCODE -ne 0) {
         Fail "L'installeur bash a echoue (code $LASTEXITCODE) dans $WSL_DISTRO."
     }
