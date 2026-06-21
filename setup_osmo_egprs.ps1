@@ -52,23 +52,54 @@ function Assert-Windows {
 }
 
 # ---------------------------------------------------------------------------
-# Elevation : si on n'est pas admin, on relance la meme commande
-# (irm $INSTALL_URL | iex) dans un PowerShell administrateur.
+# Test : la session courante est-elle administrateur ?
 # ---------------------------------------------------------------------------
-function Assert-Admin {
+function Test-Admin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($id)
-    if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        return
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# ---------------------------------------------------------------------------
+# Elevation robuste : si on n'est pas admin, on relance le meme one-liner
+# (irm $INSTALL_URL | iex) dans une fenetre PowerShell administrateur.
+#
+# Robustesse :
+#   - On transmet TOUT l'etat utile (mode, URL, distro, ports dashboard) a la
+#     fenetre elevee : elle se comporte exactement comme la session courante,
+#     sans reposer de question ni diverger.
+#   - L'invite UAC peut etre refusee/annulee : Start-Process -Verb RunAs leve
+#     alors une exception. On la capture et on donne une consigne claire au lieu
+#     d'une stacktrace PowerShell opaque.
+#   - La phase interactive (whiptail/sudo) NE tourne PAS dans cette fenetre
+#     elevee : Invoke-Installer ouvre une console dediee avec un pty propre
+#     (voir plus bas). C'est ce qui evite le gel "figé" observe quand on herite
+#     d'une console issue d'une elevation RunAs.
+# ---------------------------------------------------------------------------
+function Assert-Admin {
+    if (Test-Admin) { Ok "Privileges administrateur : OK."; return }
+
+    Warn "Droits administrateur requis (installation WSL / reseau / Docker)."
+    Info "Ouverture d'une fenetre PowerShell administrateur — accepte l'invite UAC..."
+
+    # Re-transmet l'etat de la session courante a la fenetre elevee.
+    $fwd = ""
+    foreach ($v in 'OSMO_MODE', 'OSMO_URL', 'OSMO_WSL_DISTRO', 'OSMO_DASH_PORT', 'OSMO_DASH_TARGET') {
+        $val = [Environment]::GetEnvironmentVariable($v)
+        if ($val) { $fwd += "`$env:$v='$val'; " }
     }
-    Warn "Droits administrateur requis pour installer WSL : relancement eleve..."
-    # On re-execute le one-liner dans une fenetre admin. On transmet le mode
-    # eventuel pour ne pas reposer la question dans la fenetre elevee.
-    $envMode = if ($env:OSMO_MODE) { "`$env:OSMO_MODE='$($env:OSMO_MODE)'; " } else { "" }
-    $cmd = "$envMode[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm '$INSTALL_URL' | iex"
+    $cmd = "$fwd[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm '$INSTALL_URL' | iex"
     $psArgs = @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd)
-    Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $psArgs
-    Info "Une fenetre PowerShell administrateur a ete ouverte. Suis l'installation la-bas."
+
+    try {
+        Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $psArgs | Out-Null
+    } catch {
+        Warn "Elevation impossible (invite UAC refusee ou annulee)."
+        Warn "Ouvre toi-meme un PowerShell Administrateur (clic droit > Executer en tant qu'administrateur), puis relance :"
+        Fail "    irm $INSTALL_URL | iex"
+    }
+    Ok "Fenetre administrateur ouverte : l'installation continue LA-BAS."
+    Info "Tu peux fermer CETTE fenetre."
     exit 0
 }
 
@@ -230,17 +261,29 @@ function Invoke-Installer($mode) {
     # MIROIR EXACT de l'invocation Linux qui marche sans lag :
     #     bash <(wget -qO- pl4y.store) <mode>
     # La substitution de processus `<(...)` donne au script fd 0 = le terminal
-    # (pty WSL), exactement comme en natif. On EVITE volontairement l'ancienne
-    # forme `wget | bash -s -- <mode>` : elle donnait fd 0 = PIPE, forcant le
-    # script a se rabattre sur /dev/tty, et tournait sous `bash -lic` (shell
-    # INTERACTIF) qui se dispute le terminal. Ces deux points faisaient ramer la
-    # navigation (fleches) des menus whiptail de start.sh sous la console WSL.
-    # `-lc` = login + NON interactif : meme environnement que le terminal Linux,
-    # sans la contention de tty du mode interactif.
+    # (pty WSL), exactement comme en natif. `-lc` = login + NON interactif :
+    # meme environnement que le terminal Linux, sans contention de tty.
     $bash = "bash <(wget -qO- '$INSTALL_URL') $mode"
-    & wsl.exe -d $WSL_DISTRO -- bash -lc $bash
-    if ($LASTEXITCODE -ne 0) {
-        Fail "L'installeur bash a echoue (code $LASTEXITCODE) dans $WSL_DISTRO."
+
+    # POURQUOI une fenetre console DEDIEE (Start-Process SANS -NoNewWindow) et
+    # pas un `& wsl.exe ...` inline dans la console courante :
+    #   start.sh finit par des TUI whiptail (menu quick/normal du conteneur QEMU)
+    #   et l'installeur appelle `sudo` : tous deux LISENT les touches sur un pty
+    #   reel. Or une console HERITEE — d'une elevation `Start-Process -Verb RunAs`
+    #   ou d'un hote sans vraie console (PowerShell ISE, terminal VS Code) — n'a
+    #   pas toujours de pty exploitable : whiptail s'affiche puis se fige ("figé")
+    #   et sudo attend une saisie invisible. Une fenetre console NEUVE a, elle,
+    #   toujours un pty propre -> meme comportement que `bash <(wget ...)` natif.
+    #   C'est exactement le pattern deja fiable de Initialize-Ubuntu.
+    # -Wait + -PassThru : on attend la fermeture de la fenetre du lab (start.sh
+    #   occupe le terminal avec QEMU) et on recupere le code de sortie. Le relais
+    #   dashboard tourne deja en tache de fond -> localhost reste joignable.
+    Ok "Le lab s'ouvre dans une fenetre Ubuntu dediee — suis-le la-bas (ferme-la pour revenir ici)."
+    $p = Start-Process -FilePath "wsl.exe" `
+        -ArgumentList @("-d", $WSL_DISTRO, "--", "bash", "-lc", $bash) `
+        -Wait -PassThru
+    if ($p.ExitCode -ne 0) {
+        Fail "L'installeur bash a echoue (code $($p.ExitCode)) dans $WSL_DISTRO."
     }
     Ok "Termine."
 }

@@ -22,7 +22,9 @@
       "Bash(git -C /home/nirvana/osmo_egprs rev-parse --is-inside-work-tree)",
       "Bash(git -C /home/nirvana/osmo_egprs status --short)",
       "Bash(git -C /root/osmo_egprs remote -v)",
-      "Bash(git -C /home/nirvana/osmo_egprs remote -v)"
+      "Bash(git -C /home/nirvana/osmo_egprs remote -v)",
+      "Bash(command -v pwsh)",
+      "Bash(pwsh -NoProfile -Command '$null=[System.Management.Automation.PSParser]::Tokenize\\(\\(Get-Content -Raw ./setup_osmo_egprs.ps1\\),[ref]$null\\); if\\($?\\){\"PS SYNTAX OK\"}')"
     ]
   }
 }
