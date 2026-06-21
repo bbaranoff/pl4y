@@ -25,6 +25,10 @@ $ErrorActionPreference = "Stop"
 $WSL_DISTRO = if ($env:OSMO_WSL_DISTRO) { $env:OSMO_WSL_DISTRO } else { "Ubuntu" }
 # URL d'ou Ubuntu va re-telecharger le script bash (source de verite unique).
 $INSTALL_URL = if ($env:OSMO_URL) { $env:OSMO_URL } else { "https://pl4y.store" }
+# Dashboard osmo-egprs-web : ecoute sur :8080 dans le conteneur osmo-operator-1
+# (= 172.20.0.11). On relaie ce service vers localhost:8080 cote Windows.
+$DASH_PORT   = if ($env:OSMO_DASH_PORT)   { $env:OSMO_DASH_PORT }   else { "8080" }
+$DASH_TARGET = if ($env:OSMO_DASH_TARGET) { $env:OSMO_DASH_TARGET } else { "172.20.0.11:8080" }
 
 # ---------------------------------------------------------------------------
 # Helpers d'affichage (couleurs facon installeur bash : [*], [+], [!], [x]).
@@ -234,6 +238,48 @@ function Invoke-Installer($mode) {
 }
 
 # ---------------------------------------------------------------------------
+# Relais TCP : localhost:8080 (Windows) -> 172.20.0.11:8080 (dashboard
+# osmo-egprs-web dans le conteneur osmo-operator-1).
+#
+# Pourquoi un relais socat DANS la VM plutot qu'un port-forward iptables/route ?
+#   - WSL2 relaie deja `localhost` host<->VM automatiquement ;
+#   - socat fait le dernier saut VM->conteneur ;
+#   - ce chemin part de l'OUTPUT de la VM (celui qui marche toujours, le meme
+#     que `wsl ping 172.20.0.11`), donc robuste et il survit aux reboots WSL,
+#     contrairement au forwarding qui dependait de la route + DOCKER-USER.
+#
+# Resultat : http://localhost:8080 depuis le navigateur Windows tombe sur le
+# dashboard. socat est lance detache (fenetre cachee) et tourne en tache de
+# fond ; il continue de tourner pendant que start.sh prend la main sur QEMU.
+# ---------------------------------------------------------------------------
+function Start-DashboardForward {
+    Info "Mise en place du relais dashboard (localhost:$DASH_PORT -> $DASH_TARGET)..."
+
+    # 1) socat present dans la VM ? Sinon on l'installe (idempotent).
+    & wsl.exe -d $WSL_DISTRO -u root -- bash -c "command -v socat >/dev/null 2>&1" 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Info "Installation de socat dans $WSL_DISTRO..."
+        & wsl.exe -d $WSL_DISTRO -u root -- bash -c "apt-get update -qq && apt-get install -y socat" 2>$null | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            Warn "Echec de l'installation de socat : dashboard joignable directement via http://$DASH_TARGET"
+            return
+        }
+    }
+
+    # 2) Tue un eventuel ancien relais sur ce port (evite 'Address already in
+    #    use' si on relance le script), puis lance socat en foreground dans une
+    #    fenetre WSL cachee. `fork` => socat reste a l'ecoute meme si le
+    #    conteneur n'est pas encore up : la connexion echoue tant que le stack
+    #    n'est pas demarre, puis passe des que start.sh a tout lance.
+    $relay = "pkill -f 'socat TCP-LISTEN:$DASH_PORT' 2>/dev/null; " +
+             "exec socat TCP-LISTEN:$DASH_PORT,fork,reuseaddr TCP:$DASH_TARGET"
+    Start-Process -FilePath "wsl.exe" `
+        -ArgumentList @("-d", $WSL_DISTRO, "-u", "root", "--", "bash", "-c", $relay) `
+        -WindowStyle Hidden
+    Ok "Dashboard sur http://localhost:$DASH_PORT (relais socat actif dans $WSL_DISTRO)."
+}
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 Write-Host ""
@@ -259,4 +305,8 @@ if ($mode -eq "build-iso") {
     Warn "  Doc VirtualBox : https://pl4y.store/wiki#virtualbox"
     exit 0
 }
+# On pose le relais dashboard AVANT de ceder la main a l'installeur : ce dernier
+# finit par `exec ./start.sh` (QEMU) qui bloque le terminal. socat tourne deja
+# en tache de fond et devient fonctionnel des que le stack est up.
+Start-DashboardForward
 Invoke-Installer $mode
