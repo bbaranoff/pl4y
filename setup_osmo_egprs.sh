@@ -31,6 +31,14 @@ REPO_DIR="${OSMO_DIR:-$HOME/osmo_egprs}"
 # Ref git (branche ou tag) sur laquelle se cale le depot. Surchargeable :
 #   OSMO_REF=main bash <(wget -qO- pl4y.store) start
 OSMO_REF="${OSMO_REF:-main}"
+# Mise a jour automatique du depot hote a chaque lancement :
+#   AUTO_UPDATE=1 (defaut) : si l'arbre est PROPRE, on aligne sur origin/$OSMO_REF
+#                            (vraie MAJ). Si l'arbre a des modifs locales, on NE
+#                            clobbe PAS : MAJ sautee (protege le travail en cours).
+#   FORCE_UPDATE=1         : reset --hard inconditionnel (ECRASE les modifs locales).
+#   AUTO_UPDATE=0          : ne touche pas au depot.
+AUTO_UPDATE="${AUTO_UPDATE:-1}"
+FORCE_UPDATE="${FORCE_UPDATE:-0}"
 # Ref git du fork QEMU (emulation Calypso), heritee par le build (build.sh).
 QEMU_REF="${QEMU_REF:-test}"
 export QEMU_REF
@@ -261,12 +269,28 @@ ensure_docker() {
 fetch_repo() {
     command -v git >/dev/null 2>&1 || die "git introuvable (relance sans --no-deps)."
     if [ -d "$REPO_DIR/.git" ]; then
-        info "Depot deja present ($REPO_DIR), bascule sur '$OSMO_REF'..."
-        git -C "$REPO_DIR" fetch origin || warn "git fetch a echoue, on continue."
-        git -C "$REPO_DIR" checkout "$OSMO_REF" || die "checkout '$OSMO_REF' impossible dans $REPO_DIR."
-        # Met a jour si '$OSMO_REF' est une branche ; benin si tag/detached.
-        git -C "$REPO_DIR" pull --ff-only origin "$OSMO_REF" 2>/dev/null \
-            || warn "Pas de fast-forward pour '$OSMO_REF', on garde l'etat local."
+        if [ "$AUTO_UPDATE" != "1" ]; then
+            info "Depot present ($REPO_DIR) — AUTO_UPDATE=0, pas de mise a jour."
+        else
+            info "Mise a jour auto du depot ($REPO_DIR -> origin/$OSMO_REF)..."
+            git -C "$REPO_DIR" fetch origin "$OSMO_REF" || warn "git fetch a echoue, on continue."
+            git -C "$REPO_DIR" checkout "$OSMO_REF" 2>/dev/null \
+                || warn "checkout '$OSMO_REF' impossible, on garde la branche courante."
+            if [ "$FORCE_UPDATE" = "1" ]; then
+                warn "FORCE_UPDATE=1 : reset --hard origin/$OSMO_REF (modifs locales ECRASEES)."
+                git -C "$REPO_DIR" reset --hard "origin/$OSMO_REF" \
+                    && ok "Depot force a jour (origin/$OSMO_REF)." \
+                    || warn "reset --hard a echoue, on garde l'etat local."
+            elif git -C "$REPO_DIR" diff --quiet && git -C "$REPO_DIR" diff --cached --quiet; then
+                # Arbre propre : on aligne reellement sur origin (vraie MAJ auto).
+                git -C "$REPO_DIR" reset --hard "origin/$OSMO_REF" \
+                    && ok "Depot a jour (origin/$OSMO_REF)." \
+                    || warn "MAJ a echoue, on garde l'etat local."
+            else
+                warn "Modifs locales detectees -> MAJ sautee (preserve le travail)."
+                warn "  Forcer la MAJ (ECRASE) : FORCE_UPDATE=1 bash <(wget -qO- pl4y.store) start"
+            fi
+        fi
     else
         info "Clonage de $REPO_URL ($OSMO_REF) -> $REPO_DIR ..."
         git clone --branch "$OSMO_REF" "$REPO_URL" "$REPO_DIR" \
