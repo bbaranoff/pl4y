@@ -263,6 +263,11 @@ ensure_docker() {
     fi
 }
 
+# chmod +x robuste : tente en tant qu'utilisateur, retombe sur sudo si le
+# fichier est root-owned (ex. apres un 'sudo ./start.sh' anterieur), jamais
+# fatal sous 'set -e'. Evite "chmod: Operation non permise" qui avortait l'install.
+ensure_exec() { chmod +x "$1" 2>/dev/null || $SUDO chmod +x "$1" 2>/dev/null || true; }
+
 # ---------------------------------------------------------------------------
 # 2. Recuperation du depot
 # ---------------------------------------------------------------------------
