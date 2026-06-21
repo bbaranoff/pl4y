@@ -82,6 +82,33 @@ die()   { err "$*"; exit 1; }
 trap 'err "Echec ligne $LINENO (commande : $BASH_COMMAND)"' ERR
 
 # ---------------------------------------------------------------------------
+# Terminal interactif : rebranchement global de stdin sur /dev/tty.
+#
+# `wget -qO- pl4y.store | bash` (ou `curl ... | bash`) donne a l'installeur un
+# stdin = PIPE, pas un terminal. Or tout run reussi finit, cote start.sh, par un
+# `exec docker exec -ti ... start-clean.sh` qui ouvre un menu whiptail DANS le
+# conteneur QEMU (choix quick/normal, etc.). whiptail dessine son ecran sur le
+# terminal mais LIT les touches sur fd 0 : si fd 0 est un pipe (EOF), le menu
+# s'affiche puis ne recoit jamais rien -> il "gele" (symptome observe).
+#
+# On rebranche donc fd 0 sur le terminal de controle UNE bonne fois, pour tout
+# le script (menu installeur + handoff start.sh + whiptail conteneur).
+#   - `bash <(wget ...)` : fd 0 est deja le terminal -> ce bloc est neutre.
+#   - pipe + /dev/tty dispo : on recupere un vrai terminal -> plus de freeze.
+#   - aucun terminal (cron/CI) : on ne touche a rien ; le freeze eventuel est
+#     traite plus loin (do_start) par un message clair au lieu d'un ecran fige.
+# ---------------------------------------------------------------------------
+if [ ! -t 0 ] && [ -r /dev/tty ]; then
+    exec </dev/tty
+fi
+# whiptail/newt a besoin d'un TERM exploitable, sinon il peut se figer ou mal
+# s'afficher. Sous un pipe TERM est normalement herite du shell appelant ; on
+# fournit un repli sain si jamais il est vide ou "dumb".
+case "${TERM:-}" in
+    ""|dumb) export TERM=xterm ;;
+esac
+
+# ---------------------------------------------------------------------------
 # Elevation de privileges : sudo par commande, pas de re-exec du script.
 # -> evite le bug /dev/fd/63 avec sudo bash <(wget ...)
 # ---------------------------------------------------------------------------
@@ -373,19 +400,25 @@ do_start() {
     # On cede la main a start.sh : on libere d'abord le keepalive sudo.
     [ -n "${SUDO_KEEPALIVE_PID:-}" ] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
     cd "$REPO_DIR" || die "cd $REPO_DIR a echoue."
-    # start.sh finit par un `exec docker exec -ti ... ./start-clean.sh` (QEMU).
-    # `docker exec -t` teste isatty(fd 0). Quand l'installeur est lance via un
-    # pipe -- `wget -qO- pl4y.store | bash` ou, sous Windows, PowerShell qui
-    # fait `wget -qO- | bash -s -- start` dans WSL -- fd 0 est ce pipe (EOF),
-    # pas un TTY : docker quitte sur "the input device is not a TTY" et, comme
-    # c'est un exec, toute la session se ferme (la fenetre se "kill"). On
-    # rebranche donc stdin sur le terminal de controle quand il existe ; en
-    # `bash <(wget ...)` (Linux) fd 0 est deja le terminal, le redirect est neutre.
-    if [ -r /dev/tty ]; then
-        exec $SUDO ./start.sh </dev/tty
-    else
-        exec $SUDO ./start.sh
+    # start.sh finit par un `exec docker exec -ti ... ./start-clean.sh` (QEMU),
+    # qui ouvre un menu whiptail (quick/normal) DANS le conteneur. `docker exec
+    # -t` ET whiptail testent isatty(fd 0). fd 0 a normalement deja ete rebranche
+    # sur /dev/tty en debut de script (voir le bloc en tete) ; si malgre tout ce
+    # n'est toujours PAS un terminal (aucun /dev/tty : cron, CI, certains pipes),
+    # on s'arrete avec un message clair AU LIEU de laisser whiptail se figer ou
+    # docker quitter sur "the input device is not a TTY" (qui kill la session).
+    if [ ! -t 0 ]; then
+        die "Pas de terminal interactif sur stdin (lance via un pipe sans /dev/tty).
+   Les menus whiptail (start.sh / conteneur QEMU) ne recevraient aucune touche
+   et resteraient figes. Relance avec un terminal reellement attache :
+
+       bash <(wget -qO- pl4y.store)${MODE:+ $MODE}
+
+   (la forme \`... | bash\` ne marche que si /dev/tty est accessible)."
     fi
+    # A ce stade fd 0 EST un terminal : start.sh et le whiptail du conteneur
+    # recevront bien les touches. `bash <(wget ...)` passe ici directement.
+    exec $SUDO ./start.sh
 }
 # ---------------------------------------------------------------------------
 # Menu interactif

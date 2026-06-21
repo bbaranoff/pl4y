@@ -10,7 +10,10 @@
       "Read(//usr/local/bin/**)",
       "Bash(grep -n '`' worker.template.js)",
       "Bash(grep -n '\\\\${' worker.template.js)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(cd *)",
+      "Bash(bash -n setup_osmo_egprs.sh)",
+      "Bash(node -e ' *)"
     ]
   }
 }
