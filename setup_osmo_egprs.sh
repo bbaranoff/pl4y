@@ -323,7 +323,7 @@ do_build() {
     ensure_docker
     [ -f "$REPO_DIR/build.sh" ] || die "build.sh introuvable dans $REPO_DIR"
     info "Construction locale de l'image (build.sh --no-cache)..."
-    ( cd "$REPO_DIR" && chmod +x build.sh && $SUDO ./build.sh --no-cache )
+    ( cd "$REPO_DIR" && ensure_exec build.sh && $SUDO ./build.sh --no-cache )
     ok "Build termine."
 }
 
@@ -354,7 +354,7 @@ do_build_iso() {
     ensure_docker
     [ -f "$REPO_DIR/build-iso.sh" ] || die "build-iso.sh introuvable dans $REPO_DIR"
     info "Construction de l'ISO (build-iso.sh)..."
-    ( cd "$REPO_DIR" && chmod +x build-iso.sh && $SUDO ./build-iso.sh )
+    ( cd "$REPO_DIR" && ensure_exec build-iso.sh && $SUDO ./build-iso.sh )
     ok "ISO construit."
 }
 
@@ -369,7 +369,7 @@ do_start() {
         warn "Image '$DOCKER_TAG' absente. Lance d'abord 'build' ou 'download'."
     fi
     info "Lancement (start.sh)..."
-    chmod +x "$REPO_DIR/start.sh"
+    ensure_exec "$REPO_DIR/start.sh"
     # On cede la main a start.sh : on libere d'abord le keepalive sudo.
     [ -n "${SUDO_KEEPALIVE_PID:-}" ] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
     cd "$REPO_DIR" || die "cd $REPO_DIR a echoue."
