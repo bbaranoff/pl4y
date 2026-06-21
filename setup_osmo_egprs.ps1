@@ -61,20 +61,13 @@ function Test-Admin {
 }
 
 # ---------------------------------------------------------------------------
-# Elevation robuste : si on n'est pas admin, on relance le meme one-liner
+# Elevation : si on n'est pas admin, on relance le meme one-liner
 # (irm $INSTALL_URL | iex) dans une fenetre PowerShell administrateur.
 #
-# Robustesse :
-#   - On transmet TOUT l'etat utile (mode, URL, distro, ports dashboard) a la
-#     fenetre elevee : elle se comporte exactement comme la session courante,
-#     sans reposer de question ni diverger.
-#   - L'invite UAC peut etre refusee/annulee : Start-Process -Verb RunAs leve
-#     alors une exception. On la capture et on donne une consigne claire au lieu
-#     d'une stacktrace PowerShell opaque.
-#   - La phase interactive (whiptail/sudo) NE tourne PAS dans cette fenetre
-#     elevee : Invoke-Installer ouvre une console dediee avec un pty propre
-#     (voir plus bas). C'est ce qui evite le gel "figé" observe quand on herite
-#     d'une console issue d'une elevation RunAs.
+#   - On transmet l'etat utile (mode, URL, distro, ports dashboard) a la fenetre
+#     elevee : elle se comporte comme la session courante, sans reposer de question.
+#   - L'invite UAC peut etre refusee/annulee : Start-Process -Verb RunAs leve alors
+#     une exception, qu'on capture pour donner une consigne claire.
 # ---------------------------------------------------------------------------
 function Assert-Admin {
     if (Test-Admin) { Ok "Privileges administrateur : OK."; return }
@@ -88,8 +81,15 @@ function Assert-Admin {
         $val = [Environment]::GetEnvironmentVariable($v)
         if ($val) { $fwd += "`$env:$v='$val'; " }
     }
-    $cmd = "$fwd[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm '$INSTALL_URL' | iex"
-    $psArgs = @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd)
+    $inner = "$fwd[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm '$INSTALL_URL' | iex"
+
+    # IMPORTANT : commande encodee en base64 (UTF-16LE) + -EncodedCommand au lieu
+    # de -Command. Le quoting de Start-Process -ArgumentList (Windows PowerShell
+    # 5.1) abime les caracteres speciaux du one-liner (`; :: [] | '` et les
+    # `$env:...='...'` reinjectes) : la fenetre admin recevait un -Command malforme
+    # et se FERMAIT aussitot. En base64 c'est un seul token sans espace : robuste.
+    $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
+    $psArgs = @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $enc)
 
     try {
         Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $psArgs | Out-Null
