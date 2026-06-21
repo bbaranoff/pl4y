@@ -61,36 +61,16 @@ function Test-Admin {
 }
 
 # ---------------------------------------------------------------------------
-# Elevation : si on n'est pas admin, on relance le meme one-liner
-# (irm $INSTALL_URL | iex) dans une fenetre PowerShell administrateur.
-#
-#   - On transmet l'etat utile (mode, URL, distro, ports dashboard) a la fenetre
-#     elevee : elle se comporte comme la session courante, sans reposer de question.
-#   - L'invite UAC peut etre refusee/annulee : Start-Process -Verb RunAs leve alors
-#     une exception, qu'on capture pour donner une consigne claire.
+# Elevation : si on n'est pas admin, on ouvre un PowerShell administrateur et on
+# y relance simplement `irm pl4y.store | iex`.
 # ---------------------------------------------------------------------------
 function Assert-Admin {
     if (Test-Admin) { Ok "Privileges administrateur : OK."; return }
 
     Warn "Droits administrateur requis (installation WSL / reseau / Docker)."
-    Info "Ouverture d'une fenetre PowerShell administrateur — accepte l'invite UAC..."
+    Info "Ouverture d'un PowerShell administrateur — accepte l'invite UAC..."
 
-    # Re-transmet l'etat de la session courante a la fenetre elevee.
-    $fwd = ""
-    foreach ($v in 'OSMO_MODE', 'OSMO_URL', 'OSMO_WSL_DISTRO', 'OSMO_DASH_PORT', 'OSMO_DASH_TARGET') {
-        $val = [Environment]::GetEnvironmentVariable($v)
-        if ($val) { $fwd += "`$env:$v='$val'; " }
-    }
-    $inner = "$fwd[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm '$INSTALL_URL' | iex"
-
-    # IMPORTANT : commande encodee en base64 (UTF-16LE) + -EncodedCommand au lieu
-    # de -Command. Le quoting de Start-Process -ArgumentList (Windows PowerShell
-    # 5.1) abime les caracteres speciaux du one-liner (`; :: [] | '` et les
-    # `$env:...='...'` reinjectes) : la fenetre admin recevait un -Command malforme
-    # et se FERMAIT aussitot. En base64 c'est un seul token sans espace : robuste.
-    $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
-    $psArgs = @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $enc)
-
+    $psArgs = @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm $INSTALL_URL | iex")
     try {
         Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $psArgs | Out-Null
     } catch {
@@ -98,7 +78,7 @@ function Assert-Admin {
         Warn "Ouvre toi-meme un PowerShell Administrateur (clic droit > Executer en tant qu'administrateur), puis relance :"
         Fail "    irm $INSTALL_URL | iex"
     }
-    Ok "Fenetre administrateur ouverte : l'installation continue LA-BAS."
+    Ok "PowerShell administrateur ouvert : l'installation continue LA-BAS."
     Info "Tu peux fermer CETTE fenetre."
     exit 0
 }
