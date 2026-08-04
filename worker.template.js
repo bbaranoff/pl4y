@@ -76,17 +76,17 @@ function renderPage(script, psScript) {
 <title>pl4y.store &mdash; installeur osmo_egprs + wiki</title>
 <style>
   :root {
-    --bg:#0d1117; --panel:#161b22; --border:#30363d;
-    --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff;
-    --green:#3fb950; --yellow:#d29922; --red:#f85149;
-    --code-bg:#010409; --code-fg:#c9d1d9; --btn-bg:#30363d; --btn-hover:#3d444d;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-  }
-  :root[data-theme="light"] {
     --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de;
     --fg:#1f2328; --muted:#59636e; --accent:#0969da;
     --green:#1a7f37; --yellow:#9a6700; --red:#cf222e;
     --code-bg:#f6f8fa; --code-fg:#1f2328; --btn-bg:#eaeef2; --btn-hover:#d0d7de;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  :root[data-theme="dark"] {
+    --bg:#0d1117; --panel:#161b22; --border:#30363d;
+    --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff;
+    --green:#3fb950; --yellow:#d29922; --red:#f85149;
+    --code-bg:#010409; --code-fg:#c9d1d9; --btn-bg:#30363d; --btn-hover:#3d444d;
   }
   * { box-sizing:border-box; }
   body {
@@ -194,7 +194,7 @@ function renderPage(script, psScript) {
 <script>
   (function () {
     try {
-      var t = localStorage.getItem("pl4y-theme") || "dark";
+      var t = localStorage.getItem("pl4y-theme") || "light";
       document.documentElement.setAttribute("data-theme", t);
     } catch (e) {}
   })();
@@ -302,9 +302,13 @@ function renderPage(script, psScript) {
     <a class="dl-btn" href="http://127.0.0.1:8000/" target="_blank" rel="noopener">&#127760; Serveur local (http://127.0.0.1:8000/)</a>
     <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/test" target="_blank" rel="noopener">&#128295; Release GitHub testing (ISO en parties)</a>
     <a class="dl-btn alt" href="https://mega.nz/file/We5RyaAD#6altKUvrl9rHOSUjYBaV2dBRTeBrLiSS3WJWGxAoLtU" target="_blank" rel="noopener">&#9729;&#65039; MEGA testing (ISO complete, 1 fichier)</a>
+    <a class="dl-btn alt" href="https://mega.nz/file/mHQ1RT6Y#hMumGlAZxvu16GYSXR6vPhWqsjYTrNo7K3s6pM41Ik8" target="_blank" rel="noopener">&#9729;&#65039; MEGA miroir 2 (ISO complete, 1 fichier)</a>
     <p class="hint">L'ISO depasse la limite GitHub de 2 Go par fichier : la Release la fournit
        <strong>decoupee en parties</strong> (<code>osmo_egprs.iso.part-00/01</code>, a reassembler +
-       verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> la fournit en un seul fichier.</p>
+       verifier <code>osmo_egprs.iso.sha256</code>). Les miroirs <strong>MEGA</strong> la fournissent en un seul fichier.</p>
+    <span class="dl-label">&#128218; Documentation en ligne (Posit Connect)</span>
+    <a class="dl-btn" href="https://bastienbaranoff-calypso-qmd.share.connect.posit.cloud/" target="_blank" rel="noopener">&#128196; Doc Calypso QMD</a>
+    <a class="dl-btn" href="https://bastienbaranoff-osmo-egprs.share.connect.posit.cloud/" target="_blank" rel="noopener">&#128196; Doc osmo_egprs</a>
   </div>
 
   <nav class="toc">
@@ -644,6 +648,8 @@ subscriber msisdn 10001 sms sender msisdn 10002 send Hello</code></pre>
     <li><a href="https://github.com/bbaranoff/osmo_egprs" target="_blank" rel="noopener">github.com/bbaranoff/osmo_egprs</a> &mdash; plateforme multi-PLMN (source de verite)</li>
     <li><a href="https://github.com/bbaranoff/qemu" target="_blank" rel="noopener">github.com/bbaranoff/qemu</a> &mdash; fork QEMU, emulation Calypso</li>
     <li><a href="https://github.com/bbaranoff/pl4y" target="_blank" rel="noopener">github.com/bbaranoff/pl4y</a> &mdash; ce Worker / installeur (pl4y.store)</li>
+    <li><a href="https://bastienbaranoff-calypso-qmd.share.connect.posit.cloud/" target="_blank" rel="noopener">Doc Calypso QMD</a> &mdash; documentation en ligne (Posit Connect Cloud)</li>
+    <li><a href="https://bastienbaranoff-osmo-egprs.share.connect.posit.cloud/" target="_blank" rel="noopener">Doc osmo_egprs</a> &mdash; documentation en ligne (Posit Connect Cloud)</li>
     <li><a href="https://osmocom.org" target="_blank" rel="noopener">osmocom.org</a> &mdash; projet Osmocom (OsmocomBB, osmo-bsc/msc/hlr/stp&hellip;)</li>
     <li><a href="https://osmocom.org/projects/baseband/wiki" target="_blank" rel="noopener">OsmocomBB wiki</a> &mdash; firmware baseband &amp; Motorola C123</li>
     <li><a href="https://www.qemu.org/" target="_blank" rel="noopener">qemu.org</a> &mdash; emulateur amont</li>
