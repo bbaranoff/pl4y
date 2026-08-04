@@ -39,7 +39,7 @@ Les GIFs du screencast d'install sont servis par le Worker sur
 dans les étapes VirtualBox du wiki.
 
 Les deux pages proposent un **bascule de thème clair / sombre** (bouton en haut
-à droite) : le défaut suit `prefers-color-scheme` et le choix est mémorisé dans
+à droite) : le **thème clair est le défaut** et le choix est mémorisé dans
 `localStorage` (clé `pl4y-theme`), appliqué avant le premier rendu pour éviter
 tout flash.
 
