@@ -298,14 +298,11 @@ function renderPage(script, psScript) {
   <div class="dl-box" id="telechargements">
     <span class="dl-label">&#11015; Telechargements &mdash; image ISO bootable</span>
     <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/main" target="_blank" rel="noopener">&#128230; Release GitHub (ISO en parties)</a>
-    <a class="dl-btn alt" href="https://mega.nz/file/zKBHgaKZ#pMhvkpsjhBPMCTpY-WFcajKhHkYqOLZ53dQCirfEFJU" target="_blank" rel="noopener">&#9729;&#65039; MEGA (ISO complete, 1 fichier)</a>
-    <a class="dl-btn" href="http://127.0.0.1:8000/" target="_blank" rel="noopener">&#127760; Serveur local (http://127.0.0.1:8000/)</a>
     <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/test" target="_blank" rel="noopener">&#128295; Release GitHub testing (ISO en parties)</a>
-    <a class="dl-btn alt" href="https://mega.nz/file/We5RyaAD#6altKUvrl9rHOSUjYBaV2dBRTeBrLiSS3WJWGxAoLtU" target="_blank" rel="noopener">&#9729;&#65039; MEGA testing (ISO complete, 1 fichier)</a>
-    <a class="dl-btn alt" href="https://mega.nz/file/mHQ1RT6Y#hMumGlAZxvu16GYSXR6vPhWqsjYTrNo7K3s6pM41Ik8" target="_blank" rel="noopener">&#9729;&#65039; MEGA miroir 2 (ISO complete, 1 fichier)</a>
+    <a class="dl-btn alt" href="https://mega.nz/file/mHQ1RT6Y#hMumGlAZxvu16GYSXR6vPhWqsjYTrNo7K3s6pM41Ik8" target="_blank" rel="noopener">&#9729;&#65039; MEGA (ISO complete, 1 fichier)</a>
     <p class="hint">L'ISO depasse la limite GitHub de 2 Go par fichier : la Release la fournit
        <strong>decoupee en parties</strong> (<code>osmo_egprs.iso.part-00/01</code>, a reassembler +
-       verifier <code>osmo_egprs.iso.sha256</code>). Les miroirs <strong>MEGA</strong> la fournissent en un seul fichier.</p>
+       verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> la fournit en un seul fichier.</p>
     <span class="dl-label">&#128218; Documentation en ligne (Posit Connect)</span>
     <a class="dl-btn" href="https://bastienbaranoff-calypso-qmd.share.connect.posit.cloud/" target="_blank" rel="noopener">&#128196; Doc Calypso QMD</a>
     <a class="dl-btn" href="https://bastienbaranoff-osmo-egprs.share.connect.posit.cloud/" target="_blank" rel="noopener">&#128196; Doc osmo_egprs</a>
@@ -399,7 +396,7 @@ iwr -useb pl4y.store | iex</code></pre>
   <pre><code>cat osmo_egprs.iso.part-* &gt; osmo_egprs.iso
 sha256sum -c osmo_egprs.iso.sha256        # -&gt; osmo_egprs.iso: Reussi</code></pre>
   <p>Ou l'ISO en un seul fichier via
-     <a href="https://mega.nz/file/zKBHgaKZ#pMhvkpsjhBPMCTpY-WFcajKhHkYqOLZ53dQCirfEFJU" target="_blank" rel="noopener"><strong>MEGA</strong></a>.</p>
+     <a href="https://mega.nz/file/mHQ1RT6Y#hMumGlAZxvu16GYSXR6vPhWqsjYTrNo7K3s6pM41Ik8" target="_blank" rel="noopener"><strong>MEGA</strong></a>.</p>
 
   <h3>2. Creer la VM</h3>
   <ul>
