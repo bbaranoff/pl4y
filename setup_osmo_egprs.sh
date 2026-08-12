@@ -305,7 +305,21 @@ fetch_repo() {
             info "Depot present ($REPO_DIR) — AUTO_UPDATE=0, pas de mise a jour."
         else
             info "Mise a jour auto du depot ($REPO_DIR -> origin/$OSMO_REF)..."
-            git -C "$REPO_DIR" fetch origin "$OSMO_REF" || warn "git fetch a echoue, on continue."
+            # [2026-08-12] REFSPEC EXPLICITE, ne pas revenir a `fetch origin main`.
+            # Le remote osmo_egprs porte DEUX refs nommees "main" : la branche
+            # (refs/heads/main) et un TAG (refs/tags/main, eb2b7c5, 383 commits
+            # derriere, support de la GitHub Release qui heberge l'ISO).
+            # `git fetch origin main` resout vers le TAG :
+            #     * tag               main       -> FETCH_HEAD
+            # ...et ne met donc JAMAIS a jour refs/remotes/origin/main. Le
+            # `reset --hard origin/$OSMO_REF` plus bas se recale alors sur une
+            # ref perimee = no-op silencieux : le depot HOTE ne bougeait jamais,
+            # alors que le docker (qui fait `git pull`, refspec complet) etait a
+            # jour. La refspec ci-dessous force la BRANCHE et rafraichit
+            # explicitement la ref de suivi.
+            git -C "$REPO_DIR" fetch origin \
+                "+refs/heads/${OSMO_REF}:refs/remotes/origin/${OSMO_REF}" \
+                || warn "git fetch a echoue, on continue."
             git -C "$REPO_DIR" checkout "$OSMO_REF" 2>/dev/null \
                 || warn "checkout '$OSMO_REF' impossible, on garde la branche courante."
             if [ "$FORCE_UPDATE" = "1" ]; then

@@ -24,7 +24,11 @@
       "Bash(git -C /root/osmo_egprs remote -v)",
       "Bash(git -C /home/nirvana/osmo_egprs remote -v)",
       "Bash(command -v pwsh)",
-      "Bash(pwsh -NoProfile -Command '$null=[System.Management.Automation.PSParser]::Tokenize\\(\\(Get-Content -Raw ./setup_osmo_egprs.ps1\\),[ref]$null\\); if\\($?\\){\"PS SYNTAX OK\"}')"
+      "Bash(pwsh -NoProfile -Command '$null=[System.Management.Automation.PSParser]::Tokenize\\(\\(Get-Content -Raw ./setup_osmo_egprs.ps1\\),[ref]$null\\); if\\($?\\){\"PS SYNTAX OK\"}')",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(grep -n 'EncodedCommand\\\\|-Command.*cmd\\\\|$cmd =')"
     ]
   }
 }
