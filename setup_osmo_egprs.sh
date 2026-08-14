@@ -82,25 +82,23 @@ die()   { err "$*"; exit 1; }
 trap 'err "Echec ligne $LINENO (commande : $BASH_COMMAND)"' ERR
 
 # ---------------------------------------------------------------------------
-# Terminal interactif : rebranchement global de stdin sur /dev/tty.
+# Terminal interactif SANS jamais toucher a fd 0.
 #
-# `wget -qO- pl4y.store | bash` (ou `curl ... | bash`) donne a l'installeur un
-# stdin = PIPE, pas un terminal. Or tout run reussi finit, cote start.sh, par un
-# `exec docker exec -ti ... start-clean.sh` qui ouvre un menu whiptail DANS le
-# conteneur QEMU (choix quick/normal, etc.). whiptail dessine son ecran sur le
-# terminal mais LIT les touches sur fd 0 : si fd 0 est un pipe (EOF), le menu
-# s'affiche puis ne recoit jamais rien -> il "gele" (symptome observe).
+# [2026-08-14] CORRECTIF. L'ancien bloc faisait un `exec </dev/tty` GLOBAL ici.
+# En `curl ... | bash` (ou `wget -qO- ... | bash`), bash LIT LE SCRIPT LUI-MEME
+# depuis fd 0 (le pipe) : y rebrancher /dev/tty en cours de route detourne la
+# SOURCE DU SCRIPT vers le clavier -> bash bloque en attendant une touche et la
+# suite du script n'est JAMAIS lue. Symptome exact du bug (gel reproduit en pty :
+# la ligne apres l'exec ne s'execute plus). Seul `bash <(wget ...)` y echappait,
+# car la le script est lu sur le fd de substitution, pas sur fd 0.
 #
-# On rebranche donc fd 0 sur le terminal de controle UNE bonne fois, pour tout
-# le script (menu installeur + handoff start.sh + whiptail conteneur).
-#   - `bash <(wget ...)` : fd 0 est deja le terminal -> ce bloc est neutre.
-#   - pipe + /dev/tty dispo : on recupere un vrai terminal -> plus de freeze.
-#   - aucun terminal (cron/CI) : on ne touche a rien ; le freeze eventuel est
-#     traite plus loin (do_start) par un message clair au lieu d'un ecran fige.
+# On ne reassigne donc PLUS fd 0. Les seuls points reellement interactifs se
+# redirigent DEJA, chacun, sur /dev/tty la ou il faut :
+#   - `prompt()` (menu installeur)  : `read ... </dev/tty` ;
+#   - handoff `do_start`            : `exec ./start.sh </dev/tty`.
+# fd 0 reste la source du script, intacte pour TOUTES les formes
+# (`bash <(...)`, `... | bash`, execution directe).
 # ---------------------------------------------------------------------------
-if [ ! -t 0 ] && [ -r /dev/tty ]; then
-    exec </dev/tty
-fi
 # whiptail/newt a besoin d'un TERM exploitable, sinon il peut se figer ou mal
 # s'afficher. Sous un pipe TERM est normalement herite du shell appelant ; on
 # fournit un repli sain si jamais il est vide ou "dumb".
@@ -416,23 +414,29 @@ do_start() {
     cd "$REPO_DIR" || die "cd $REPO_DIR a echoue."
     # start.sh finit par un `exec docker exec -ti ... ./start-clean.sh` (QEMU),
     # qui ouvre un menu whiptail (quick/normal) DANS le conteneur. `docker exec
-    # -t` ET whiptail testent isatty(fd 0). fd 0 a normalement deja ete rebranche
-    # sur /dev/tty en debut de script (voir le bloc en tete) ; si malgre tout ce
-    # n'est toujours PAS un terminal (aucun /dev/tty : cron, CI, certains pipes),
-    # on s'arrete avec un message clair AU LIEU de laisser whiptail se figer ou
-    # docker quitter sur "the input device is not a TTY" (qui kill la session).
-    if [ ! -t 0 ]; then
-        die "Pas de terminal interactif sur stdin (lance via un pipe sans /dev/tty).
+    # -t` ET whiptail testent isatty(fd 0). On donne donc a start.sh un vrai
+    # terminal sur fd 0 via /dev/tty (redirection PAR COMMANDE, pas globale : voir
+    # le bloc en tete). Un terminal est disponible si fd 0 EST deja un tty
+    # (`bash <(...)`, direct) OU si /dev/tty est accessible (`... | bash` sur une
+    # machine interactive). Sinon (cron, CI, pipe sans /dev/tty) on s'arrete avec
+    # un message clair AU LIEU de laisser whiptail se figer ou docker quitter sur
+    # "the input device is not a TTY" (qui kill la session).
+    if [ ! -t 0 ] && [ ! -r /dev/tty ]; then
+        die "Pas de terminal interactif (ni stdin ni /dev/tty ; lance via cron/CI ?).
    Les menus whiptail (start.sh / conteneur QEMU) ne recevraient aucune touche
    et resteraient figes. Relance avec un terminal reellement attache :
 
-       bash <(wget -qO- pl4y.store)${MODE:+ $MODE}
-
-   (la forme \`... | bash\` ne marche que si /dev/tty est accessible)."
+       bash <(wget -qO- pl4y.store)${MODE:+ $MODE}"
     fi
-    # A ce stade fd 0 EST un terminal : start.sh et le whiptail du conteneur
-    # recevront bien les touches. `bash <(wget ...)` passe ici directement.
-    exec $SUDO ./start.sh
+    # start.sh et le whiptail du conteneur doivent lire fd 0 sur un vrai terminal.
+    # `... | bash` a fd 0 = pipe : on le redirige ICI sur /dev/tty (c'est un exec,
+    # aucune "suite de script" a lire apres -> pas de footgun). `bash <(...)` a
+    # deja fd 0 = terminal ; /dev/tty y reste valable -> meme chemin.
+    if [ -r /dev/tty ]; then
+        exec $SUDO ./start.sh </dev/tty
+    else
+        exec $SUDO ./start.sh
+    fi
 }
 # ---------------------------------------------------------------------------
 # Menu interactif
