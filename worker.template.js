@@ -76,120 +76,182 @@ function renderPage(script, psScript) {
 <title>pl4y.store &mdash; installeur osmo_egprs + wiki</title>
 <style>
   :root {
-    --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de;
-    --fg:#1f2328; --muted:#59636e; --accent:#0969da;
-    --green:#1a7f37; --yellow:#9a6700; --red:#cf222e;
-    --code-bg:#f6f8fa; --code-fg:#1f2328; --btn-bg:#eaeef2; --btn-hover:#d0d7de;
+    --bg:#f7f9fc; --bg-2:#ffffff; --panel:#ffffff; --border:#e2e8f0;
+    --fg:#111827; --muted:#5b6675; --accent:#0b63d6; --accent-2:#00a3a3;
+    --green:#0f8a4a; --yellow:#a16207; --red:#cf222e;
+    --code-bg:#f2f5f9; --code-fg:#1f2937; --btn-bg:#eef2f7; --btn-hover:#dde5ef;
+    --glow-1:rgba(11,99,214,.14); --glow-2:rgba(0,163,163,.13);
+    --shadow:0 1px 2px rgba(16,24,40,.05), 0 8px 24px -12px rgba(16,24,40,.18);
+    --shadow-lg:0 2px 4px rgba(16,24,40,.06), 0 18px 40px -16px rgba(16,24,40,.28);
+    --on-accent:#ffffff; --on-green:#ffffff;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   }
   :root[data-theme="dark"] {
-    --bg:#0d1117; --panel:#161b22; --border:#30363d;
-    --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff;
+    --bg:#0a0e14; --bg-2:#0d1117; --panel:#131a24; --border:#232d3b;
+    --fg:#e6edf3; --muted:#93a1b1; --accent:#58a6ff; --accent-2:#2dd4bf;
     --green:#3fb950; --yellow:#d29922; --red:#f85149;
-    --code-bg:#010409; --code-fg:#c9d1d9; --btn-bg:#30363d; --btn-hover:#3d444d;
+    --code-bg:#080b10; --code-fg:#c9d1d9; --btn-bg:#1e2733; --btn-hover:#2b3746;
+    --glow-1:rgba(88,166,255,.16); --glow-2:rgba(45,212,191,.12);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.8);
+    --shadow-lg:0 2px 6px rgba(0,0,0,.5), 0 22px 48px -18px rgba(0,0,0,.9);
+    --on-accent:#04121f; --on-green:#03210e;
   }
   * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
   body {
-    margin:0; background:var(--bg); color:var(--fg);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    line-height:1.6; padding:2rem 1rem;
+    margin:0; color:var(--fg);
+    background:
+      radial-gradient(60rem 30rem at 12% -8%, var(--glow-1), transparent 60%),
+      radial-gradient(48rem 26rem at 96% 4%, var(--glow-2), transparent 62%),
+      var(--bg);
+    background-attachment:fixed;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    line-height:1.65; padding:2.4rem 1rem 1rem;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
-  .wrap { max-width:920px; margin:0 auto; }
+  .wrap { max-width:960px; margin:0 auto; }
   .top { display:flex; align-items:baseline; justify-content:space-between;
          gap:1rem; flex-wrap:wrap; margin-bottom:.4rem; }
-  h1 { font-size:1.7rem; margin:0; }
-  h1 .dot { color:var(--green); }
+  h1 { font-size:clamp(1.8rem,4.6vw,2.5rem); margin:0; letter-spacing:-.025em;
+       font-weight:800; line-height:1.1; }
+  h1 .dot { color:var(--accent-2); }
   .home { font-size:.9rem; }
-  .lead { color:var(--muted); margin:.2rem 0 1.6rem; }
-  h2 { font-size:1.25rem; margin:2.2rem 0 .6rem; padding-top:.6rem;
-       border-top:1px solid var(--border); scroll-margin-top:1rem; }
-  h3 { font-size:1.02rem; margin:1.4rem 0 .4rem; color:var(--accent); }
-  a { color:var(--accent); }
+  .lead { color:var(--muted); margin:.2rem 0 1.6rem; font-size:1.02rem; }
+  h2 { font-size:1.32rem; margin:2.6rem 0 .7rem; padding-top:1.1rem;
+       border-top:1px solid var(--border); scroll-margin-top:1.4rem;
+       letter-spacing:-.015em; font-weight:700; }
+  h3 { font-size:1.04rem; margin:1.5rem 0 .4rem; color:var(--accent);
+       letter-spacing:-.01em; }
+  a { color:var(--accent); text-decoration-color:color-mix(in srgb, var(--accent) 35%, transparent);
+      text-underline-offset:.18em; transition:color .15s ease; }
+  a:hover { color:var(--accent-2); }
   p, li { color:var(--fg); }
   code {
     font-family:var(--mono); font-size:.86em; background:var(--code-bg);
-    border:1px solid var(--border); border-radius:4px; padding:.05rem .35rem;
+    border:1px solid var(--border); border-radius:5px; padding:.08rem .36rem;
     color:var(--code-fg);
   }
   pre {
-    background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
-    padding:1rem; overflow-x:auto; font-family:var(--mono); font-size:.82rem;
-    line-height:1.5; color:var(--code-fg);
+    background:var(--code-bg); border:1px solid var(--border); border-radius:12px;
+    padding:1.05rem 1.15rem; overflow-x:auto; font-family:var(--mono); font-size:.82rem;
+    line-height:1.55; color:var(--code-fg); box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
   }
   pre code { background:none; border:0; padding:0; }
+  ::selection { background:color-mix(in srgb, var(--accent) 28%, transparent); }
   .toc {
     background:var(--panel); border:1px solid var(--border);
-    border-radius:10px; padding:1rem 1.2rem 1rem 2.2rem; margin:0 0 1.4rem;
+    border-radius:14px; padding:1.1rem 1.3rem; margin:0 0 1.6rem;
+    box-shadow:var(--shadow);
   }
-  .toc h2 { border:0; margin:0 0 .4rem -.7rem; font-size:.8rem;
-            text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
-            padding:0; }
-  .toc li { margin:.15rem 0; }
+  .toc h2 { border:0; margin:0 0 .6rem; font-size:.74rem;
+            text-transform:uppercase; letter-spacing:.12em; color:var(--muted);
+            padding:0; font-weight:700; }
+  .toc ol { margin:0; padding:0; list-style:none; counter-reset:toc;
+            columns:2; column-gap:1.6rem; }
+  .toc li { margin:.12rem 0; counter-increment:toc; break-inside:avoid;
+            font-size:.93rem; }
+  .toc li::before { content:counter(toc,decimal-leading-zero);
+            font-family:var(--mono); font-size:.72rem; color:var(--muted);
+            margin-right:.5rem; }
+  .toc a { text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  @media (max-width:640px) { .toc ol { columns:1; } }
   table {
-    border-collapse:collapse; width:100%; margin:.8rem 0; font-size:.9rem;
-    display:block; overflow-x:auto;
+    border-collapse:separate; border-spacing:0; width:100%; margin:1rem 0; font-size:.9rem;
+    display:block; overflow-x:auto; border:1px solid var(--border);
+    border-radius:12px; box-shadow:var(--shadow);
   }
-  th, td { border:1px solid var(--border); padding:.45rem .7rem; text-align:left; }
-  th { background:var(--panel); color:var(--fg); }
+  th, td { border-bottom:1px solid var(--border); padding:.55rem .8rem; text-align:left; }
+  tr:last-child td { border-bottom:0; }
+  th { background:color-mix(in srgb, var(--accent) 7%, var(--panel)); color:var(--fg);
+       font-size:.76rem; text-transform:uppercase; letter-spacing:.07em; }
   td code { white-space:nowrap; }
   .note {
-    border-left:3px solid var(--accent); background:rgba(88,166,255,.08);
-    padding:.7rem 1rem; border-radius:0 7px 7px 0; margin:1rem 0;
+    border-left:3px solid var(--accent); background:color-mix(in srgb, var(--accent) 8%, transparent);
+    padding:.8rem 1.1rem; border-radius:0 10px 10px 0; margin:1.1rem 0;
   }
   .warn {
-    border-left:3px solid var(--yellow); background:rgba(210,153,34,.08);
-    padding:.7rem 1rem; border-radius:0 7px 7px 0; color:#e9d8a6; margin:1rem 0;
+    border-left:3px solid var(--yellow); background:color-mix(in srgb, var(--yellow) 12%, transparent);
+    padding:.8rem 1.1rem; border-radius:0 10px 10px 0; color:var(--fg); margin:1.1rem 0;
   }
   .ascii { font-size:.78rem; }
-  .shot { width:100%; height:auto; display:block; border-radius:8px;
-          border:1px solid var(--border); background:var(--code-bg); }
-  figure.shot-fig { margin:1rem 0 0; }
-  figure.shot-fig figcaption { color:var(--muted); font-size:.85rem; margin-top:.5rem; }
-  .dl-box { background:var(--panel); border:1px solid var(--border);
-            border-radius:10px; padding:1rem 1.2rem; margin:0 0 1.4rem;
-            display:flex; flex-wrap:wrap; gap:.7rem; align-items:center; }
-  .dl-box .dl-label { color:var(--muted); font-size:.8rem; text-transform:uppercase;
-            letter-spacing:.08em; width:100%; margin-bottom:.2rem; }
-  .dl-btn { display:inline-flex; align-items:center; gap:.5rem; background:var(--green);
-            color:#03210e; font-weight:600; text-decoration:none; padding:.55rem .9rem;
-            border-radius:7px; font-size:.92rem; }
-  .dl-btn:hover { filter:brightness(1.08); }
-  .dl-btn.alt { background:var(--accent); color:#04121f; }
-  .dl-box .hint { width:100%; color:var(--muted); font-size:.82rem; margin:.2rem 0 0; }
-  footer { color:var(--muted); font-size:.82rem; margin-top:2.4rem;
-           border-top:1px solid var(--border); padding-top:1rem; }
+  .shot { width:100%; height:auto; display:block; border-radius:12px;
+          border:1px solid var(--border); background:var(--code-bg);
+          box-shadow:var(--shadow-lg); }
+  figure.shot-fig { margin:1.2rem 0 0; }
+  figure.shot-fig figcaption { color:var(--muted); font-size:.85rem; margin-top:.6rem; }
+  .dl-box { position:relative; overflow:hidden; background:var(--panel);
+            border:1px solid var(--border);
+            border-radius:16px; padding:1.2rem 1.35rem; margin:0 0 1.6rem;
+            display:flex; flex-wrap:wrap; gap:.7rem; align-items:center;
+            box-shadow:var(--shadow-lg); }
+  .dl-box::before { content:""; position:absolute; inset:0 0 auto 0; height:3px;
+            background:linear-gradient(90deg,var(--accent),var(--accent-2)); }
+  .dl-box .dl-label { color:var(--muted); font-size:.74rem; text-transform:uppercase;
+            letter-spacing:.12em; width:100%; margin-bottom:.15rem; font-weight:700; }
+  .dl-box .dl-label + .dl-label { margin-top:.7rem; }
+  .dl-btn { display:inline-flex; align-items:center; gap:.5rem;
+            background:linear-gradient(180deg,color-mix(in srgb,var(--green) 88%,#fff),var(--green));
+            color:var(--on-green); font-weight:650; text-decoration:none; padding:.6rem 1rem;
+            border-radius:10px; font-size:.92rem; box-shadow:var(--shadow);
+            transition:transform .15s ease, box-shadow .15s ease, filter .15s ease; }
+  .dl-btn:hover { transform:translateY(-1px); filter:brightness(1.06);
+            box-shadow:var(--shadow-lg); color:var(--on-green); }
+  .dl-btn:active { transform:translateY(0); }
+  .dl-btn.alt { background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 88%,#fff),var(--accent));
+            color:var(--on-accent); }
+  .dl-btn.alt:hover { color:var(--on-accent); }
+  .dl-box .hint { width:100%; color:var(--muted); font-size:.84rem; margin:.4rem 0 0; }
+  .dl-box .hint strong { color:var(--fg); }
+  footer { color:var(--muted); font-size:.82rem; margin:3rem 0 0;
+           border-top:1px solid var(--border); padding:1.1rem 0 2rem; }
   .theme-toggle {
     position:fixed; top:1rem; right:1rem; z-index:10;
-    background:var(--panel); color:var(--fg); border:1px solid var(--border);
-    border-radius:999px; padding:.4rem .7rem; font-size:.85rem; cursor:pointer;
-    font-family:inherit; line-height:1;
+    background:color-mix(in srgb, var(--panel) 82%, transparent); color:var(--fg);
+    border:1px solid var(--border); backdrop-filter:blur(10px);
+    border-radius:999px; padding:.45rem .85rem; font-size:.85rem; cursor:pointer;
+    font-family:inherit; line-height:1; box-shadow:var(--shadow);
+    transition:transform .15s ease, background .15s ease;
   }
-  .theme-toggle:hover { background:var(--btn-hover); }
+  .theme-toggle:hover { background:var(--btn-hover); transform:translateY(-1px); }
   /* --- accueil (fusion home + wiki) --- */
-  .brand { display:flex; align-items:center; gap:.6rem; margin:0 0 .2rem; }
-  .brand .phone { flex:none; width:34px; height:34px; color:var(--accent); }
-  .sub { color:var(--muted); margin:0 0 1.8rem; font-size:.95rem; }
-  .moto { display:flex; gap:1rem; align-items:center; flex-wrap:nowrap; }
+  .brand { display:flex; align-items:center; gap:.75rem; margin:0 0 .2rem; }
+  .brand .phone { flex:none; width:38px; height:38px; color:var(--accent);
+    filter:drop-shadow(0 4px 12px var(--glow-1)); }
+  .sub { color:var(--muted); margin:0 0 1.9rem; font-size:.97rem; }
+  .moto { display:flex; gap:1.2rem; align-items:center; flex-wrap:wrap; }
   .moto img { flex:none; width:160px; height:auto; aspect-ratio:500 / 667;
-    object-fit:contain; margin-left:1.5rem; border-radius:8px;
-    border:1px solid var(--border); background:var(--code-bg); display:block; }
-  .moto .cap { color:var(--muted); font-size:.9rem; }
+    object-fit:contain; margin-left:.5rem; border-radius:12px;
+    border:1px solid var(--border); background:var(--code-bg); display:block;
+    box-shadow:var(--shadow-lg); }
+  .moto .cap { color:var(--muted); font-size:.92rem; flex:1; min-width:16rem; }
   .moto .cap strong { color:var(--fg); }
   .card { background:var(--panel); border:1px solid var(--border);
-    border-radius:10px; padding:1rem 1.2rem; margin-bottom:1.2rem; }
-  .card h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.08em;
-    color:var(--muted); margin:0 0 .7rem; border:0; padding:0; }
+    border-radius:16px; padding:1.15rem 1.35rem; margin-bottom:1.25rem;
+    box-shadow:var(--shadow); transition:box-shadow .2s ease, transform .2s ease; }
+  .card:hover { box-shadow:var(--shadow-lg); }
+  .card h2 { font-size:.74rem; text-transform:uppercase; letter-spacing:.12em;
+    color:var(--muted); margin:0 0 .8rem; border:0; padding:0; font-weight:700; }
   .cmd { display:flex; align-items:center; gap:.6rem; background:var(--code-bg);
-    border:1px solid var(--border); border-radius:7px; padding:.6rem .8rem;
-    margin:.4rem 0; font-family:var(--mono); font-size:.9rem; overflow-x:auto; }
+    border:1px solid var(--border); border-radius:10px; padding:.65rem .85rem;
+    margin:.45rem 0; font-family:var(--mono); font-size:.9rem; overflow-x:auto;
+    transition:border-color .15s ease; }
+  .cmd:hover { border-color:color-mix(in srgb, var(--accent) 45%, var(--border)); }
   .cmd code { color:var(--green); white-space:pre; flex:1; border:0; background:none; padding:0; }
-  .cmd button { flex:none; background:var(--btn-bg); color:var(--fg); border:0;
-    border-radius:5px; padding:.3rem .6rem; font-size:.78rem; cursor:pointer; font-family:inherit; }
+  .cmd button { flex:none; background:var(--btn-bg); color:var(--fg); border:1px solid var(--border);
+    border-radius:7px; padding:.32rem .65rem; font-size:.78rem; cursor:pointer;
+    font-family:inherit; transition:background .15s ease, color .15s ease; }
   .cmd button:hover { background:var(--btn-hover); }
-  .cmd button.ok { background:var(--green); color:#03210e; }
+  .cmd button.ok { background:var(--green); color:var(--on-green); border-color:transparent; }
   details { margin-top:.4rem; }
-  summary { cursor:pointer; color:var(--accent); font-size:.92rem; user-select:none; }
+  summary { cursor:pointer; color:var(--accent); font-size:.92rem; user-select:none;
+    padding:.15rem 0; }
+  summary:hover { color:var(--accent-2); }
   details pre { max-height:70vh; }
+  @media (prefers-reduced-motion:reduce) {
+    html { scroll-behavior:auto; }
+    * { transition:none !important; }
+  }
 </style>
 <script>
   (function () {
@@ -228,7 +290,7 @@ function renderPage(script, psScript) {
     </svg>
     <h1>pl4y<span class="dot">.</span>store</h1>
   </div>
-  <p class="sub">Installeur osmo_egprs &mdash; cur de reseau GSM/EGPRS multi-operateur, containerise.
+  <p class="sub">Installeur osmo_egprs &mdash; coeur de reseau GSM/EGPRS multi-operateur, containerise.
      &mdash; <a href="#wiki">&#128214; Wiki QEMU / osmo_egprs / EGPRS</a></p>
 
   <div class="card">
@@ -289,7 +351,7 @@ function renderPage(script, psScript) {
 
   <h2 id="wiki">Wiki &mdash; documentation technique</h2>
   <p class="lead">
-    Documentation technique de la plateforme <strong>osmo_egprs</strong> : un cur de
+    Documentation technique de la plateforme <strong>osmo_egprs</strong> : un coeur de
     reseau GSM/EGPRS multi-operateur entierement containerise, avec emulation
     optionnelle du baseband <strong>TI Calypso</strong> (Motorola C123) via le fork
     <strong>bbaranoff/qemu</strong> et le firmware <strong>OsmocomBB</strong> non modifie.
@@ -297,9 +359,13 @@ function renderPage(script, psScript) {
 
   <div class="dl-box" id="telechargements">
     <span class="dl-label">&#11015; Telechargements &mdash; image ISO bootable</span>
+    <a class="dl-btn alt" href="https://mega.nz/file/TSRWkazb#jen3dGoMkrV_83kX0TgeCMTT9bjkxFCDp9ctUXQQkDU" target="_blank" rel="noopener">&#9729;&#65039; MEGA (ISO complete, 1 fichier)</a>
     <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/main" target="_blank" rel="noopener">&#128230; Release GitHub (ISO en parties)</a>
-    <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/test" target="_blank" rel="noopener">&#128295; Release GitHub testing (ISO en parties)</a>
-    <a class="dl-btn alt" href="https://mega.nz/file/3TgAWLZT#u-szzhSZbA7dOYfgV1Hns11zo315MgwY8LheOh4hTFE" target="_blank" rel="noopener">&#9729;&#65039; MEGA (ISO complete, 1 fichier)</a>
+    <p class="hint"><strong>QEMU-CALYPSO ISO &mdash; POC voix</strong> : QEMU dans un reseau Osmocom
+       <em>network in the box</em>, environnement NOFR. Support <strong>voix</strong> et
+       <strong>SMS MT / MO</strong> en <strong>A5/0</strong> et <strong>A5/1</strong>.
+       Pas encore complet : le <strong>DSP n'est pas entierement reverse</strong>, c'est un
+       <em>shunt</em> qui passe par <strong>grgsm</strong>.</p>
     <p class="hint">L'ISO depasse la limite GitHub de 2 Go par fichier : la Release la fournit
        <strong>decoupee en parties</strong> (<code>osmo_egprs.iso.part-00/01</code>, a reassembler +
        verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> la fournit en un seul fichier.</p>
@@ -396,7 +462,7 @@ iwr -useb pl4y.store | iex</code></pre>
   <pre><code>cat osmo_egprs.iso.part-* &gt; osmo_egprs.iso
 sha256sum -c osmo_egprs.iso.sha256        # -&gt; osmo_egprs.iso: Reussi</code></pre>
   <p>Ou l'ISO en un seul fichier via
-     <a href="https://mega.nz/file/3TgAWLZT#u-szzhSZbA7dOYfgV1Hns11zo315MgwY8LheOh4hTFE" target="_blank" rel="noopener"><strong>MEGA</strong></a>.</p>
+     <a href="https://mega.nz/file/TSRWkazb#jen3dGoMkrV_83kX0TgeCMTT9bjkxFCDp9ctUXQQkDU" target="_blank" rel="noopener"><strong>MEGA</strong></a>.</p>
 
   <h3>2. Creer la VM</h3>
   <ul>
@@ -535,7 +601,7 @@ CALYPSO_ICOUNT=off CALYPSO_FBSB_SYNTH=0 ./run.sh</code></pre>
      conteneur : utilisez plusieurs conteneurs pour le multi-MS.</div>
 
   <h2 id="egprs">6. GPRS / EGPRS</h2>
-  <p>Le nom <em>osmo_egprs</em> renvoie au volet paquet (E)GPRS du cur de reseau :
+  <p>Le nom <em>osmo_egprs</em> renvoie au volet paquet (E)GPRS du coeur de reseau :
      <strong>GPRS</strong> (General Packet Radio Service, 2.5G) et son extension
      <strong>EGPRS</strong> (Enhanced GPRS / EDGE, 2.75G), qui ajoute la modulation
      <strong>8-PSK</strong> et les schemas de codage <strong>MCS-1 a MCS-9</strong>

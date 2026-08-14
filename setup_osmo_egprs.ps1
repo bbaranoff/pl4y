@@ -318,7 +318,7 @@ $mode = Get-Mode
 if ($mode -eq "build-iso") {
     Warn "BUILD-ISO ne fonctionne pas sous Windows (WSL). Telecharge l'ISO pre-faite :"
     Warn "  Release GitHub : https://github.com/bbaranoff/osmo_egprs/releases/tag/main"
-    Warn "  MEGA           : https://mega.nz/file/3TgAWLZT#u-szzhSZbA7dOYfgV1Hns11zo315MgwY8LheOh4hTFE"
+    Warn "  MEGA           : https://mega.nz/file/TSRWkazb#jen3dGoMkrV_83kX0TgeCMTT9bjkxFCDp9ctUXQQkDU"
     Warn "  Doc VirtualBox : https://pl4y.store/wiki#virtualbox"
     exit 0
 }

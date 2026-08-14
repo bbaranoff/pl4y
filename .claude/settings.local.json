@@ -28,7 +28,13 @@
       "Bash(git checkout *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(grep -n 'EncodedCommand\\\\|-Command.*cmd\\\\|$cmd =')"
+      "Bash(grep -n 'EncodedCommand\\\\|-Command.*cmd\\\\|$cmd =')",
+      "Bash(node *)",
+      "Bash(google-chrome --headless --disable-gpu --no-sandbox --hide-scrollbars --window-size=1200,1350 --virtual-time-budget=2000 --screenshot=shot_frag.png file://__TRACKED_VAR__/frag.html)",
+      "Bash(perl -pi -e 's/\\\\bcur de reseau\\\\b/coeur de reseau/g; s/\\\\bun cur de\\\\b/un coeur de/g' worker.template.js)",
+      "Bash(google-chrome --headless --disable-gpu --no-sandbox --hide-scrollbars --window-size=1200,950 --virtual-time-budget=2000 --screenshot=shot_dark.png file://__TRACKED_VAR__/frag_dark.html)",
+      "Read(//root/qemu-calypso/**)",
+      "Read(//root/**)"
     ]
   }
 }
