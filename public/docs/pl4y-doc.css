@@ -350,3 +350,48 @@ footer, .rst-footer-buttons, .rst-content div[role="contentinfo"] { color:var(--
   html { scroll-behavior:auto; }
   * { transition:none !important; }
 }
+
+/* --------------------------------------------------------------------------
+   Sommaire de section (injecte par unify.mjs dans /bbaranoff/).
+   Le depot Jekyll portait sa nav dans _includes/, non joue ici : sans ce bloc,
+   la page de garde ne mene nulle part.
+   -------------------------------------------------------------------------- */
+.pl4y-sect {
+  margin:0 0 1.8rem; padding:.85rem 1.1rem;
+  background:var(--panel); border:1px solid var(--border); border-radius:14px;
+  box-shadow:var(--shadow); font-size:.9rem;
+}
+.pl4y-sect-head {
+  font-family:var(--mono); font-size:.74rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); margin-bottom:.55rem;
+}
+.pl4y-sect-grp { border-top:1px solid var(--border); }
+.pl4y-sect-grp:first-of-type { border-top:0; }
+.pl4y-sect-grp > summary {
+  cursor:pointer; padding:.4rem .1rem; list-style:none; font-weight:600;
+  display:flex; align-items:center; gap:.5rem;
+}
+.pl4y-sect-grp > summary::-webkit-details-marker { display:none; }
+.pl4y-sect-grp > summary::before {
+  content:"›"; display:inline-block; color:var(--muted);
+  transition:transform .15s ease; transform:rotate(0deg); width:.7em;
+}
+.pl4y-sect-grp[open] > summary::before { transform:rotate(90deg); }
+.pl4y-sect-grp > summary:hover { color:var(--accent); }
+.pl4y-sect-grp .n {
+  font-family:var(--mono); font-size:.72rem; color:var(--muted);
+  border:1px solid var(--border); border-radius:999px; padding:0 .45em;
+}
+.pl4y-sect-grp ul {
+  list-style:none; margin:.1rem 0 .6rem; padding:0 0 0 1.2rem;
+  display:grid; gap:.18rem; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));
+}
+.pl4y-sect-grp li { margin:0; }
+.pl4y-sect-grp a { text-decoration:none; }
+.pl4y-sect-grp a:hover { text-decoration:underline; }
+.pl4y-sect-grp a[aria-current="page"] { font-weight:700; color:var(--fg); }
+.pl4y-sect-grp a[aria-current="page"]::after { content:" •"; color:var(--accent); }
+
+/* Pied de page des instantanes de test (/tests/). */
+#pl4y-sources { margin:2rem 0 1rem; color:var(--muted); font-size:.92rem; }
+#pl4y-sources ul { padding-left:1.2rem; }

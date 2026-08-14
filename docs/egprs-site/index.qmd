@@ -1,0 +1,144 @@
+---
+title: "osmo_egprs"
+subtitle: "Bundle du depot - plateforme multi-PLMN Osmocom / Docker"
+date: "2026-08-14T14:54:30+02:00"
+date-format: "YYYY-MM-DD HH:mm"
+---
+
+::: {.callout-note appearance="simple" icon=false}
+**Bundle du depot** - doc, tests, headers, sources, python, shell.
+Scope `.` - git `heads/main@f91e8b4` - genere 2026-08-14T14:54:30+02:00
+- exclusions `subprojects|build|pc-bios|node_modules|\.git|\.pytest_cache|calypso-full|rsconnect|\.iso$` - troncature 512 ko/fichier - pages de 350 ko max.
+:::
+
+::: {.sk-filter}
+<input id="sk-filter" type="text" placeholder="filtrer les fichiers (ex: dsp, .c, shunt)..." autocomplete="off">
+:::
+
+# 1 - Documentation
+
+::: {.bundle-index}
+
+| Fichier | Lignes | Taille |
+|:---|---:|---:|
+| [`environment/README.md`](sec1-01.html#f-environment-readme-md) | 85 | 3,7KB |
+| [`README.md`](sec1-01.html#f-readme-md) | 530 | 18KB |
+| [`services/README.md`](sec1-01.html#f-services-readme-md) | 20 | 687B |
+
+:::
+
+# 5 - Python
+
+::: {.bundle-index}
+
+| Fichier | Lignes | Taille |
+|:---|---:|---:|
+| [`fft-web/fft_web.py`](sec5-01.html#f-fft-web-fft-web-py) | 203 | 11KB |
+| [`opt-gsm/grgsm_fft_live.py`](sec5-01.html#f-opt-gsm-grgsm-fft-live-py) | 62 | 2,8KB |
+| [`opt-gsm/record_drain.py`](sec5-01.html#f-opt-gsm-record-drain-py) | 119 | 5,6KB |
+| [`opt-gsm/si_bridge.py`](sec5-01.html#f-opt-gsm-si-bridge-py) | 389 | 19KB |
+| [`scripts/l1ctl_bridge.py`](sec5-01.html#f-scripts-l1ctl-bridge-py) | 309 | 14KB |
+| [`scripts/sms-interop-relay.py`](sec5-01.html#f-scripts-sms-interop-relay-py) | 758 | 30KB |
+| [`tools/grgsm_relay_decode.py`](sec5-01.html#f-tools-grgsm-relay-decode-py) | 70 | 3,1KB |
+| [`tools/qemu_bcch_grgsm.py`](sec5-01.html#f-tools-qemu-bcch-grgsm-py) | 171 | 8,0KB |
+| [`tools/si.py`](sec5-01.html#f-tools-si-py) | 36 | 2,1KB |
+
+:::
+
+# 6 - Shell
+
+::: {.bundle-index}
+
+| Fichier | Lignes | Taille |
+|:---|---:|---:|
+| [`checks/global_check.sh`](sec6-01.html#f-checks-global-check-sh) | 553 | 22KB |
+| [`checks/operator_summary.sh`](sec6-01.html#f-checks-operator-summary-sh) | 327 | 13KB |
+| [`checks/ss7_check.sh`](sec6-01.html#f-checks-ss7-check-sh) | 355 | 16KB |
+| [`checks/vty-debug-dump.sh`](sec6-01.html#f-checks-vty-debug-dump-sh) | 390 | 13KB |
+| [`full_qmd.sh`](sec6-01.html#f-full-qmd-sh) | 549 | 19KB |
+| [`generate_configs.sh`](sec6-01.html#f-generate-configs-sh) | 327 | 17KB |
+| [`helpers/create_interop.sh`](sec6-01.html#f-helpers-create-interop-sh) | 96 | 2,1KB |
+| [`helpers/prepare_host.sh`](sec6-01.html#f-helpers-prepare-host-sh) | 84 | 2,5KB |
+| [`install_modules/00-prereqs.sh`](sec6-01.html#f-install-modules-00-prereqs-sh) | 17 | 856B |
+| [`install_modules/10-deps.sh`](sec6-01.html#f-install-modules-10-deps-sh) | 32 | 1,4KB |
+| [`install_modules/20-user.sh`](sec6-01.html#f-install-modules-20-user-sh) | 11 | 600B |
+| [`install_modules/30-sources.sh`](sec6-01.html#f-install-modules-30-sources-sh) | 39 | 1,7KB |
+| [`install_modules/40-patches.sh`](sec6-01.html#f-install-modules-40-patches-sh) | 30 | 1,2KB |
+| [`install_modules/60-binaires.sh`](sec6-01.html#f-install-modules-60-binaires-sh) | 30 | 1,2KB |
+| [`install_modules/70-configs.sh`](sec6-01.html#f-install-modules-70-configs-sh) | 18 | 929B |
+| [`install_modules/90-verify.sh`](sec6-01.html#f-install-modules-90-verify-sh) | 17 | 748B |
+| [`install_modules/_lib/inst.sh`](sec6-01.html#f-install-modules-lib-inst-sh) | 60 | 2,6KB |
+| [`install.sh`](sec6-01.html#f-install-sh) | 177 | 7,4KB |
+| [`launch/osmo-launch.sh`](sec6-01.html#f-launch-osmo-launch-sh) | 283 | 11KB |
+| [`launch/start-oqc.sh`](sec6-01.html#f-launch-start-oqc-sh) | 54 | 2,2KB |
+| [`lib/audio.sh`](sec6-01.html#f-lib-audio-sh) | 311 | 19KB |
+| [`lib/gabarits.sh`](sec6-01.html#f-lib-gabarits-sh) | 152 | 6,7KB |
+| [`network/firewall-wan.sh`](sec6-01.html#f-network-firewall-wan-sh) | 76 | 3,1KB |
+| [`network/loopback.sh`](sec6-01.html#f-network-loopback-sh) | 87 | 1,9KB |
+| [`network/setup-wan-interop.sh`](sec6-01.html#f-network-setup-wan-interop-sh) | 562 | 26KB |
+| [`network/setup-wan-sms.sh`](sec6-01.html#f-network-setup-wan-sms-sh) | 94 | 3,8KB |
+| [`opt-gsm/si_bridge_loop.sh`](sec6-01.html#f-opt-gsm-si-bridge-loop-sh) | 12 | 598B |
+| [`run_modules/00-prereqs.sh`](sec6-01.html#f-run-modules-00-prereqs-sh) | 23 | 880B |
+| [`run_modules/01-profil.sh`](sec6-01.html#f-run-modules-01-profil-sh) | 122 | 5,5KB |
+| [`run_modules/03-rundir.sh`](sec6-01.html#f-run-modules-03-rundir-sh) | 105 | 4,3KB |
+| [`run_modules/10-reseau.sh`](sec6-01.html#f-run-modules-10-reseau-sh) | 164 | 7,2KB |
+| [`run_modules/10-stp.sh`](sec6-01.html#f-run-modules-10-stp-sh) | 77 | 3,7KB |
+| [`run_modules/11-hlr.sh`](sec6-01.html#f-run-modules-11-hlr-sh) | 79 | 3,7KB |
+| [`run_modules/12-mgw.sh`](sec6-01.html#f-run-modules-12-mgw-sh) | 73 | 3,3KB |
+| [`run_modules/12-netns.sh`](sec6-01.html#f-run-modules-12-netns-sh) | 185 | 8,1KB |
+| [`run_modules/13-msc.sh`](sec6-01.html#f-run-modules-13-msc-sh) | 87 | 4,0KB |
+| [`run_modules/14-bsc.sh`](sec6-01.html#f-run-modules-14-bsc-sh) | 94 | 4,4KB |
+| [`run_modules/15-apn0.sh`](sec6-01.html#f-run-modules-15-apn0-sh) | 66 | 3,2KB |
+| [`run_modules/16-ggsn.sh`](sec6-01.html#f-run-modules-16-ggsn-sh) | 81 | 3,8KB |
+| [`run_modules/17-sgsn.sh`](sec6-01.html#f-run-modules-17-sgsn-sh) | 76 | 3,4KB |
+| [`run_modules/18-pcu.sh`](sec6-01.html#f-run-modules-18-pcu-sh) | 75 | 3,6KB |
+| [`run_modules/19-asterisk.sh`](sec6-01.html#f-run-modules-19-asterisk-sh) | 70 | 3,0KB |
+| [`run_modules/20-sip-connector.sh`](sec6-01.html#f-run-modules-20-sip-connector-sh) | 87 | 4,4KB |
+| [`run_modules/21-abonnes-hlr.sh`](sec6-01.html#f-run-modules-21-abonnes-hlr-sh) | 119 | 6,1KB |
+| [`run_modules/22-smsc.sh`](sec6-01.html#f-run-modules-22-smsc-sh) | 91 | 4,4KB |
+| [`run_modules/30-core.sh`](sec6-01.html#f-run-modules-30-core-sh) | 179 | 8,7KB |
+| [`run_modules/31-hlr-feed.sh`](sec6-01.html#f-run-modules-31-hlr-feed-sh) | 138 | 6,2KB |
+| [`run_modules/40-qemu.sh`](sec6-01.html#f-run-modules-40-qemu-sh) | 104 | 4,6KB |
+| [`run_modules/55-ipc-device.sh`](sec6-01.html#f-run-modules-55-ipc-device-sh) | 105 | 5,2KB |
+| [`run_modules/56-trx-ipc.sh`](sec6-01.html#f-run-modules-56-trx-ipc-sh) | 153 | 7,4KB |
+| [`run_modules/60-bts.sh`](sec6-01.html#f-run-modules-60-bts-sh) | 119 | 5,4KB |
+| [`run_modules/60-fake-trx.sh`](sec6-01.html#f-run-modules-60-fake-trx-sh) | 106 | 4,3KB |
+| [`run_modules/61-osmo-trx.sh`](sec6-01.html#f-run-modules-61-osmo-trx-sh) | 122 | 5,6KB |
+| [`run_modules/62-osmo-bts-trx.sh`](sec6-01.html#f-run-modules-62-osmo-bts-trx-sh) | 139 | 6,5KB |
+| [`run_modules/63-osmo-bts-virtual.sh`](sec6-01.html#f-run-modules-63-osmo-bts-virtual-sh) | 106 | 4,8KB |
+| [`run_modules/64-trxcon.sh`](sec6-02.html#f-run-modules-64-trxcon-sh) | 112 | 4,2KB |
+| [`run_modules/65-virtphy.sh`](sec6-02.html#f-run-modules-65-virtphy-sh) | 108 | 3,9KB |
+| [`run_modules/66-mobile.sh`](sec6-02.html#f-run-modules-66-mobile-sh) | 156 | 6,9KB |
+| [`run_modules/_lib/core.sh`](sec6-02.html#f-run-modules-lib-core-sh) | 193 | 8,5KB |
+| [`run_modules/_lib/mod.sh`](sec6-02.html#f-run-modules-lib-mod-sh) | 87 | 4,2KB |
+| [`run_modules/_lib/radio.sh`](sec6-02.html#f-run-modules-lib-radio-sh) | 192 | 9,0KB |
+| [`run.sh`](sec6-02.html#f-run-sh) | 267 | 12KB |
+| [`scripts/audio-chain.sh`](sec6-02.html#f-scripts-audio-chain-sh) | 76 | 3,7KB |
+| [`scripts/audio-diag.sh`](sec6-02.html#f-scripts-audio-diag-sh) | 177 | 8,2KB |
+| [`scripts/call-diag.sh`](sec6-02.html#f-scripts-call-diag-sh) | 183 | 7,3KB |
+| [`scripts/check.sh`](sec6-02.html#f-scripts-check-sh) | 53 | 2,9KB |
+| [`scripts/entrypoint.sh`](sec6-02.html#f-scripts-entrypoint-sh) | 64 | 2,0KB |
+| [`scripts/gapk-start.sh`](sec6-02.html#f-scripts-gapk-start-sh) | 687 | 35KB |
+| [`scripts/osmo-start.sh`](sec6-02.html#f-scripts-osmo-start-sh) | 129 | 5,6KB |
+| [`scripts/pulse-gsm-setup.sh`](sec6-02.html#f-scripts-pulse-gsm-setup-sh) | 106 | 4,1KB |
+| [`scripts/run.sh`](sec6-02.html#f-scripts-run-sh) | 510 | 27KB |
+| [`scripts/send-mt-sms.sh`](sec6-02.html#f-scripts-send-mt-sms-sh) | 24 | 710B |
+| [`scripts/smsc-start.sh`](sec6-02.html#f-scripts-smsc-start-sh) | 140 | 5,3KB |
+| [`scripts/sms-routing-setup.sh`](sec6-02.html#f-scripts-sms-routing-setup-sh) | 547 | 25KB |
+| [`scripts/status.sh`](sec6-02.html#f-scripts-status-sh) | 14 | 338B |
+| [`scripts/wslg-audio-bridge.sh`](sec6-02.html#f-scripts-wslg-audio-bridge-sh) | 320 | 16KB |
+| [`start-direct.sh`](sec6-02.html#f-start-direct-sh) | 381 | 17KB |
+| [`start-nitb.sh`](sec6-02.html#f-start-nitb-sh) | 73 | 4,1KB |
+| [`start.sh`](sec6-02.html#f-start-sh) | 1192 | 57KB |
+| [`tools/daram_sweep.sh`](sec6-02.html#f-tools-daram-sweep-sh) | 68 | 3,4KB |
+| [`tools/fft2.sh`](sec6-02.html#f-tools-fft2-sh) | 14 | 688B |
+| [`tools/fft_global.sh`](sec6-02.html#f-tools-fft-global-sh) | 146 | 5,6KB |
+| [`tools/fft.sh`](sec6-02.html#f-tools-fft-sh) | 199 | 9,2KB |
+| [`tools/make-docker-image.sh`](sec6-02.html#f-tools-make-docker-image-sh) | 68 | 2,2KB |
+| [`tools/matrix.sh`](sec6-02.html#f-tools-matrix-sh) | 119 | 6,1KB |
+| [`tools/status.sh`](sec6-02.html#f-tools-status-sh) | 14 | 337B |
+| [`tools/update.sh`](sec6-02.html#f-tools-update-sh) | 45 | 1,7KB |
+| [`tools/vty-menu.sh`](sec6-02.html#f-tools-vty-menu-sh) | 125 | 4,2KB |
+| [`update.sh`](sec6-02.html#f-update-sh) | 350 | 19KB |
+
+:::

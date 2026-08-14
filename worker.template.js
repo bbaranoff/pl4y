@@ -372,11 +372,15 @@ function renderPage(script, psScript) {
        verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> la fournit en un seul fichier.</p>
     <span class="dl-label">&#128218; Documentation &mdash; servie ici, sur pl4y.store</span>
     <a class="dl-btn alt" href="/calypso/">&#128196; QEMU Calypso (bundle du depot)</a>
+    <a class="dl-btn alt" href="/osmo_egprs/">&#128230; osmo_egprs (bundle du depot)</a>
+    <a class="dl-btn alt" href="/tests/">&#129514; Instantane des tests (QEMU)</a>
     <a class="dl-btn alt" href="/sdr/">&#128225; Software Defined Radio (2G&rarr;5G)</a>
     <a class="dl-btn alt" href="/bbaranoff/">&#127891; Cours, projets &amp; CTF</a>
-    <p class="hint">Les trois corpus (<code>qemu-calypso</code>, <code>software-defined-radio</code>,
-       <code>bbaranoff.github.io</code>) sont rendus et unifies sous le meme habillage
-       par <code>docs/unify.mjs</code>, puis servis en statique par ce Worker.
+    <p class="hint">Les corpus (<code>qemu-calypso</code>, <code>osmo_egprs</code>,
+       <code>software-defined-radio</code>, <code>bbaranoff.github.io</code>) sont rendus et
+       unifies sous le meme habillage par <code>docs/unify.mjs</code>, puis servis en statique
+       par ce Worker. <code>/tests/</code> est l'instantane du dernier run pytest du fork
+       <code>bbaranoff/qemu</code>, regenere par <code>tests/conftest.py</code>.
        Vue d'ensemble : <a href="/docs/">/docs/</a>.</p>
   </div>
 
@@ -764,9 +768,9 @@ subscriber msisdn 10001 sms sender msisdn 10002 send Hello</code></pre>
 </html>`;
 }
 
-// Prefixes servis par les Static Assets (contenu unifie des trois depots
+// Prefixes servis par les Static Assets (contenu unifie des depots
 // documentaires, genere par docs/unify.mjs dans public/).
-const ASSET_PREFIXES = ["/calypso", "/sdr", "/bbaranoff", "/docs"];
+const ASSET_PREFIXES = ["/calypso", "/osmo_egprs", "/tests", "/sdr", "/bbaranoff", "/docs"];
 
 export default {
   async fetch(request, env) {

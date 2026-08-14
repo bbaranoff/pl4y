@@ -2,13 +2,15 @@
 /* ---------------------------------------------------------------------------
  * unify.mjs — workflow d'unification du contenu servi par pl4y.store
  *
- * Prend les trois depots sources, les rend chacun avec sa chaine native, puis
+ * Prend les depots sources, les rend chacun avec sa chaine native, puis
  * unifie le resultat dans un seul arbre statique `public/` : meme skin, meme
  * navigation, meme bascule de theme, sans doublon.
  *
- *   /calypso/    <- ~/qemu-calypso          (Quarto, bundle du depot)
- *   /sdr/        <- ~/software-defined-radio (Sphinx / MyST / RTD)
- *   /bbaranoff/  <- ~/bbaranoff.github.io    (Jekyll -> pandoc)
+ *   /calypso/     <- ~/qemu-calypso           (Quarto, bundle du depot)
+ *   /sdr/         <- ~/software-defined-radio (Sphinx / MyST / RTD)
+ *   /bbaranoff/   <- ~/bbaranoff.github.io    (Jekyll -> pandoc + sommaire)
+ *   /osmo_egprs/  <- ~/osmo_egprs             (Quarto, meme bundle que Calypso)
+ *   /tests/       <- ~/qemu/tests             (instantane du rapport pytest)
  *
  * Etapes :
  *   1. collect  — verifie les sources et les outils disponibles
@@ -108,29 +110,60 @@ const SOURCES = {
     out: join(PUBLIC, "bbaranoff"),
     build: buildBbaranoff,
   },
+  osmo_egprs: {
+    title: "osmo_egprs",
+    blurb:
+      "Bundle complet du depot <code>osmo_egprs</code> : la plateforme multi-PLMN " +
+      "(Docker, configs Osmocom, reseau, helpers, scripts de lancement) — meme " +
+      "rendu que le bundle Calypso, chaque fichier dans son bloc de code.",
+    src: join(HOME, "osmo_egprs"),
+    out: join(PUBLIC, "osmo_egprs"),
+    build: buildEgprs,
+  },
+  tests: {
+    title: "Instantane des tests",
+    blurb:
+      "Le rapport de test genere par <code>tests/conftest.py</code> dans le fork " +
+      "<strong>qemu</strong> : statut global, pipeline GSM colorie par taux de " +
+      "reussite, detail par test — plus les diagrammes et la timeline bruts.",
+    src: join(HOME, "qemu", "tests"),
+    out: join(PUBLIC, "tests"),
+    build: buildTests,
+  },
 };
 
-/* ------------------------------------------------------- 2. render : calypso */
+/* ------------------------------------------- 2. render : bundles Quarto (qmd) */
 
-function buildCalypso(s) {
-  const work = join(DOCS, "calypso-site");
+// Deux depots portent le meme generateur de bundle : un script qui balaie
+// l'arbre et emet un projet Quarto multi-pages (doc, tests, headers, sources,
+// python, shell). Il s'appelle `full-qmd.sh` dans qemu-calypso et `full_qmd.sh`
+// dans osmo_egprs — d'ou la recherche sur les deux noms.
+const BUNDLER_NAMES = ["full-qmd.sh", "full_qmd.sh"];
+
+function buildQmdBundle(s, { work, title, subtitle, exclude }) {
   const site = join(work, "_site");
 
   if (FORCE || !existsSync(join(work, "_quarto.yml"))) {
-    if (!existsSync(join(s.src, "full-qmd.sh"))) {
-      warn(`full-qmd.sh introuvable dans ${s.src} — etape sautee`);
+    const bundler = BUNDLER_NAMES.find((n) => existsSync(join(s.src, n)));
+    if (!bundler) {
+      warn(`${BUNDLER_NAMES.join(" / ")} introuvable dans ${s.src} — etape sautee`);
       return false;
     }
-    log("  generation du bundle Quarto (full-qmd.sh, mode site)…");
-    sh("./full-qmd.sh", [], {
-      cwd: s.src,
-      env: { ...process.env, MODE: "site", OUTDIR: work, SPLIT_KB: "350" },
-    });
+    log(`  generation du bundle Quarto (${bundler}, mode site)…`);
+    const env = { ...process.env, MODE: "site", OUTDIR: work, SPLIT_KB: "350" };
+    if (title) env.TITLE = title;
+    if (subtitle) env.SUBTITLE = subtitle;
+    if (exclude) env.EXCLUDE = exclude;
+    // bash explicitement : le bundler utilise `set -o pipefail`, que dash — le
+    // /bin/sh de Debian — refuse ("Illegal option -o pipefail").
+    sh("bash", [join(s.src, bundler)], { cwd: s.src, env });
     patchQuartoConfig(join(work, "_quarto.yml"));
+    const pruned = pruneEmptyPages(work);
+    if (pruned.length) log(`  rubriques vides elaguees : ${pruned.join(", ")}`);
   }
 
   if (FORCE || !existsSync(site)) {
-    if (!have("quarto")) { warn("quarto absent — /calypso non reconstruit"); return existsSync(site); }
+    if (!have("quarto")) { warn(`quarto absent — ${s.out} non reconstruit`); return existsSync(site); }
     log("  quarto render (peut prendre quelques minutes)…");
     sh("quarto", ["render"], { cwd: work, stdio: "inherit" });
   }
@@ -139,10 +172,151 @@ function buildCalypso(s) {
   copyTree(site, s.out);
   // Les fichiers sources demandes explicitement, servis a cote du rendu.
   for (const f of ["sketchy.css", "sk-filter.html"]) {
-    const p = join(DOCS, "calypso", f);
+    const p = join(work, f);
     if (existsSync(p)) cpSync(p, join(s.out, f));
   }
   return true;
+}
+
+function buildCalypso(s) {
+  return buildQmdBundle(s, { work: join(DOCS, "calypso-site") });
+}
+
+// Meme chaine que Calypso. Deux exclusions en plus : le bundle deja rendu qui
+// traine dans le depot (`calypso-full.qmd` et son dossier de ressources) se
+// re-inclurait lui-meme — 800 ko de doublon dans une page — et `rsconnect/`
+// n'est que la machinerie de publication Posit.
+function buildEgprs(s) {
+  return buildQmdBundle(s, {
+    work: join(DOCS, "egprs-site"),
+    title: "osmo_egprs",
+    subtitle: "Bundle du depot - plateforme multi-PLMN Osmocom / Docker",
+    exclude:
+      "subprojects|build|pc-bios|node_modules|\\.git|\\.pytest_cache" +
+      "|calypso-full|rsconnect|\\.iso$",
+  });
+}
+
+/* --------------------------------------------------- 2. render : tests (qemu) */
+
+// `tests/test_results.qmd` du fork qemu est REGENERE a chaque session pytest
+// (`conftest.py::pytest_sessionfinish`) : ce qu'on publie est l'instantane du
+// dernier run, pas un document maintenu a la main. On horodate donc la page
+// avec le mtime du fichier source, sinon rien ne dit de quand date le rapport.
+const TEST_ASSETS = [
+  ["test_results.qmd", "le rapport source (Quarto)"],
+  ["log_timeline.csv", "la timeline des evenements"],
+  ["pipeline.mmd", "le pipeline GSM (Mermaid)"],
+  ["detail.mmd", "le detail par test (Mermaid)"],
+  ["full.mmd", "le graphe complet (Mermaid)"],
+];
+
+function buildTests(s) {
+  const report = join(s.src, "test_results.qmd");
+  if (!existsSync(report)) {
+    warn(`test_results.qmd introuvable dans ${s.src} — lancer pytest d'abord`);
+    return false;
+  }
+  if (!have("quarto")) { warn("quarto absent — /tests non reconstruit"); return false; }
+
+  const work = join(DOCS, "tests-site");
+  rmSync(work, { recursive: true, force: true });
+  mkdirSync(work, { recursive: true });
+
+  const stamp = statSync(report).mtime.toISOString().replace("T", " ").slice(0, 16);
+  log(`  instantane du ${stamp} (mtime de test_results.qmd)`);
+
+  // `date: today` daterait la page du jour du rendu, pas du run de test.
+  const qmd = readFileSync(report, "utf8")
+    .replace(/^date:\s*today\s*$/m, `date: "${stamp}"`)
+    .replace(/^(\s*)embed-resources:\s*true\s*$/m, "$1embed-resources: false");
+  writeFileSync(join(work, "index.qmd"), qmd);
+
+  for (const [f] of TEST_ASSETS) {
+    const p = join(s.src, f);
+    if (existsSync(p)) cpSync(p, join(work, f));
+  }
+
+  log("  quarto render (rapport de test)…");
+  sh("quarto", ["render", "index.qmd", "--to", "html"], { cwd: work, stdio: "inherit" });
+  if (!existsSync(join(work, "index.html"))) return false;
+
+  rmSync(s.out, { recursive: true, force: true });
+  mkdirSync(s.out, { recursive: true });
+  for (const abs of walk(work)) {
+    const rel = relative(work, abs);
+    if (rel === "index.qmd" || rel.startsWith(".quarto")) continue;
+    const dst = join(s.out, rel);
+    mkdirSync(dirname(dst), { recursive: true });
+    cpSync(abs, dst);
+  }
+  appendTestSources(join(s.out, "index.html"), stamp);
+  return true;
+}
+
+// Le rapport ne dit pas d'ou il sort : on ajoute en pied de page le lien vers
+// les fichiers bruts, publies a cote.
+function appendTestSources(page, stamp) {
+  if (!existsSync(page)) return;
+  const rows = TEST_ASSETS
+    .filter(([f]) => existsSync(join(dirname(page), f)))
+    .map(([f, what]) => `    <li><a href="${f}"><code>${f}</code></a> &mdash; ${what}</li>`)
+    .join("\n");
+  const block = `
+<hr>
+<section id="pl4y-sources">
+  <h2>Sources de l'instantane</h2>
+  <p>Rapport genere par <code>tests/conftest.py::pytest_sessionfinish</code> du fork
+     <a href="https://github.com/bbaranoff/qemu" target="_blank" rel="noopener">bbaranoff/qemu</a>,
+     instantane du <strong>${stamp}</strong>. Fichiers bruts servis ici :</p>
+  <ul>
+${rows}
+  </ul>
+</section>
+`;
+  const html = readFileSync(page, "utf8");
+  if (html.includes('id="pl4y-sources"')) return;
+  writeFileSync(page, html.replace(/<\/body>/i, `${block}</body>`));
+}
+
+// Le bundler emet une page par rubrique meme quand le depot n'a aucun fichier
+// du type correspondant : osmo_egprs n'a ni `.c`, ni `.h`, ni `test_*.py`, donc
+// "2 - Tests", "3 - Headers" et "4 - Sources" sortiraient vides dans la barre
+// laterale. On supprime ces pages et leurs entrees dans _quarto.yml.
+function pruneEmptyPages(work) {
+  const yml = join(work, "_quarto.yml");
+  if (!existsSync(yml)) return [];
+
+  const empty = readdirSync(work)
+    .filter((f) => /^sec\d+-\d+\.qmd$/.test(f))
+    .filter((f) => !/^## /m.test(readFileSync(join(work, f), "utf8")));
+  if (!empty.length) return [];
+  for (const f of empty) rmSync(join(work, f));
+
+  const dropped = new Set(empty);
+  const lines = readFileSync(yml, "utf8").split("\n");
+  const out = [];
+  const titles = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    const href = l.match(/^ +- href: (sec\d+-\d+\.qmd)\s*$/);
+    if (href && dropped.has(href[1])) { i++; continue; } // + la ligne `text:`
+    const sec = l.match(/^ +- section: "(.+)"\s*$/);
+    if (sec) {
+      // La rubrique ne survit que si au moins un `- href:` la suit avant la
+      // rubrique suivante ou la fin du bloc sidebar.
+      let keep = false;
+      for (let j = i + 2; j < lines.length; j++) {
+        if (/^ +- section: /.test(lines[j]) || /^\S/.test(lines[j])) break;
+        const h = lines[j].match(/^ +- href: (sec\d+-\d+\.qmd)\s*$/);
+        if (h && !dropped.has(h[1])) { keep = true; break; }
+      }
+      if (!keep) { titles.push(sec[1]); i++; continue; } // + la ligne `contents:`
+    }
+    out.push(l);
+  }
+  writeFileSync(yml, out.join("\n"));
+  return titles;
 }
 
 // Le _quarto.yml genere vise le theme "sketchy" et execute les blocs de code :
@@ -230,8 +404,146 @@ function buildBbaranoff(s) {
   }
   // index.md -> index.html existe deja ; les liens Jekyll pointent vers ".md"
   rewriteMdLinks(s.out);
+  const nav = sectionNav(s.out, "bbaranoff.github.io");
   log(`  ${n} pages markdown rendues, ${keptHtml.length} html conserves, ${assets.length} medias`);
+  log(`  sommaire de section injecte dans ${nav.injected}/${nav.pages} pages` +
+      ` (${nav.groups} rubriques)`);
   return true;
+}
+
+/* ------------------------------------------------- 2b. sommaire de section --- */
+
+// Le depot Jekyll porte sa navigation dans `_includes/`, ecarte comme vendoring
+// (et de toute facon jamais joue, faute de ruby). Resultat : on atterrit sur la
+// page de garde — le CV — qui ne pointe vers AUCUNE des trente autres pages, et
+// la section est un cul-de-sac. On reconstruit donc le sommaire depuis l'arbre
+// rendu, et on l'injecte en haut de chaque page.
+const NAV_MARK = "<!-- pl4y-sectnav v1 -->";
+
+// Rubriques connues : ordre d'affichage + libelle. Un dossier absent de cette
+// table apparait quand meme, apres, sous son propre nom.
+const NAV_GROUPS = [
+  ["", "Accueil"], ["projects", "Projets"], ["cours", "Cours"],
+  ["ctf", "CTF"], ["games", "Jeux"], ["infos", "Infos"],
+];
+
+// Ce qui n'est pas une page de contenu : ressources de decks reveal.js,
+// vendoring Quarto, et la vue orateur que reveal genere pour chaque deck.
+const NAV_SKIP = /(^|\/)([^/]+_files|site_libs|assets|_static)(\/|$)|speaker-view\.html$/i;
+
+const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", nbsp: " ", mdash: "—" };
+const unent = (s) => s.replace(/&(#?\w+);/g, (m, k) => (k in ENT ? ENT[k] : m));
+
+// Le titre vient du <title> pandoc, qui recopie le H1 du markdown SANS le
+// rendre : un `# **ADSB**` arrive ici tel quel. On enleve donc les marqueurs
+// d'emphase, sinon le sommaire affiche les asterisques.
+const demark = (s) => s.replace(/\*\*?(.+?)\*\*?/g, "$1").replace(/`/g, "").trim();
+
+function pageTitle(html, fallback) {
+  const t = html.match(/<title>([\s\S]*?)<\/title>/i);
+  if (t) {
+    const s = demark(unent(t[1]).replace(/\s*[—–-]\s*pl4y\.store\s*$/i, ""));
+    if (s && s.toLowerCase() !== "pl4y.store") return s;
+  }
+  const h = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  if (h) {
+    const s = demark(unent(h[1].replace(/<[^>]+>/g, "")));
+    if (s) return s;
+  }
+  return fallback;
+}
+
+// Un `index.html` sans titre exploitable herite du nom de son dossier : sinon
+// tout un repertoire s'appelle "index" dans le sommaire.
+function navTitle(root, rel) {
+  const html = readFileSync(join(root, rel), "utf8");
+  const stem = basename(rel, extname(rel));
+  let fallback = stem.replace(/[-_]/g, " ");
+  if (/^index$/i.test(stem) && rel.includes("/")) {
+    const dir = dirname(rel).split("/").pop();
+    fallback = /^[0-9a-f]{16,}$/i.test(dir) ? `archive ${dir.slice(0, 8)}…` : dir.replace(/[-_]/g, " ");
+  }
+  const t = pageTitle(html, fallback);
+  return /^index$/i.test(t) ? fallback : t;
+}
+
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function sectionNav(root, label) {
+  const pages = walk(root)
+    .map((p) => relative(root, p).split(sep).join("/"))
+    .filter((r) => /\.html?$/i.test(r) && !NAV_SKIP.test(r))
+    .sort();
+
+  // Regroupement par dossier de premier niveau, index.html en tete de rubrique.
+  const groups = new Map();
+  const titles = new Map();
+  for (const rel of pages) {
+    const dir = rel.includes("/") ? rel.slice(0, rel.indexOf("/")) : "";
+    titles.set(rel, navTitle(root, rel));
+    if (!groups.has(dir)) groups.set(dir, []);
+    groups.get(dir).push(rel);
+  }
+  for (const list of groups.values()) {
+    list.sort((a, b) => {
+      const ia = /(^|\/)index\.html?$/i.test(a) ? 0 : 1;
+      const ib = /(^|\/)index\.html?$/i.test(b) ? 0 : 1;
+      return ia - ib || a.localeCompare(b, "fr");
+    });
+  }
+
+  const known = new Set(NAV_GROUPS.map(([k]) => k));
+  const order = [
+    ...NAV_GROUPS.filter(([k]) => groups.has(k)),
+    ...[...groups.keys()].filter((k) => !known.has(k)).sort()
+      .map((k) => [k, k.replace(/[-_]/g, " ")]),
+  ];
+
+  let injected = 0;
+  for (const rel of pages) {
+    const abs = join(root, rel);
+    let html = readFileSync(abs, "utf8");
+    if (html.includes(NAV_MARK)) continue;
+    const here = rel.includes("/") ? rel.slice(0, rel.indexOf("/")) : "";
+    const from = dirname(abs);
+
+    const blocks = order.map(([dir, title]) => {
+      const items = groups.get(dir).map((r) => {
+        const href = relative(from, join(root, r)).split(sep).join("/") || basename(r);
+        const cur = r === rel ? ' aria-current="page"' : "";
+        return `      <li><a href="${href}"${cur}>${esc(titles.get(r))}</a></li>`;
+      }).join("\n");
+      // La rubrique de la page courante est depliee, les autres sont fermees :
+      // sur la page de garde, tout est accessible sans noyer le CV.
+      const open = dir === here ? " open" : "";
+      return `    <details class="pl4y-sect-grp"${open}>
+      <summary>${esc(title)} <span class="n">${groups.get(dir).length}</span></summary>
+      <ul>
+${items}
+      </ul>
+    </details>`;
+    }).join("\n");
+
+    const nav = `${NAV_MARK}
+<nav class="pl4y-sect" aria-label="Sommaire de la section">
+  <div class="pl4y-sect-head">${esc(label)}</div>
+${blocks}
+</nav>
+`;
+    // Dans le gabarit pandoc, le contenu vit dans .pl4y-doc : le sommaire y
+    // entre pour heriter de la largeur de page. Les HTML repris tels quels
+    // (decks reveal.js, pages CTF) n'ont pas ce conteneur -> juste apres <body>.
+    if (/<div class="pl4y-doc">/.test(html)) {
+      html = html.replace(/<div class="pl4y-doc">/, (m) => `${m}\n${nav}`);
+    } else if (/<body[^>]*>/i.test(html)) {
+      html = html.replace(/<body[^>]*>/i, (m) => `${m}\n${nav}`);
+    } else {
+      html = nav + html;
+    }
+    writeFileSync(abs, html);
+    injected++;
+  }
+  return { pages: pages.length, injected, groups: order.length };
 }
 
 // Detache le titre du corps : si le fichier commence par un H1 (eventuellement
@@ -318,14 +630,21 @@ function collectReferences() {
 /* -------------------------------------------------------------- 5. index --- */
 
 function writeHub(built) {
+  // Une passe ciblee (`node docs/unify.mjs tests`) ne doit pas faire disparaitre
+  // du hub les sections deja publiees : on prend celles construites a l'instant
+  // PLUS celles qui ont deja un rendu dans public/.
+  const shown = Object.entries(SOURCES)
+    .filter(([k, s]) => built.includes(k) || existsSync(join(s.out, "index.html")))
+    .map(([k]) => k);
+
   const cards = Object.entries(SOURCES)
-    .filter(([k]) => built.includes(k))
+    .filter(([k]) => shown.includes(k))
     .map(([k, s]) => {
       const n = walk(s.out).filter((p) => /\.html?$/i.test(p)).length;
       return `      <a class="hub-card" href="/${k}/">
         <h2>${s.title}</h2>
         <p>${s.blurb}</p>
-        <span class="meta">${n} pages &middot; /${k}/</span>
+        <span class="meta">${n} page${n > 1 ? "s" : ""} &middot; /${k}/</span>
       </a>`;
     })
     .join("\n");
@@ -352,7 +671,7 @@ function writeHub(built) {
   <div class="hub">
     <h1>Documentation</h1>
     <p class="subtitle" style="color:var(--muted);margin:0 0 1.8rem">
-      Les trois corpus servis par pl4y.store, unifies sous le meme rendu.
+      Les corpus servis par pl4y.store, unifies sous le meme rendu.
     </p>
     <div class="hub-grid">
 ${cards}

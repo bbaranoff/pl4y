@@ -1,20 +1,22 @@
 # `docs/` — workflow d'unification du contenu
 
-`pl4y.store` sert le contenu de **trois dépôts** sous un seul habillage. Chacun
-a sa propre chaîne de rendu ; le workflow les ramène à un arbre statique unique,
-`public/`, servi par le Worker en **Cloudflare Static Assets**.
+`pl4y.store` sert le contenu de **plusieurs dépôts** sous un seul habillage.
+Chacun a sa propre chaîne de rendu ; le workflow les ramène à un arbre statique
+unique, `public/`, servi par le Worker en **Cloudflare Static Assets**.
 
 | URL | Source | Chaîne |
 |---|---|---|
 | `/calypso/` | `~/qemu-calypso` | `full-qmd.sh` (bundle) → **Quarto** |
+| `/osmo_egprs/` | `~/osmo_egprs` | `full_qmd.sh` (même bundle) → **Quarto** |
+| `/tests/` | `~/qemu/tests` | instantané de `test_results.qmd` → **Quarto** |
 | `/sdr/` | `~/software-defined-radio` | **Sphinx** + MyST (thème RTD) |
-| `/bbaranoff/` | `~/bbaranoff.github.io` | **pandoc** (Jekyll non installable ici) |
+| `/bbaranoff/` | `~/bbaranoff.github.io` | **pandoc** + sommaire de section reconstruit |
 | `/docs/` | — | hub généré + feuille de style commune |
 
 ## Lancer le workflow
 
 ```bash
-node docs/unify.mjs                 # les trois sections
+node docs/unify.mjs                 # toutes les sections
 node docs/unify.mjs sdr bbaranoff   # seulement celles-ci
 FORCE=1 node docs/unify.mjs         # re-rend même si déjà construit
 ```

@@ -7,11 +7,13 @@ compatibility_date = "2025-06-01"
 [build]
 command = "node build.mjs"
 
-# Contenu unifie des trois depots documentaires, servi en Static Assets :
-#   /calypso/*   qemu-calypso (Quarto)
-#   /sdr/*       software-defined-radio (Sphinx)
-#   /bbaranoff/* bbaranoff.github.io (pandoc)
-#   /docs/       hub + feuille de style commune
+# Contenu unifie des depots documentaires, servi en Static Assets :
+#   /calypso/*    qemu-calypso (Quarto)
+#   /osmo_egprs/* osmo_egprs (Quarto, meme bundle)
+#   /tests/       instantane du rapport pytest de ~/qemu/tests
+#   /sdr/*        software-defined-radio (Sphinx)
+#   /bbaranoff/*  bbaranoff.github.io (pandoc + sommaire de section)
+#   /docs/        hub + feuille de style commune
 # Genere par `node docs/unify.mjs` (voir docs/README.md). Le Worker garde la
 # main sur "/" : les assets ne contiennent volontairement pas d'index racine.
 [assets]
