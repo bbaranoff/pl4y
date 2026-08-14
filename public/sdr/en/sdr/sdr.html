@@ -1,0 +1,333 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Different kind of SDR &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="2G" href="../2G/index.html" />
+    <link rel="prev" title="What is an SDR?" href="what.html" /> 
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+
+<body class="wy-body-for-nav">
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+ 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#quick-navigation">Quick Navigation</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">SDR</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#quick-navigation">Quick Navigation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../2G/index.html">2G</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about.html">Who am I</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fr/index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">SDR</a></li>
+      <li class="breadcrumb-item active">Different kind of SDR</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/en/sdr/sdr.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="different-kind-of-sdr">
+<h1>Different kind of SDR<a class="headerlink" href="#different-kind-of-sdr" title="Link to this heading"></a></h1>
+<section id="sdrs-comparison-chart-specs-price-2025">
+<h2>SDRs Comparison Chart (Specs + Price, 2025)<a class="headerlink" href="#sdrs-comparison-chart-specs-price-2025" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>SDR (Model)</strong></p></th>
+<th class="head"><p><strong>RF Range</strong></p></th>
+<th class="head"><p><strong>Tx/Rx</strong></p></th>
+<th class="head"><p><strong>Instant BW</strong></p></th>
+<th class="head"><p><strong>FPGA/Chipset</strong></p></th>
+<th class="head"><p><strong>Interface</strong></p></th>
+<th class="head"><p><strong>Notable Features</strong></p></th>
+<th class="head"><p><strong>Approx Price*</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>RTL‑SDR V3</strong></p></td>
+<td><p>500 kHz–1.7 GHz</p></td>
+<td><p>Rx only</p></td>
+<td><p>~2.4 MHz</p></td>
+<td><p>RTL2832U + R820T2</p></td>
+<td><p>USB 2.0</p></td>
+<td><p>Super cheap, receive only, huge ecosystem</p></td>
+<td><p>$30–40 (€30–40)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>ADALM‑PLUTO (PlutoSDR)</strong></p></td>
+<td><p>325 MHz–3.8 GHz (mod to ~70–6000 MHz)</p></td>
+<td><p>1Tx / 1Rx (full)</p></td>
+<td><p>20 MHz</p></td>
+<td><p>Zynq Z-7010 + AD9363</p></td>
+<td><p>USB 2.0</p></td>
+<td><p>Ultra compact, hackable, educational</p></td>
+<td><p>$230–250 (€230–250); France: ~€350</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>LimeSDR Mini 2.0</strong></p></td>
+<td><p>~10 MHz–3.5 GHz</p></td>
+<td><p>1Tx / 1Rx</p></td>
+<td><p>40 MHz</p></td>
+<td><p>Lattice ECP5 + LMS7002M</p></td>
+<td><p>USB 3.0</p></td>
+<td><p>Low latency, advanced DSP, open source</p></td>
+<td><p>$440 (~€410)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>HackRF One</strong></p></td>
+<td><p>1 MHz–6 GHz</p></td>
+<td><p>1Tx / 1Rx (half)</p></td>
+<td><p>20 MHz</p></td>
+<td><p>MAX2837/2839</p></td>
+<td><p>USB 2.0</p></td>
+<td><p>Open source, hacking, popular, DIY crowd</p></td>
+<td><p>$320–350 (~€320–350)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>BladeRF 2.0 Micro xA4</strong></p></td>
+<td><p>~47 MHz–6 GHz</p></td>
+<td><p>1Tx / 1Rx (full)</p></td>
+<td><p>56 MHz</p></td>
+<td><p>Intel Cyclone V FPGA + LMS7002M</p></td>
+<td><p>USB 3.0</p></td>
+<td><p>Powerful, wideband, strong dev community</p></td>
+<td><p>€649 (~$700)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>AntSDR E200/E310</strong></p></td>
+<td><p>70 MHz–6 GHz (AD9361/63)</p></td>
+<td><p>2Tx / 2Rx (full)</p></td>
+<td><p>56–61.44 MHz</p></td>
+<td><p>Zynq-7020 + AD9361/63</p></td>
+<td><p>Ethernet, USB</p></td>
+<td><p>MIMO 2x2, open HW/SW, flexible</p></td>
+<td><p>€317 (AD9363)<br>€472 (AD9361)<br>eBay: $475–800</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>LibreSDR B210/B220 Mini</strong></p></td>
+<td><p>70 MHz–6 GHz</p></td>
+<td><p>2Tx / 2Rx (full)</p></td>
+<td><p>~56 MHz</p></td>
+<td><p>FPGA + AD9361/63</p></td>
+<td><p>USB 3.0</p></td>
+<td><p>USRP B210 compatible, ultra-compact</p></td>
+<td><p>€369</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>USRP B210</strong></p></td>
+<td><p>70 MHz–6 GHz</p></td>
+<td><p>2Tx / 2Rx (full)</p></td>
+<td><p>56 MHz</p></td>
+<td><p>Spartan-6 + AD9361</p></td>
+<td><p>USB 3.0</p></td>
+<td><p>Lab/edu reference, UHD, rugged</p></td>
+<td><p>$2,165 (~€2,000)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>USRP X310</strong></p></td>
+<td><p>10 MHz–6 GHz* (modular)</p></td>
+<td><p>2Tx / 2Rx (full)</p></td>
+<td><p>160 MHz</p></td>
+<td><p>Kintex-7, modular RF</p></td>
+<td><p>1/10 GbE, PCIe</p></td>
+<td><p>Research/pro, extreme bandwidth, modular</p></td>
+<td><p>$10,396–11,435</p></td>
+</tr>
+</tbody>
+</table>
+<p>*Prices are for new, board-only units, no taxes/shipping, 2025; actual may vary.</p>
+<p><strong>Legend:</strong></p>
+<ul class="simple">
+<li><p><em>Full</em> = full duplex Tx+Rx.</p></li>
+<li><p><em>Half</em> = half duplex (Tx or Rx, not at the same time).</p></li>
+</ul>
+</section>
+<section id="usage-balance-points-mirror-equilibrate-view">
+<h2>Usage “Balance Points” (Mirror/Equilibrate View)<a class="headerlink" href="#usage-balance-points-mirror-equilibrate-view" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>ADALM-PLUTO, HackRF</strong>: Entry level, best for education, hacking, prototyping, limited by instant bandwidth and duplex.</p></li>
+<li><p><strong>LimeSDR Mini, BladeRF</strong>: More powerful, USB 3.0, real DSP/FPGA resources, hobby + serious prototyping.</p></li>
+<li><p><strong>AntSDR, LibreSDR</strong>: Superb value for 2x2 MIMO, ideal for advanced research, flexible, open source.</p></li>
+<li><p><strong>USRP B210/X310</strong>: Reference platforms for research, labs, pro dev, expensive but ultimate performance (esp. X310).</p></li>
+</ul>
+<hr class="docutils" />
+<div style="display: flex; flex-wrap: wrap; gap: 18px; justify-content: flex-start; align-items: flex-start;">
+<a href="https://www.rtl-sdr.com/buy-rtl-sdr-dvb-t-dongles/" style="text-align:center">
+  <img src="https://www.rtl-sdr.com/wp-content/uploads/2023/03/improvements_v3.jpg" alt="RTL-SDR V3" width="220"/><br>
+  <b>RTL‑SDR V3</b>
+</a>
+<a href="https://www.analog.com/en/design-center/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html" style="text-align:center">
+  <img src="https://www.analog.com/en/_/media/analog/en/evaluation-board-images/images/adalm-pluto-web.gif" alt="ADALM-PLUTO PlutoSDR" width="220"/><br>
+  <b>ADALM-PLUTO</b>
+</a>
+<a href="https://www.crowdsupply.com/lime-micro/limesdr-mini-2-0" style="text-align:center">
+  <img src="https://www.crowdsupply.com/img/2829/6b51f129-f3e4-4963-ba6f-70c17ffc2829/limesdr-mini-2-prototype-top-bottom-1_jpg_gallery-lg.jpg" alt="LimeSDR Mini 2.0" width="220"/><br>
+  <b>LimeSDR Mini 2.0</b>
+</a>
+<a href="https://greatscottgadgets.com/hackrf/" style="text-align:center">
+  <img src="https://greatscottgadgets.com/images/h1-preliminary1-445.jpeg" alt="HackRF One" width="220"/><br>
+  <b>HackRF One</b>
+</a>
+<a href="https://lab401.com/products/bladerf-sdr-2-micro-xa4" style="text-align:center">
+  <img src="https://lab401.com/cdn/shop/products/BladeRF-Starter-Pack-Resized_521x284.png" alt="BladeRF 2.0 Micro xA4" width="220"/><br>
+  <b>BladeRF 2.0 Micro xA4</b>
+</a>
+<a href="https://www.crowdsupply.com/microphase-technology/antsdr-e200" style="text-align:center">
+  <img src="https://www.crowdsupply.com/img/6233/8e9bd1c8-8003-40bf-b73e-3c27d58a6233/antsdr-e200-front-back-01_jpg_gallery-lg.jpg" alt="AntSDR E200" width="220"/><br>
+  <b>AntSDR E200 / E310</b>
+</a>
+<a href="https://www.sdrstore.eu/software-defined-radio/instruments/usrp/libresdr-b210-mini-b220-mini-2r2t-xc7a200tad9361-or-xc7a100tad9363-sdr-uhd-pluto-oai-compatible.html" style="text-align:center">
+  <img src="https://www.sdrstore.eu/images/ab__webp/detailed/13/download_-_2025-06-26T180436.230_jpg.webp" alt="LibreSDR B210 Mini" width="220"/><br>
+  <b>LibreSDR B210/B220 Mini</b>
+</a>
+<a href="https://www.ettus.com/all-products/ub210-kit/" style="text-align:center">
+  <img src="https://www.ettus.com/wp-content/uploads/2019/01/B210_Board-Large_2.jpg" alt="USRP B210" width="220"/><br>
+  <b>USRP B210</b>
+</a>
+<a href="https://www.ettus.com/all-products/x310-kit/" style="text-align:center">
+  <img src="https://www.ettus.com/wp-content/uploads/2024/10/NI-Ettus-X310.jpeg" alt="USRP X310" width="220"/><br>
+  <b>USRP X310</b>
+</a>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="what.html" class="btn btn-neutral float-left" title="What is an SDR?" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../2G/index.html" class="btn btn-neutral float-right" title="2G" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

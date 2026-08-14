@@ -1,0 +1,300 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bases du GSM : Vue d’ensemble &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Guide d’installation modulaire EGPRS (Osmocom + SDR)" href="edge.html" />
+    <link rel="prev" title="2G : GSM/GPRS/EDGE" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../en/index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index-fr.html#navigation-sdr">Navigation SDR</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../sdr/index.html">SDR</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">2G : GSM/GPRS/EDGE</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#navigation-rapide">Navigation rapide</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq-fr.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about-fr.html">Qui suis je</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">2G : GSM/GPRS/EDGE</a></li>
+      <li class="breadcrumb-item active">Bases du GSM : Vue d’ensemble</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/fr/2G/gsm-basics.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <p><a class="reference internal" href="../../en/2G/gsm-basics.html"><span class="std std-doc">English</span></a></p>
+<section id="bases-du-gsm-vue-d-ensemble">
+<h1>Bases du GSM : Vue d’ensemble<a class="headerlink" href="#bases-du-gsm-vue-d-ensemble" title="Link to this heading"></a></h1>
+<p><strong>GSM</strong> (Global System for Mobile Communications) est le standard cellulaire le plus utilisé au monde, initialement conçu pour la voix et les SMS 2G, puis étendu à la donnée (GPRS/EDGE).</p>
+<hr class="docutils" />
+<section id="qu-est-ce-que-le-gsm">
+<h2>Qu’est-ce que le GSM ?<a class="headerlink" href="#qu-est-ce-que-le-gsm" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Standard <strong>cellulaire numérique</strong> pour voix et données mobiles</p></li>
+<li><p>Lancé en Europe en 1991, adopté mondialement</p></li>
+<li><p>Bandes : 900/1800 MHz (Europe/Asie), 850/1900 MHz (Amériques)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="concepts-cles">
+<h2>Concepts clés<a class="headerlink" href="#concepts-cles" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Réseau cellulaire</strong> : Divise la couverture en « cellules », chacune desservie par une station de base (BTS)</p></li>
+<li><p><strong>Carte SIM</strong> : Stocke l’identité de l’abonné et les clés secrètes</p></li>
+<li><p><strong>Voix, SMS, données bas débit</strong> : Services de base (l’accès Internet a été ajouté ensuite)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="architecture-gsm">
+<h2>Architecture GSM<a class="headerlink" href="#architecture-gsm" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>MS (Mobile Station)</strong> : Le téléphone (matériel + SIM)</p></li>
+<li><p><strong>BTS (Base Transceiver Station)</strong> : « Antenne relais » – gère le lien radio avec le téléphone</p></li>
+<li><p><strong>BSC (Base Station Controller)</strong> : Gère plusieurs BTS, handover et ressources radio</p></li>
+<li><p><strong>MSC (Mobile Switching Center)</strong> : Bascule appels/SMS, gère mobilité et authentification</p></li>
+<li><p><strong>HLR/VLR (Home/Visitor Location Register)</strong> : Bases de données abonnés et itinérance</p></li>
+<li><p><strong>AUC</strong> : Centre d’authentification (gère SIM/IMSI/Ki)</p></li>
+<li><p><strong>EIR</strong> : Registre des équipements (bloque les téléphones volés)</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[MS] ⇄ [BTS] ⇄ [BSC] ⇄ [MSC] ⇄ [HLR/VLR]
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="frequences-et-modulation">
+<h2>Fréquences et modulation<a class="headerlink" href="#frequences-et-modulation" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>TDMA</strong> : Time Division Multiple Access (plusieurs utilisateurs par fréquence, via des intervalles de temps)</p></li>
+<li><p><strong>GMSK</strong> : Gaussian Minimum Shift Keying (modulation radio efficace et robuste)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="securite-sim">
+<h2>Sécurité &amp; SIM<a class="headerlink" href="#securite-sim" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Chaque SIM possède un <strong>IMSI</strong> unique et une clé secrète <strong>Ki</strong></p></li>
+<li><p><strong>Authentification</strong> : Algorithmes A3/A8, génération d’une clé session (Kc) pour chaque appel</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="interface-radio-gsm-pile-de-protocoles">
+<h2>Interface radio GSM &amp; pile de protocoles<a class="headerlink" href="#interface-radio-gsm-pile-de-protocoles" title="Link to this heading"></a></h2>
+<p>L’« interface radio » GSM définit comment le téléphone communique avec le réseau sur le canal radio : fréquences, slots temporels, couches de protocoles…</p>
+</section>
+<hr class="docutils" />
+<section id="canaux-radio-intervalles-de-temps">
+<h2>Canaux radio &amp; intervalles de temps<a class="headerlink" href="#canaux-radio-intervalles-de-temps" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Bandes de fréquences</strong> : GSM900, 1800, 850, 1900 MHz</p></li>
+<li><p><strong>Canal</strong> = fréquence porteuse (200 kHz) découpée en 8 <strong>timeslots</strong> (TDMA)</p></li>
+<li><p><strong>Un utilisateur</strong> = un timeslot par trame (hors canaux de contrôle/données « packet »)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="types-de-canaux">
+<h2>Types de canaux<a class="headerlink" href="#types-de-canaux" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Traffic Channels (TCH)</strong> : Transportent voix ou données utilisateur</p></li>
+<li><p><strong>Control Channels (CCH)</strong> :</p>
+<ul>
+<li><p><strong>BCCH</strong> : Broadcast Control (infos réseau, paramètres cellule)</p></li>
+<li><p><strong>CCCH</strong> : Common Control (paging, accès)</p></li>
+<li><p><strong>DCCH</strong> : Dedicated Control (établissement d’appel, authent, signalisation SMS)</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="pile-de-protocoles">
+<h2>Pile de protocoles<a class="headerlink" href="#pile-de-protocoles" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Couche 1 (physique)</strong> : Modulation, transmission RF (GMSK)</p></li>
+<li><p><strong>Couche 2 (liaison)</strong> : LAPDm — correction d’erreurs, tramage</p></li>
+<li><p><strong>Couche 3 (réseau)</strong> : RR/MM/CC — gestion radio, mobilité, contrôle d’appel</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="sequence-dappel-simplifiee">
+<h2>Séquence d’appel (simplifiée)<a class="headerlink" href="#sequence-dappel-simplifiee" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Allumage</strong> → Le téléphone scanne le BCCH, sélectionne la meilleure cellule</p></li>
+<li><p><strong>Enregistrement</strong> → Envoie l’IMSI, le réseau authentifie la SIM</p></li>
+<li><p><strong>Appel/SMS</strong> → Signalisation sur DCCH, voix/données sur TCH</p></li>
+<li><p><strong>Handover</strong> → Si déplacement, le réseau commute BTS/BSC</p></li>
+<li><p><strong>Chiffrement</strong> → Flux chiffré (A5/1 etc.) activé après authentification</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="donnees-par-paquets">
+<h2>Données par paquets<a class="headerlink" href="#donnees-par-paquets" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>GPRS/EDGE</strong> : Utilise des timeslots additionnels pour la data (canaux « packet »), gérés par SGSN/GGSN dans le cœur</p></li>
+<li><p><strong>Débits</strong> : De ~9,6 kbps (GSM) à 236 kbps (EDGE)</p></li>
+</ul>
+</section>
+<section id="quel-est-le-role-de-ss7-dans-gsm">
+<h2>Quel est le rôle de SS7 dans GSM ?<a class="headerlink" href="#quel-est-le-role-de-ss7-dans-gsm" title="Link to this heading"></a></h2>
+<section id="ss7-signaling-system-no-7-est-le-protocole-de-signalisation-universel-utilise-dans-le-coeur-des-reseaux-telecoms-fixes-et-mobiles">
+<h3>SS7 (Signaling System No. 7) est le <strong>protocole de signalisation universel</strong> utilisé dans le cœur des réseaux télécoms (fixes et mobiles).<a class="headerlink" href="#ss7-signaling-system-no-7-est-le-protocole-de-signalisation-universel-utilise-dans-le-coeur-des-reseaux-telecoms-fixes-et-mobiles" title="Link to this heading"></a></h3>
+<p>Dans le GSM, il joue un <strong>rôle clé dans toutes les opérations de gestion du réseau, de l’abonné, du roaming et des services</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="principales-fonctions-de-ss7-dans-gsm">
+<h3>Principales fonctions de SS7 dans GSM :<a class="headerlink" href="#principales-fonctions-de-ss7-dans-gsm" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Gestion de la mobilité / Roaming</strong></p>
+<ul class="simple">
+<li><p>SS7 permet au réseau de savoir où se trouve chaque abonné, même en itinérance (roaming international).</p></li>
+<li><p>Les messages SS7 servent à mettre à jour les bases HLR/VLR (Home Location Register / Visitor Location Register) à chaque changement de zone.</p></li>
+</ul>
+</li>
+<li><p><strong>Authentification et sécurité</strong></p>
+<ul class="simple">
+<li><p>Utilisé pour véhiculer les messages d’authentification entre les MSC (commutateur mobile), HLR, AUC (Authentication Center).</p></li>
+<li><p>Transfert de clés, challenge/réponse lors de l’attachement d’un mobile.</p></li>
+</ul>
+</li>
+<li><p><strong>Établissement et routage des appels</strong></p>
+<ul class="simple">
+<li><p>Toute la “logique” d’établissement, d’acheminement, de libération des appels (voix, SMS) repose sur la signalisation SS7.</p></li>
+<li><p>Routage intelligent : SS7 sait trouver la destination réelle d’un numéro, même si l’abonné a bougé ou a activé des services (transfert d’appel, portabilité, etc).</p></li>
+</ul>
+</li>
+<li><p><strong>SMS</strong></p>
+<ul class="simple">
+<li><p>Les SMS transitent côté signalisation via le réseau SS7, entre les MSC, SMSC (Short Message Service Center), HLR, etc.</p></li>
+</ul>
+</li>
+<li><p><strong>Services avancés</strong></p>
+<ul class="simple">
+<li><p>Gestion du numéro court, services à valeur ajoutée (ex : renvoi, messagerie vocale, USSD, etc).</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="exemples-de-messages-ss7-dans-gsm">
+<h3>Exemples de messages SS7 dans GSM<a class="headerlink" href="#exemples-de-messages-ss7-dans-gsm" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>MAP</strong> (Mobile Application Part) : localise, authentifie, transfère l’état de l’abonné.</p></li>
+<li><p><strong>ISUP</strong> (ISDN User Part) : gère l’établissement d’appels voix.</p></li>
+<li><p><strong>SCCP</strong> (Signalling Connection Control Part) : routage avancé des messages.</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="pourquoi-ss7-est-critique-dans-gsm">
+<h2>Pourquoi SS7 est critique dans GSM ?<a class="headerlink" href="#pourquoi-ss7-est-critique-dans-gsm" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>C’est le “langage” entre tous les grands équipements cœur de réseau</strong> (MSC, HLR, VLR, SMSC, AUC, EIR…).</p></li>
+<li><p>Sans SS7, pas d’itinérance, pas de gestion d’abonnés, pas de routage automatique.</p></li>
+<li><p>Il rend possible la mobilité mondiale et la gestion dynamique de millions d’abonnés à l’échelle opérateur.</p></li>
+</ul>
+<hr class="docutils" />
+<section id="a-retenir">
+<h3>À retenir<a class="headerlink" href="#a-retenir" title="Link to this heading"></a></h3>
+<blockquote>
+<div><p><strong>SS7 dans GSM</strong> = le “système nerveux” qui coordonne toutes les opérations invisibles du réseau mobile, du simple appel au roaming international, en passant par la sécurité et les SMS.</p>
+</div></blockquote>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="2G : GSM/GPRS/EDGE" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="edge.html" class="btn btn-neutral float-right" title="Guide d’installation modulaire EGPRS (Osmocom + SDR)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

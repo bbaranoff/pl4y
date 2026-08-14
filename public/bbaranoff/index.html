@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Resume &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+  <header class="title-block">
+    <h1>Resume</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#profile-information" id="toc-profile-information">Profile
+information</a></li>
+<li><a href="#languages" id="toc-languages">Languages:</a></li>
+<li><a href="#career-profile" id="toc-career-profile">Career
+Profile:</a></li>
+<li><a href="#education" id="toc-education">Education:</a></li>
+<li><a href="#experience" id="toc-experience">Experience</a>
+<ul>
+<li><a href="#developer" id="toc-developer">Developer</a></li>
+<li><a href="#junior-researcher" id="toc-junior-researcher">Junior
+Researcher</a></li>
+<li><a href="#cybersecurity-analyst"
+id="toc-cybersecurity-analyst">CyberSecurity Analyst</a></li>
+<li><a href="#former" id="toc-former">Former</a></li>
+<li><a href="#former-education-nationale"
+id="toc-former-education-nationale">Former (Education
+Nationale)</a></li>
+</ul></li>
+<li><a href="#quoted" id="toc-quoted">Quoted :</a></li>
+<li><a href="#stuff" id="toc-stuff">Stuff</a></li>
+<li><a href="#projects" id="toc-projects">Projects:</a></li>
+</ul>
+  </nav>
+  <main>
+<pre class="tip"><code>
+The quieter you become the most you are able to hear
+</code></pre>
+<h2 id="profile-information">Profile information</h2>
+<p>name | Bastien Baranoff tagline | Cybersecurity in Software Defined
+Radio email | bastienbaranoff@gmail.com timezone | Paris/France website
+| https://bbaranoff.github.io/ linkedin | Bastien Baranoff github |
+bbaranoff twitter | ‘<span class="citation"
+data-cites="bastienbaranoff">@bastienbaranoff</span>’</p>
+<h2 id="languages">Languages:</h2>
+<pre class="note"><code>
+French: Native |  English: Professional
+</code></pre>
+<h2 id="career-profile">Career Profile:</h2>
+<pre class="warning"><code>
+Physics -&gt; Electronics -&gt; Computer -&gt; Embedded -&gt; Software Defined Radio
+</code></pre>
+<h2 id="education">Education:</h2>
+<div class="line-block"></div>
+<p>degree | MSc in Electronics Computers university | University of
+Perpignan via Domitia time | 2011 - 2013</p>
+<div class="line-block"></div>
+<p>degree | Licence In Computer Science university | University of
+Perpignan via Domitia time | 2020-2021</p>
+<h2 id="experience">Experience</h2>
+<ul>
+<li>CyberSecurity Research
+<ul>
+<li>time: 2024</li>
+<li>company: Penthertz</li>
+</ul></li>
+<li>Former
+<ul>
+<li>time: 2024</li>
+<li>company: University of Perpignan via Domitia</li>
+</ul></li>
+<li>Developper
+<ul>
+<li>time: 2021</li>
+<li>company: PROMES-CNRS</li>
+<li>details: LoRa(WAN) connection testing</li>
+</ul></li>
+<li>Developper
+<ul>
+<li>time: 2020</li>
+<li>company: Tata Advanced System Limited</li>
+<li>details: Mobile Security Assesment</li>
+</ul></li>
+<li>Former
+<ul>
+<li>time: 2017</li>
+<li>company: Lycée Déodat de Séverac</li>
+</ul></li>
+<li>Electrical Engenering
+<ul>
+<li>time: 2013</li>
+<li>company: PROMES-CNRS</li>
+<li>details: Junior Research</li>
+</ul></li>
+</ul>
+<h3 id="developer">Developer</h3>
+<p><a href="https://www.tataadvancedsystems.com/"><img src="https://github.com/bbaranoff/bbaranoff.github.io/blob/main/assets/tata.png?raw=true" style="display: center" alt="drawing0" width="360"></a></p>
+<h3 id="junior-researcher">Junior Researcher</h3>
+<p><a href="https://www.promes.cnrs.fr/"><img src="https://github.com/bbaranoff/bbaranoff.github.io/blob/main/assets/cropped-PROMES-LONG-petit-pour-web.jpg?raw=true" style="display: center" alt="drawing1" width="360"></a></p>
+<h3 id="cybersecurity-analyst">CyberSecurity Analyst</h3>
+<p><a href="https://penthertz.com/"><img src="https://github.com/bbaranoff/bbaranoff.github.io/blob/main/assets/Penthertz_logo.png?raw=true" style="display: center" alt="drawing2" width="360"></a></p>
+<h3 id="former">Former</h3>
+<p><a href="https://univ-perp.fr/"><img src="https://github.com/bbaranoff/bbaranoff.github.io/blob/main/assets/upvd.png?raw=true" width="360"></a></p>
+<h3 id="former-education-nationale">Former (Education Nationale)</h3>
+<p><a href="https://www.education.gouv.fr/"><img src="https://bigbluebutton.org/wp-content/uploads/2022/11/france-copy.jpg"  alt="drawing2" width="360"></a></p>
+<h2 id="quoted">Quoted :</h2>
+<p>Second Time :</p>
+<p><a
+href="https://myriadrf.org/news/ota-openbsc-setup-scripts-80msps-from-a-limesdr-mini-a-satellite-hunt-and-more/"><img
+src="assets/myriad.png" /></a></p>
+<p>First TIme :</p>
+<p><a
+href="https://myriadrf.org/news/ota-openbsc-setup-scripts-80msps-from-a-limesdr-mini-a-satellite-hunt-and-more/"><img
+src="assets/myriad2.png" alt="image" /></a></p>
+<h2 id="stuff">Stuff</h2>
+<p><a href="https://x.com/i/status/1763577169865826734"><img
+src="https://github.com/bbaranoff/bbaranoff.github.io/blob/main/assets/output.gif?raw=true" /></a></p>
+<h2 id="projects">Projects:</h2>
+<pre class="danger"><code>
+Curious about A5/1 in the 2010s I searched around the internet and found a lot of interesting resources
+</code></pre>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

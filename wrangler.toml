@@ -7,6 +7,21 @@ compatibility_date = "2025-06-01"
 [build]
 command = "node build.mjs"
 
+# Contenu unifie des trois depots documentaires, servi en Static Assets :
+#   /calypso/*   qemu-calypso (Quarto)
+#   /sdr/*       software-defined-radio (Sphinx)
+#   /bbaranoff/* bbaranoff.github.io (pandoc)
+#   /docs/       hub + feuille de style commune
+# Genere par `node docs/unify.mjs` (voir docs/README.md). Le Worker garde la
+# main sur "/" : les assets ne contiennent volontairement pas d'index racine.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+# "none" : ce qui ne correspond a aucun fichier retombe sur le Worker, qui
+# renvoie soit l'asset 404 (prefixes documentaires) soit l'installeur.
+not_found_handling = "none"
+
 # Sert le Worker sur l'apex du domaine. Le domaine doit etre actif sur
 # Cloudflare (DNS proxifie). custom_domain = true cree l'enregistrement.
 [[routes]]

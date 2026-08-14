@@ -1,0 +1,40 @@
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>

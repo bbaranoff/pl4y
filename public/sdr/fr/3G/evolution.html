@@ -1,0 +1,268 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>L’évolution de la 2G vers la 3G : la révolution de l’internet mobile &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="OpenBTS-UMTS : Installation et utilisation rapide (Ubuntu, USRP)" href="tutorial.html" />
+    <link rel="prev" title="3G : UMTS/HSPA/HSPA+" href="index.html" /> 
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+
+<body class="wy-body-for-nav">
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+ 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../en/index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index-fr.html#navigation-sdr">Navigation SDR</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../sdr/index.html">SDR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../2G/index.html">2G : GSM/GPRS/EDGE</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">3G : UMTS/HSPA/HSPA+</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#navigation-rapide">Navigation rapide</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq-fr.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about-fr.html">Qui suis je</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">3G : UMTS/HSPA/HSPA+</a></li>
+      <li class="breadcrumb-item active">L’évolution de la 2G vers la 3G : la révolution de l’internet mobile</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/fr/3G/evolution.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="levolution-de-la-2g-vers-la-3g-la-revolution-de-linternet-mobile">
+<h1>L’évolution de la 2G vers la 3G : la révolution de l’internet mobile<a class="headerlink" href="#levolution-de-la-2g-vers-la-3g-la-revolution-de-linternet-mobile" title="Link to this heading"></a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading"></a></h2>
+<p>La transition de la 2G à la 3G marque un tournant majeur dans l’histoire des télécommunications mobiles. Alors que la 2G (GSM) avait démocratisé la voix et les SMS, la 3G a ouvert la voie à l’internet mobile, au multimédia, et à la généralisation du smartphone.</p>
+</section>
+<hr class="docutils" />
+<section id="g-lere-du-numerique-voix-et-sms">
+<h2>1. 2G : l’ère du numérique, voix et SMS<a class="headerlink" href="#g-lere-du-numerique-voix-et-sms" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Lancée dans les années 1990, la 2G (GSM) est le premier standard entièrement numérique.</p></li>
+<li><p>Principales avancées :</p>
+<ul>
+<li><p>Qualité d’appel améliorée par rapport à l’analogique (1G)</p></li>
+<li><p>Introduction du chiffrement (A5/1, A5/2)</p></li>
+<li><p>SMS (texte court), premières données mobiles via GPRS/EDGE</p></li>
+<li><p>Débits limités : de 9,6 kbps (GSM) à ~236 kbps (EDGE)</p></li>
+</ul>
+</li>
+</ul>
+<p>Limite : la 2G reste pensée pour la voix, la data y est accessoire, et l’accès Internet reste très lent.</p>
+</section>
+<hr class="docutils" />
+<section id="g-internet-mobile-pour-tous">
+<h2>2. 3G : internet mobile pour tous<a class="headerlink" href="#g-internet-mobile-pour-tous" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Apparue au début des années 2000, la 3G (UMTS/WCDMA) ambitionne de rendre possible la navigation web, la visiophonie et le téléchargement en mobilité.</p></li>
+<li><p>Révolutions techniques :</p>
+<ul>
+<li><p>Passage à la commutation de paquets (data native)</p></li>
+<li><p>Débits multipliés : jusqu’à 384 kbps en mobilité, puis plusieurs Mbps avec HSDPA (3.5G)</p></li>
+<li><p>Services nouveaux : visioconférence, web mobile, messagerie instantanée, applications mobiles</p></li>
+<li><p>Meilleure sécurité : chiffrement renforcé (KASUMI/A5/3)</p></li>
+<li><p>Roaming et portabilité des numéros à l’échelle internationale</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="innovations-cles-apportees-par-la-3g">
+<h2>3. Innovations clés apportées par la 3G<a class="headerlink" href="#innovations-cles-apportees-par-la-3g" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Aspect</p></th>
+<th class="head"><p>2G (GSM)</p></th>
+<th class="head"><p>3G (UMTS/WCDMA/HSPA)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Débit max</p></td>
+<td><p>~236 kbps (EDGE)</p></td>
+<td><p>384 kbps (UMTS) → 42 Mbps (HSPA+)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Data native</p></td>
+<td><p>Non (ajouté ensuite)</p></td>
+<td><p>Oui (conçue pour data)</p></td>
+</tr>
+<tr class="row-even"><td><p>Voix</p></td>
+<td><p>Circuit-switched</p></td>
+<td><p>Circuit, puis VoIP en HSPA+</p></td>
+</tr>
+<tr class="row-odd"><td><p>Sécurité</p></td>
+<td><p>A5/1, A5/2</p></td>
+<td><p>KASUMI/A5/3, mutual auth</p></td>
+</tr>
+<tr class="row-even"><td><p>Apps/services</p></td>
+<td><p>SMS, MMS</p></td>
+<td><p>Web, vidéo, apps, cloud</p></td>
+</tr>
+<tr class="row-odd"><td><p>Mobilité</p></td>
+<td><p>Roaming 2G</p></td>
+<td><p>Roaming mondial + seamless</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="limites-de-la-3g-et-transition-vers-la-4g">
+<h2>4. Limites de la 3G et transition vers la 4G<a class="headerlink" href="#limites-de-la-3g-et-transition-vers-la-4g" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>La 3G reste “hybride” : la voix n’est pas purement IP, la latence reste élevée (&gt;100 ms), et les débits varient selon la couverture.</p></li>
+<li><p>Dès les années 2010, la 4G (LTE) prend le relais avec le “tout-IP”, la VoLTE, et des débits x10.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading"></a></h2>
+<p>Le passage de la 2G à la 3G a bouleversé les usages : l’Internet mobile, le multimédia et les applications sont devenus le centre de gravité du mobile. La 3G a été la “rampe de lancement” du smartphone et du monde connecté : sans elle, pas d’iPhone, pas d’app stores, pas de réseaux sociaux en mobilité.</p>
+<p>À retenir : la 2G a permis la communication partout, la 3G a rendu possible l’Internet partout.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="3G : UMTS/HSPA/HSPA+" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tutorial.html" class="btn btn-neutral float-right" title="OpenBTS-UMTS : Installation et utilisation rapide (Ubuntu, USRP)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Introduction à GIT &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+  <header class="title-block">
+    <h1>Introduction à GIT</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#whoami" id="toc-whoami">whoami</a></li>
+<li><a href="#fournisseur-git" id="toc-fournisseur-git">Fournisseur
+Git</a></li>
+<li><a href="#installation-de-git"
+id="toc-installation-de-git">Installation de Git</a></li>
+<li><a href="#vérification-de-linstallation-de-git"
+id="toc-vérification-de-linstallation-de-git">Vérification de
+l’installation de Git</a></li>
+<li><a href="#décomposition-dun-dépôt-git"
+id="toc-décomposition-dun-dépôt-git">Décomposition d’un dépôt
+Git</a></li>
+<li><a href="#fonctionnalités-clés-dun-dépôt-git"
+id="toc-fonctionnalités-clés-dun-dépôt-git">Fonctionnalités clés d’un
+dépôt Git</a></li>
+<li><a href="#choix-du-fournisseur-de-gestion-de-code-git-dans-ce-cours"
+id="toc-choix-du-fournisseur-de-gestion-de-code-git-dans-ce-cours">Choix
+du fournisseur de gestion de code GIT dans ce cours</a></li>
+<li><a href="#choisir-une-licence-sur-github"
+id="toc-choisir-une-licence-sur-github">Choisir une licence sur
+GitHub</a></li>
+<li><a href="#la-syntaxe-de-la-documentation-sur-github-le-markdown"
+id="toc-la-syntaxe-de-la-documentation-sur-github-le-markdown">La
+syntaxe de la documentation sur GitHub : le MarkDown</a></li>
+<li><a href="#titre-de-niveau-1" id="toc-titre-de-niveau-1">Titre de
+niveau 1</a>
+<ul>
+<li><a href="#titre-de-niveau-2" id="toc-titre-de-niveau-2">Titre de
+niveau 2</a>
+<ul>
+<li><a href="#titre-de-niveau-3" id="toc-titre-de-niveau-3">Titre de
+niveau 3</a></li>
+</ul></li>
+<li><a href="#création-dun-repository"
+id="toc-création-dun-repository">Création d’un repository</a></li>
+<li><a href="#clef-api" id="toc-clef-api">Clef API</a></li>
+<li><a href="#pousser-un-repertoire-push-a-repo"
+id="toc-pousser-un-repertoire-push-a-repo">Pousser un repertoire (push a
+repo)</a></li>
+<li><a href="#schéma-logique-de-fonctionnement-dun-dépot"
+id="toc-schéma-logique-de-fonctionnement-dun-dépot">Schéma logique de
+fonctionnement d’un dépot</a></li>
+<li><a href="#github-pages" id="toc-github-pages">Github Pages</a></li>
+<li><a href="#github-student-developer-pack"
+id="toc-github-student-developer-pack"><strong>GitHub Student Developer
+Pack</strong></a></li>
+<li><a href="#scénarii" id="toc-scénarii">Scénarii</a></li>
+</ul></li>
+</ul>
+  </nav>
+  <main>
+<figure>
+<img
+src="https://www.ifourtechnolab.com/pics/All_about_Version_ControlGit.webp"
+alt="GitHub" />
+<figcaption aria-hidden="true">GitHub</figcaption>
+</figure>
+<h2 id="whoami">whoami</h2>
+<p><img src="images/me.jpg" /></p>
+<figure>
+<img
+src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Git-logo.svg/512px-Git-logo.svg.png"
+alt="Git Logo" />
+<figcaption aria-hidden="true">Git Logo</figcaption>
+</figure>
+<h2 id="fournisseur-git">Fournisseur Git</h2>
+<p>Voici une brève description des principaux fournisseurs Git ainsi que
+leurs caractéristiques distinctives, ces fournisseurs se distinguent
+principalement par leurs niveaux d’intégration dans les workflows
+DevOps, leurs outils de CI/CD, et leurs écosystèmes (par exemple, GitHub
+avec sa communauté open source, GitLab avec ses pipelines DevOps
+intégrés, ou Bitbucket avec l’intégration de Jira).</p>
+<ol type="1">
+<li><strong>GitHub</strong></li>
+</ol>
+<p><img src="https://pngimg.com/uploads/github/github_PNG23.png" /></p>
+<ul>
+<li><p><strong>Description</strong> : GitHub est l’une des plateformes
+Git les plus populaires, largement utilisée pour héberger des projets
+open source et collaboratifs.</p></li>
+<li><p><strong>Caractéristiques</strong> :</p>
+<ul>
+<li><p>Intégration CI/CD via <strong>GitHub Actions</strong>.</p></li>
+<li><p>Large communauté et collaboration facile.</p></li>
+<li><p>Système de <strong>pull requests</strong> pour les revues de
+code.</p></li>
+<li><p>Gestion des projets via des <strong>issues</strong>,
+<strong>discussions</strong>, et <strong>projects</strong>.</p></li>
+<li><p>Interface utilisateur intuitive.</p></li>
+<li><p>Hébergement gratuit pour les projets publics et offres premium
+pour les projets privés.</p></li>
+</ul></li>
+</ul>
+<ol start="2" type="1">
+<li><strong>GitLab</strong></li>
+</ol>
+<p><img
+src="https://res.cloudinary.com/forest2/image/fetch/w_1300,f_auto/https://images.ctfassets.net/18a90cmjmaj9/5cg25LlXj7xzL6wLD7DbmW/e17b24e91db969662283e5a80ca5208c/cover.png" /></p>
+<ul>
+<li><p><strong>Description</strong> : GitLab offre une plateforme
+complète de DevOps, intégrant non seulement le contrôle de version Git,
+mais aussi les pipelines CI/CD, la gestion de projets et la
+sécurité.</p></li>
+<li><p><strong>Caractéristiques</strong> :</p>
+<ul>
+<li><p><strong>GitLab CI/CD</strong> intégré et flexible.</p></li>
+<li><p>Gestion complète du cycle de vie des logiciels.</p></li>
+<li><p>Auto-hébergement disponible avec GitLab <strong>Community
+Edition</strong>.</p></li>
+<li><p>Outils avancés pour la sécurité et la conformité (analyse de code
+statique, scans de vulnérabilité).</p></li>
+<li><p>Interface pour la gestion des <strong>merge requests</strong> et
+des revues de code.</p></li>
+</ul></li>
+</ul>
+<ol start="3" type="1">
+<li><strong>Bitbucket</strong></li>
+</ol>
+<p><img
+src="https://upload.wikimedia.org/wikipedia/commons/3/32/Atlassian_Bitbucket_Logo.png" /></p>
+<ul>
+<li><p><strong>Description</strong> : Bitbucket, propriété d’Atlassian,
+est conçu pour s’intégrer parfaitement avec d’autres outils Atlassian
+comme Jira et Trello.</p></li>
+<li><p><strong>Caractéristiques</strong> :</p>
+<ul>
+<li><p>Intégration native avec <strong>Jira</strong> pour la gestion des
+projets agiles.</p></li>
+<li><p>Pipelines CI/CD via <strong>Bitbucket
+Pipelines</strong>.</p></li>
+<li><p>Prise en charge des dépôts <strong>Mercurial</strong> (jusqu’à
+son abandon en 2020).</p></li>
+<li><p>Outils pour la gestion des branches et des permissions
+utilisateur.</p></li>
+<li><p>Hébergement gratuit pour petits projets avec jusqu’à 5
+utilisateurs pour des dépôts privés.</p></li>
+<li><p>Options de déploiement auto-hébergé via <strong>Bitbucket
+Server</strong> (anciennement Stash).</p></li>
+</ul></li>
+</ul>
+<ol start="4" type="1">
+<li><strong>SourceForge</strong></li>
+</ol>
+<p><img
+src="https://upload.wikimedia.org/wikipedia/commons/8/8f/SourceForge_logo_transparent.svg" /></p>
+<ul>
+<li><p><strong>Description</strong> : Historiquement une des premières
+plateformes de partage de projets open source, SourceForge offre des
+fonctionnalités Git bien qu’il soit moins populaire
+aujourd’hui.</p></li>
+<li><p><strong>Caractéristiques</strong> :</p>
+<ul>
+<li><p>Fonctionnalités Git avec hébergement gratuit pour les projets
+open source.</p></li>
+<li><p>Support de nombreux systèmes de versionnement, y compris Git et
+Subversion.</p></li>
+<li><p>Outils de suivi de bugs, hébergement de fichiers, et gestion des
+versions.</p></li>
+<li><p>Moins d’intégrations modernes que ses concurrents (CI/CD,
+etc.).</p></li>
+</ul></li>
+</ul>
+<ol start="5" type="1">
+<li><strong>Azure Repos (Azure DevOps)</strong></li>
+</ol>
+<p><img src="images/azure.webp" /></p>
+<ul>
+<li><p><strong>Description</strong> : Partie intégrante de la suite
+<strong>Azure DevOps</strong> de Microsoft, Azure Repos est utilisé pour
+le contrôle de version et les pipelines DevOps dans les environnements
+Microsoft.</p></li>
+<li><p><strong>Caractéristiques</strong> :</p>
+<ul>
+<li><p>Intégration étroite avec <strong>Azure Pipelines</strong> pour
+CI/CD.</p></li>
+<li><p>Support des dépôts <strong>Git</strong> et <strong>TFVC</strong>
+(Team Foundation Version Control).</p></li>
+<li><p>Prise en charge des workflows Git standard (branches, pull
+requests).</p></li>
+<li><p>Sécurité et permissions fines pour les dépôts privés.</p></li>
+<li><p>Offre gratuite avec des fonctionnalités payantes pour des besoins
+avancés (tests, gestion des artefacts, etc.).</p></li>
+</ul></li>
+</ul>
+<p>Il existe plusieurs façons d’installer Git sur Windows. Voici les
+méthodes les plus courantes, ainsi que des instructions détaillées pour
+chacune d’elles :</p>
+<h2 id="installation-de-git">Installation de Git</h2>
+<ol type="1">
+<li><p><strong>Installation de Git via Git for Windows</strong></p>
+<p><strong>Étapes d’installation :</strong></p>
+<ul>
+<li><p>Accédez au site officiel de <a
+href="https://gitforwindows.org/">Git for Windows</a>.</p></li>
+<li><p>Cliquez sur le bouton <strong>Download</strong> pour télécharger
+le programme d’installation.</p></li>
+<li><p>Une fois téléchargé, exécutez le fichier
+<code>.exe</code>.</p></li>
+<li><p>Suivez les instructions de l’assistant d’installation :</p>
+<ul>
+<li><p><strong>Composants</strong> : Vous pouvez choisir des options
+comme l’intégration avec l’explorateur Windows ou les icônes de
+bureau.</p></li>
+<li><p><strong>Éditeur par défaut de Git</strong> : Vous pouvez choisir
+un éditeur comme Vim ou un autre éditeur de texte (comme Notepad++ ou
+Visual Studio Code).</p></li>
+<li><p><strong>Variables d’environnement</strong> : Il est recommandé de
+choisir l’option “Git from the command line and also from 3rd-party
+software”, pour pouvoir utiliser Git aussi bien depuis Git Bash que le
+terminal Windows.</p></li>
+<li><p><strong>Configurer OpenSSL vs. Libcurl</strong> : Laissez
+généralement l’option par défaut, OpenSSL.</p></li>
+<li><p><strong>Emulation Unix Git bash</strong> : Vous pouvez choisir
+l’intégration avec Git Bash, CMD ou les deux.</p></li>
+</ul></li>
+</ul></li>
+<li><p><strong>Installation via Chocolatey (gestionnaire de
+paquets)</strong></p></li>
+</ol>
+<p>Étapes d’installation de Chocolatey :</p>
+<ul>
+<li><p><strong>Ouvrez PowerShell en tant qu’administrateur
+:</strong></p></li>
+<li><p>Appuyez sur les touches <strong>Windows + X</strong> et
+sélectionnez <strong>Windows PowerShell (Admin)</strong> ou
+<strong>Terminal Windows (Admin)</strong> selon la version de
+Windows.</p></li>
+<li><p>Si vous utilisez un environnement autre que PowerShell, vous
+pouvez aussi ouvrir <strong>CMD</strong> en mode administrateur, mais
+PowerShell est recommandé.</p></li>
+<li><p><strong>Vérifiez que la stratégie d’exécution permet l’exécution
+de scripts :</strong></p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">Set-ExecutionPolicy</span> AllSigned</span></code></pre></div></li>
+<li><p>Si cela échoue, vous pouvez utiliser :</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Set-ExecutionPolicy</span> Bypass <span class="op">-</span>Scope <span class="cf">Process</span></span></code></pre></div></li>
+<li><p><strong>Installez Chocolatey :</strong></p></li>
+<li><p>Une fois la politique d’exécution définie, exécutez cette
+commande pour télécharger et installer Chocolatey :</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Set-ExecutionPolicy</span> Bypass <span class="op">-</span>Scope <span class="cf">Process</span> <span class="op">-</span>Force<span class="op">;</span> <span class="op">[</span>System<span class="op">.</span><span class="fu">Net</span><span class="op">.</span><span class="fu">ServicePointManager</span><span class="op">]::</span>SecurityProtocol <span class="op">=</span>    </span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">[</span>System<span class="op">.</span><span class="fu">Net</span><span class="op">.</span><span class="fu">SecurityProtocolType</span><span class="op">]::</span>Tls12<span class="op">;</span> <span class="fu">iex</span> <span class="op">((</span><span class="fu">New-Object</span>  </span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>System<span class="op">.</span><span class="fu">Net</span><span class="op">.</span><span class="fu">WebClient</span><span class="op">).</span><span class="fu">DownloadString</span><span class="op">(</span><span class="st">&#39;https://community.chocolatey.org/install.ps1&#39;</span><span class="op">)</span>  </span></code></pre></div></li>
+<li><p><strong>Vérifiez que Chocolatey est installé :</strong></p></li>
+<li><p>Tapez la commande suivante pour installer Git :</p>
+<pre><code>choco install git</code></pre></li>
+</ul>
+<ol start="3" type="1">
+<li><p><strong>Installation via Scoop (gestionnaire de
+paquets)</strong></p>
+<p><strong>Scoop</strong> est un autre gestionnaire de paquets pour
+Windows qui permet d’installer des applications via des commandes
+simples.</p>
+<p><strong>Étapes d’installation :</strong></p>
+<ul>
+<li><p>Installez <strong>Scoop</strong> si vous ne l’avez pas encore, en
+exécutant cette commande dans PowerShell (en tant qu’administrateur)
+:</p>
+<pre><code>Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+iwr -useb get.scoop.sh | iex</code></pre></li>
+<li><p>Une fois <strong>Scoop</strong> installé, exécutez la commande
+suivante pour installer Git :</p>
+<pre><code>scoop install git</code></pre></li>
+<li><p>Scoop téléchargera et installera automatiquement la version la
+plus récente de Git.</p></li>
+</ul></li>
+<li><p><strong>Installation via Winget (gestionnaire de paquets natif de
+Windows)</strong></p>
+<p>Windows dispose de son propre gestionnaire de paquets appelé
+<strong>Winget</strong>. Cela vous permet de rechercher et d’installer
+des logiciels depuis la ligne de commande.</p>
+<p><strong>Étapes d’installation :</strong></p>
+<ul>
+<li><p>Ouvrez un terminal PowerShell ou CMD.</p></li>
+<li><p>Pour installer Git, exécutez simplement la commande suivante
+:</p>
+<pre><code>winget install --id Git.Git -e --source winget</code></pre></li>
+<li><p>Suivez les instructions à l’écran pour compléter
+l’installation.</p></li>
+</ul></li>
+<li><p><strong>Installation via Visual Studio Installer</strong></p>
+<p>Si vous avez déjà <strong>Visual Studio</strong> installé sur votre
+machine, vous pouvez installer Git en l’ajoutant via le programme
+d’installation de Visual Studio.</p>
+<p><strong>Étapes d’installation :</strong></p>
+<ul>
+<li><p>Dans la fenêtre PowerShell, exécutez la commande suivante pour
+permettre l’exécution de scripts locaux non signés :</p></li>
+<li><p>Ouvrez l’installateur de Visual Studio.</p></li>
+<li><p>Dans l’installateur, allez dans la section <strong>Individual
+components</strong> (Composants individuels).</p></li>
+<li><p>Cherchez et cochez l’option <strong>Git for
+Windows</strong>.</p></li>
+</ul></li>
+</ol>
+<h2 id="vérification-de-linstallation-de-git">Vérification de
+l’installation de Git</h2>
+<p>Une fois l’installation terminée avec l’une des méthodes ci-dessus,
+vous pouvez vérifier que Git est bien installé en ouvrant un terminal
+(Git Bash, CMD, ou PowerShell) et en exécutant la commande suivante
+:</p>
+<pre><code>git --version</code></pre>
+<p>Cela affichera la version de Git installée sur votre machine.</p>
+<p>Ces méthodes couvrent la plupart des besoins pour installer et
+utiliser Git sur Windows. Chacune a ses avantages : <strong>Git for
+Windows</strong> est idéal pour les débutants, tandis que
+<strong>Chocolatey</strong>, <strong>Scoop</strong> et
+<strong>Winget</strong> sont parfaits pour les utilisateurs avancés qui
+souhaitent gérer plusieurs logiciels à partir de la ligne de
+commande.</p>
+<p>Un dépôt Git (ou <strong>repository</strong> en anglais) est une
+structure utilisée par Git pour stocker l’historique des versions d’un
+projet, que ce soit du code source, des fichiers texte, ou tout autre
+type de fichier. Il s’agit d’une collection de fichiers, de leur
+historique de modifications, ainsi que de métadonnées utilisées par Git
+pour suivre ces modifications.</p>
+<h2 id="décomposition-dun-dépôt-git">Décomposition d’un dépôt Git</h2>
+<ol type="1">
+<li><p><strong>Espace de travail (Working Directory)</strong> : Il
+s’agit de la copie locale des fichiers du projet que vous modifiez
+directement sur votre machine.</p></li>
+<li><p><strong>Index (Staging Area)</strong> : C’est une zone
+intermédiaire où sont placés les fichiers modifiés avant d’être
+enregistrés dans le dépôt. C’est ici que vous préparez vos modifications
+avant de les valider avec la commande <code>git commit</code>.</p></li>
+<li><p><strong>Historique des commits</strong> : Chaque commit est un
+instantané des modifications du projet à un moment donné. Un commit
+contient des informations sur ce qui a changé, qui l’a modifié, et quand
+ces modifications ont été faites.</p></li>
+<li><p><strong>Branches</strong> : Git permet de créer des branches pour
+travailler sur différentes versions du projet en parallèle. Par exemple,
+vous pouvez avoir une branche pour les nouvelles fonctionnalités, une
+autre pour la correction des bugs, etc.</p></li>
+<li><p><strong>Remotes</strong> : Ce sont des dépôts distants (comme
+GitHub, GitLab ou Bitbucket), où vous pouvez synchroniser vos
+modifications avec d’autres utilisateurs. Un dépôt distant permet de
+collaborer avec d’autres développeurs en envoyant et en récupérant des
+modifications à partir d’un serveur.</p></li>
+</ol>
+<h2 id="fonctionnalités-clés-dun-dépôt-git">Fonctionnalités clés d’un
+dépôt Git</h2>
+<ul>
+<li><p><strong>Suivi des versions</strong> : Git permet de suivre chaque
+changement apporté aux fichiers du projet, ce qui permet de revenir à
+des versions antérieures si nécessaire.</p></li>
+<li><p><strong>Collaboration</strong> : Plusieurs personnes peuvent
+travailler simultanément sur le même projet, en utilisant des branches
+pour isoler leurs travaux et fusionner ensuite les
+modifications.</p></li>
+<li><p><strong>Gestion des conflits</strong> : Lorsque plusieurs
+personnes modifient les mêmes fichiers, Git aide à résoudre les conflits
+potentiels de manière automatique ou manuelle.</p></li>
+</ul>
+<p>En résumé, un dépôt Git est l’endroit où vous stockez et gérez
+l’historique des versions d’un projet.</p>
+<h2 id="choix-du-fournisseur-de-gestion-de-code-git-dans-ce-cours">Choix
+du fournisseur de gestion de code GIT dans ce cours</h2>
+<figure>
+<img src="https://api.updevcommunity.com/assets/18288git-338f.jpg"
+alt="Git + GitHub" />
+<figcaption aria-hidden="true">Git + GitHub</figcaption>
+</figure>
+<blockquote>
+<p>La création d’un compte GitHub est simple et rapide. Voici les étapes
+pour créer un compte GitHub :</p>
+</blockquote>
+<ol type="1">
+<li>Accédez au site GitHub</li>
+</ol>
+<ul>
+<li>Ouvrez votre navigateur web et allez sur le site officiel de GitHub
+: <a href="https://github.com">https://github.com</a>.</li>
+</ul>
+<ol start="2" type="1">
+<li>Créez un compte</li>
+</ol>
+<ul>
+<li>Cliquez sur le bouton <strong>Sign up</strong> (S’inscrire) dans le
+coin supérieur droit de la page d’accueil.</li>
+</ul>
+<ol start="3" type="1">
+<li>Renseignez vos informations</li>
+</ol>
+<ul>
+<li><p>Vous serez redirigé vers une page de création de compte.
+Remplissez les champs demandés :</p>
+<ul>
+<li><p><strong>Username</strong> : Choisissez un nom d’utilisateur
+unique qui sera visible publiquement.</p></li>
+<li><p><strong>Email address</strong> : Entrez une adresse e-mail
+valide.</p></li>
+<li><p><strong>Password</strong> : Choisissez un mot de passe
+sécurisé.</p></li>
+</ul></li>
+</ul>
+<ol start="4" type="1">
+<li>Paramètres supplémentaires (facultatif)</li>
+</ol>
+<ul>
+<li><p>Vous pouvez être invité à répondre à des questions pour
+personnaliser votre expérience GitHub. Par exemple :</p>
+<ul>
+<li><p>Voulez-vous recevoir des mises à jour de produits ?</p></li>
+<li><p>Choisissez votre niveau d’expérience avec Git.</p></li>
+</ul></li>
+</ul>
+<ol start="5" type="1">
+<li>Vérification</li>
+</ol>
+<ul>
+<li><p>Il se peut que vous deviez résoudre un captcha pour vérifier que
+vous n’êtes pas un robot.</p></li>
+<li><p>GitHub peut également vous envoyer un e-mail de vérification.
+Ouvrez votre boîte mail et cliquez sur le lien de confirmation.</p></li>
+</ul>
+<ol start="6" type="1">
+<li>Choisir un plan</li>
+</ol>
+<ul>
+<li><p>GitHub propose un plan gratuit et plusieurs plans payants. Le
+plan gratuit est suffisant pour la majorité des projets, et vous permet
+de créer un nombre illimité de dépôts publics et privés.</p>
+<ul>
+<li>Choisissez <strong>Free</strong> pour commencer avec le plan
+gratuit.</li>
+</ul></li>
+</ul>
+<ol start="7" type="1">
+<li>Finaliser l’inscription</li>
+</ol>
+<ul>
+<li>Une fois les étapes terminées, votre compte GitHub est créé et vous
+pouvez commencer à utiliser GitHub pour héberger des dépôts, collaborer
+sur des projets, et plus encore.</li>
+</ul>
+<ol start="8" type="1">
+<li>Configuration de Git (facultatif)</li>
+</ol>
+<p>Si vous voulez commencer à utiliser Git en local avec votre compte
+GitHub, il est recommandé de configurer Git sur votre machine :</p>
+<ul>
+<li><p>Ouvrez votre terminal (ou invite de commande).</p></li>
+<li><p>Configurez votre nom d’utilisateur et votre email avec les
+commandes suivantes :</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> user.name <span class="st">&quot;VotreNomUtilisateur&quot;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> user.email <span class="st">&quot;VotreEmail&quot;</span></span></code></pre></div></li>
+</ul>
+<p>Voilà ! 🎉 Vous avez maintenant un compte GitHub, prêt à être utilisé
+pour vos projets.</p>
+<h2 id="choisir-une-licence-sur-github">Choisir une licence sur
+GitHub</h2>
+<pre class="tip"><code>GitHub propose plusieurs options pour la gestion des licences de vos projets, qui définissent comment les autres peuvent utiliser, modifier et distribuer votre code. Pour vous aider à choisir la licence adaptée à votre projet, GitHub propose un outil appelé **Choose a License** (Choisissez une licence), qui recommande des licences populaires selon le niveau d’ouverture que vous souhaitez.
+</code></pre>
+<figure>
+<embed src="https://www.gnu.org/licenses/license-list.html" />
+<figcaption aria-hidden="true">license</figcaption>
+</figure>
+<p>Voici quelques-unes des licences open-source les plus courantes :</p>
+<ol type="1">
+<li><p><strong>MIT License</strong> : C’est l’une des licences les plus
+permissives. Elle permet aux autres d’utiliser, copier, modifier et
+distribuer votre code, tant qu’ils incluent une copie de la licence
+originale.</p></li>
+<li><p><strong>GNU General Public License (GPL)</strong> : Cette licence
+oblige à rendre publique toute modification du code sous la même
+licence. Elle est souvent utilisée pour garantir que le logiciel reste
+libre et open-source.</p></li>
+</ol>
+<figure>
+<img src="images/gpl2.png" alt="Syntaxe markdown" />
+<figcaption aria-hidden="true">Syntaxe markdown</figcaption>
+</figure>
+<figure>
+<img src="images/gpl2_lic.png" alt="Syntaxe markdown" />
+<figcaption aria-hidden="true">Syntaxe markdown</figcaption>
+</figure>
+<ol start="3" type="1">
+<li><strong>Apache License 2.0</strong> : Similaire à la licence MIT,
+mais avec des clauses supplémentaires, notamment une protection contre
+les revendications de brevets.</li>
+</ol>
+<figure>
+<img src="images/apache.png" alt="Syntaxe markdown" />
+<figcaption aria-hidden="true">Syntaxe markdown</figcaption>
+</figure>
+<figure>
+<img src="images/apche_lic.png" alt="Syntaxe markdown" />
+<figcaption aria-hidden="true">Syntaxe markdown</figcaption>
+</figure>
+<ol start="4" type="1">
+<li><strong>Creative Commons (CC)</strong> : Utilisée principalement
+pour des contenus autres que du code, comme des documents, des images ou
+des tutoriels.</li>
+</ol>
+<p>Comment ajouter une licence sur GitHub :</p>
+<pre><code>1. Lorsque vous créez un nouveau dépôt sur GitHub, il vous est proposé d’ajouter une licence.  
+
+2. Si vous avez déjà un dépôt sans licence, vous pouvez ajouter un fichier nommé `LICENSE` dans le répertoire racine du dépôt.  
+
+3. Utilisez l’outil **Choose a License** de GitHub ([chooselicense.com](https://choosealicense.com)) pour vous aider à sélectionner la licence qui correspond le mieux à vos besoins.  </code></pre>
+<p>Il est important de comprendre que la licence que vous choisissez
+affectera la manière dont les autres peuvent interagir avec votre
+projet, et cela peut avoir des implications juridiques, donc choisissez
+avec soin.</p>
+<h2 id="la-syntaxe-de-la-documentation-sur-github-le-markdown">La
+syntaxe de la documentation sur GitHub : le MarkDown</h2>
+<p>https://www.arthurperret.fr/tutomd/</p>
+<figure>
+<img src="images/md1.png" alt="Syntaxe markdown" />
+<figcaption aria-hidden="true">Syntaxe markdown</figcaption>
+</figure>
+<figure>
+<img src="images/md2.png" alt="Syntaxe markdown" />
+<figcaption aria-hidden="true">Syntaxe markdown</figcaption>
+</figure>
+<p>Le <strong>Markdown</strong> est un langage de balisage léger qui
+permet de formater du texte de manière simple. Il est souvent utilisé
+pour la documentation, les README sur GitHub, ou les blogs. Voici une
+explication de la syntaxe Markdown la plus courante.</p>
+<ol type="1">
+<li><strong>Titres (Headings)</strong></li>
+</ol>
+<p>Vous pouvez créer des titres en utilisant des <code>#</code>. Plus
+vous ajoutez de <code>#</code>, plus le niveau du titre est bas.</p>
+<pre><code># Titre de niveau 1  
+## Titre de niveau 2  
+### Titre de niveau 3  
+#### Titre de niveau 4  </code></pre>
+<h1 id="titre-de-niveau-1">Titre de niveau 1</h1>
+<h2 id="titre-de-niveau-2">Titre de niveau 2</h2>
+<h3 id="titre-de-niveau-3">Titre de niveau 3</h3>
+<h4 id="titre-de-niveau-4">Titre de niveau 4</h4>
+<ol start="2" type="1">
+<li><strong>Texte en gras et en italique</strong></li>
+</ol>
+<pre><code>- **Gras** : Utilisez deux astérisques `**` ou deux tirets bas `__`.  
+- *Italique* : Utilisez un astérisque `*` ou un tiret bas `_`.  
+- ***Gras et italique*** : Combinez les deux.  </code></pre>
+<p><strong>Texte en gras</strong><br />
+<em>Texte en italique</em><br />
+<strong><em>Texte en gras et italique</em></strong></p>
+<ol start="3" type="1">
+<li><strong>Listes</strong></li>
+</ol>
+<p>Listes non ordonnées</p>
+<p>Utilisez des tirets <code>-</code>, des astérisques <code>*</code>,
+ou des plus <code>+</code> pour créer une liste à puces.</p>
+<ul>
+<li><p>Élément 1</p></li>
+<li><p>Élément 2</p>
+<ul>
+<li><p>Élément 2.1</p></li>
+<li><p>Élément 2.2</p></li>
+</ul></li>
+</ul>
+<p>Listes ordonnées</p>
+<p>Utilisez des chiffres suivis d’un point.</p>
+<ol type="1">
+<li><p>Élément 1</p></li>
+<li><p>Élément 2</p>
+<ol type="1">
+<li><p>Sous-élément 2.1</p></li>
+<li><p>Sous-élément 2.2</p></li>
+</ol></li>
+<li><p><strong>Liens et images</strong></p></li>
+</ol>
+<p>Liens</p>
+<p>Le texte du lien est placé entre crochets <code>[ ]</code>, suivi de
+l’URL entre parenthèses <code>( )</code>.</p>
+<p><a href="https://github.com">GitHub</a></p>
+<p>Images</p>
+<p>Pour les images, ajoutez un point d’exclamation <code>!</code> avant
+le lien.</p>
+<figure>
+<img src="images/fsociety.png" alt="Alt text de l’image" />
+<figcaption aria-hidden="true">Alt text de l’image</figcaption>
+</figure>
+<ol start="5" type="1">
+<li><strong>Blocs de code</strong></li>
+</ol>
+<p>Pour insérer un bloc de code, utilisez trois accents graves au début
+et à la fin, et précisez éventuellement le langage pour la coloration
+syntaxique.</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> bonjour():</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;Bonjour le monde !&quot;</span>)</span></code></pre></div>
+<ol start="6" type="1">
+<li><strong>Citation</strong></li>
+</ol>
+<p>Utilisez le signe <code>&gt;</code> pour créer une citation.</p>
+<blockquote>
+<p>Ceci est une citation.</p>
+</blockquote>
+<ol start="7" type="1">
+<li><strong>Tableaux</strong></li>
+</ol>
+<p>Les tableaux sont créés en utilisant des barres verticales
+<code>|</code> et des tirets <code>-</code> pour délimiter les
+colonnes.</p>
+<table>
+<thead>
+<tr>
+<th>Colonne 1</th>
+<th>Colonne 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Contenu 1</td>
+<td>Contenu 2</td>
+</tr>
+</tbody>
+</table>
+<ol start="8" type="1">
+<li><strong>Listes de tâches (Task lists)</strong></li>
+</ol>
+<p>Ajoutez des cases à cocher avec des crochets <code>[ ]</code> pour
+les tâches non complétées, et <code>[x]</code> pour celles
+complétées.</p>
+<ul class="task-list">
+<li><p><label><input type="checkbox" checked="" />Tâche 1
+terminée</label></p></li>
+<li><p><label><input type="checkbox" />Tâche 2 non
+terminée</label></p></li>
+</ul>
+<ol start="9" type="1">
+<li><strong>Liens vers sections</strong></li>
+</ol>
+<p>Si vous souhaitez lier une section d’un document à une autre, vous
+pouvez le faire en ajoutant un lien vers l’ancre. Par exemple, pour lier
+à un titre de section :</p>
+<p><a href="#titres-headings">Aller à la section Titres</a></p>
+<p>Le Markdown est simple, mais très puissant pour formater du texte. Il
+est largement utilisé sur GitHub, les blogs, et bien d’autres
+plateformes.</p>
+<h2 id="création-dun-repository">Création d’un repository</h2>
+<ul>
+<li><p>Connectez-vous à votre compte GitHub.</p></li>
+<li><p>Sur la page d’accueil, cliquez sur le bouton
+<strong>“New”</strong> à côté de la liste de vos dépôts (ou sur la page
+de votre profil).</p></li>
+<li><p>Ou bien, utilisez le lien direct : <a
+href="https://github.com/new">Créer un nouveau dépôt</a>.</p></li>
+</ul>
+<ol type="1">
+<li><p><strong>Configurer le dépôt</strong></p>
+<ul>
+<li><p><strong>Nom du dépôt</strong> : Entrez un nom pour votre dépôt.
+Ce nom doit être unique dans votre compte.</p></li>
+<li><p><strong>Description</strong> (facultatif) : Ajoutez une courte
+description du dépôt.</p></li>
+<li><p><strong>Public/Private</strong> : Choisissez si votre dépôt sera
+public (visible par tout le monde) ou privé (visible uniquement par vous
+et ceux à qui vous donnerez accès).</p></li>
+</ul></li>
+<li><p><strong>Initialisation du dépôt</strong></p>
+<ul>
+<li>Vous pouvez cocher l’option <strong>“Initialize this repository with
+a README”</strong> si vous souhaitez ajouter un fichier README dès le
+départ.</li>
+<li>Vous pouvez également ajouter un fichier <code>.gitignore</code> ou
+une licence si nécessaire.</li>
+</ul></li>
+<li><p><strong>Finaliser la création</strong></p>
+<ul>
+<li>Une fois les informations saisies, cliquez sur <strong>“Create
+repository”</strong> pour finaliser.</li>
+</ul></li>
+</ol>
+<p>Votre dépôt GitHub est maintenant créé, et vous pouvez commencer à y
+ajouter des fichiers et des projets ! Si vous avez besoin d’aide pour
+pousser des fichiers vers votre dépôt, n’hésitez pas à demander.</p>
+<h2 id="clef-api">Clef API</h2>
+<p>Pour récupérer votre clé API GitHub (ou plutôt votre token d’accès
+personnel), suivez ces étapes :</p>
+<ol type="1">
+<li><p><strong>Connectez-vous à GitHub</strong> : Accédez à <a
+href="https://github.com/">GitHub</a> et connectez-vous à votre
+compte.</p></li>
+<li><p><strong>Accédez aux paramètres de votre compte</strong> : Cliquez
+sur votre photo de profil en haut à droite, puis sélectionnez
+<strong>“Settings”</strong> (Paramètres).</p></li>
+<li><p><strong>Allez dans les paramètres des développeurs</strong> :
+Dans le menu de gauche, cliquez sur <strong>“Developer
+settings”</strong> (Paramètres du développeur).</p></li>
+<li><p><strong>Générez un nouveau token</strong> : Sélectionnez
+<strong>“Personal access tokens”</strong> (Jetons d’accès personnel),
+puis cliquez sur <strong>“Generate new token”</strong> (Générer un
+nouveau jeton).</p></li>
+<li><p><strong>Configurez votre token</strong> :</p>
+<ul>
+<li>Donnez un <strong>nom</strong> à votre token pour le reconnaître
+plus tard.</li>
+<li>Sélectionnez les <strong>scopes</strong> ou permissions nécessaires
+pour votre token. Par exemple, pour un accès en lecture à vos dépôts,
+cochez “repo”.</li>
+<li>Vous pouvez également définir une <strong>date d’expiration</strong>
+pour le token.</li>
+</ul></li>
+<li><p><strong>Générez le token</strong> : Cliquez sur <strong>“Generate
+token”</strong> (Générer le jeton).</p></li>
+<li><p><strong>Copiez votre token</strong> : Une fois le token généré,
+il sera affiché une seule fois. Assurez-vous de le copier et de le
+stocker en lieu sûr.</p></li>
+</ol>
+<p>N’oubliez pas de garder ce token secret et de ne pas le partager, car
+il donne accès à votre compte GitHub selon les permissions que vous avez
+définies.</p>
+<h2 id="pousser-un-repertoire-push-a-repo">Pousser un repertoire (push a
+repo)</h2>
+<p>Voici les étapes pour pousser un repository (repo) sur GitHub. Cela
+suppose que vous avez déjà installé Git sur votre machine et que vous
+avez un compte GitHub.</p>
+<ol type="1">
+<li>Cloner en local</li>
+</ol>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/monuser/monrepo</span></code></pre></div>
+<ol start="2" type="1">
+<li>Ajouter des fichiers et valider des changements Faites les
+modifications souhaitées et faites un commit pour enregistrer les
+changements.</li>
+</ol>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ajouter tous les fichiers dans le repo</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> add .</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Faire un commit avec un message</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">&quot;Premier commit&quot;</span></span></code></pre></div>
+<ol start="3" type="1">
+<li>Pousser le repository local vers GitHub Vous devez maintenant
+connecter votre repo local avec le repository GitHub.</li>
+</ol>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ajouter le remote (remplacez l&#39;URL par l&#39;URL de votre repo GitHub)</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push https://monuser_apikey@github.com/monuser/monrepo</span></code></pre></div>
+<p>Note : Selon la configuration de votre repo, la branche par défaut
+peut être appelée <code>main</code> au lieu de <code>master</code>. Vous
+pouvez vérifier cela dans GitHub et ajuster la commande en
+conséquence.</p>
+<ol start="4" type="1">
+<li>Validation Après avoir poussé, vous pourrez voir votre code sur
+GitHub en visitant votre repository en ligne.</li>
+</ol>
+<h2 id="schéma-logique-de-fonctionnement-dun-dépot">Schéma logique de
+fonctionnement d’un dépot</h2>
+<figure>
+<img
+src="https://www.ifourtechnolab.com/pics/All_about_Version_ControlGit.webp"
+alt="GitHub" />
+<figcaption aria-hidden="true">GitHub</figcaption>
+</figure>
+<ol type="1">
+<li><strong>Fork</strong> :
+<ul>
+<li><strong>Définition</strong> : C’est une copie d’un dépôt de code
+source. Lorsque vous fork un projet, vous créez une version indépendante
+de ce dépôt sur votre propre compte ou espace. Cela vous permet de faire
+des modifications sans affecter l’original.</li>
+<li><strong>Utilisation</strong> : Généralement utilisé pour proposer
+des modifications à un projet sans avoir accès direct au dépôt
+principal. Vous pouvez développer des fonctionnalités ou corriger des
+bugs dans votre fork et soumettre des demandes de fusion pour que les
+modifications soient intégrées au dépôt principal.</li>
+</ul></li>
+<li><strong>Push</strong> :
+<ul>
+<li><strong>Définition</strong> : Cette commande envoie les
+modifications locales de votre dépôt (ou branche) vers un dépôt distant
+(comme GitHub, GitLab, etc.).</li>
+<li><strong>Utilisation</strong> : Après avoir commis vos changements
+localement, vous utilisez <code>git push</code> pour les envoyer vers le
+dépôt distant afin que les autres puissent voir et récupérer vos
+modifications.</li>
+</ul></li>
+<li><strong>Merge</strong> :
+<ul>
+<li><strong>Définition</strong> : C’est le processus d’intégration des
+changements d’une branche dans une autre. Cela peut se faire
+automatiquement si les changements ne sont pas en conflit, ou
+manuellement si des conflits doivent être résolus.</li>
+<li><strong>Utilisation</strong> : Par exemple, vous pouvez merger une
+branche de fonctionnalité dans la branche principale (<code>main</code>
+ou <code>master</code>) pour intégrer de nouvelles fonctionnalités ou
+corrections.</li>
+</ul></li>
+<li><strong>Commit</strong> :
+<ul>
+<li><strong>Définition</strong> : C’est une opération qui enregistre les
+modifications dans l’historique du dépôt. Un commit est un instantané de
+votre projet à un moment donné.</li>
+<li><strong>Utilisation</strong> : Avant de pousser vos changements vers
+un dépôt distant, vous devez d’abord commettre ces changements
+localement pour les sauvegarder et les organiser.</li>
+</ul></li>
+<li><strong>Pull</strong> :
+<ul>
+<li><strong>Définition</strong> : Cette commande récupère les dernières
+modifications du dépôt distant et les fusionne avec votre dépôt
+local.</li>
+<li><strong>Utilisation</strong> : Utilisé pour synchroniser votre copie
+locale du dépôt avec les modifications apportées par d’autres
+collaborateurs ou par vous-même à partir d’un autre endroit.</li>
+</ul></li>
+</ol>
+<blockquote>
+<p>Ces opérations sont essentielles pour gérer le code source et
+collaborer efficacement avec d’autres développeurs.</p>
+</blockquote>
+<h2 id="github-pages">Github Pages</h2>
+<p><strong>GitHub Pages</strong> est un service de GitHub qui permet
+d’héberger des sites web directement à partir d’un dépôt GitHub. Il est
+souvent utilisé pour créer des sites personnels, des blogs ou des pages
+de documentation pour des projets open-source. Ces sites sont servis via
+l’URL <code>username.github.io</code> ou
+<code>username.github.io/repository</code>, et peuvent être configurés
+pour utiliser des noms de domaine personnalisés.</p>
+<p>Voici un aperçu de son fonctionnement et comment l’utiliser pour
+héberger votre site web.</p>
+<ol type="1">
+<li><strong>Fonctionnement de GitHub Pages</strong> GitHub Pages
+fonctionne en récupérant des fichiers statiques (HTML, CSS, JavaScript)
+directement à partir d’un dépôt GitHub public ou privé, puis en les
+publiant sous forme d’un site web. Les utilisateurs peuvent héberger des
+pages pour eux-mêmes, des organisations ou des projets spécifiques.</li>
+</ol>
+<ul>
+<li><strong>Sites utilisateur ou organisation</strong> : Hébergés sous
+<code>username.github.io</code> (ou
+<code>organization.github.io</code>). Ce type de site utilise un dépôt
+spécifique nommé <code>username.github.io</code> ou
+<code>organization.github.io</code>.</li>
+<li><strong>Sites de projet</strong> : Hébergés sous
+<code>username.github.io/nom-du-repository</code>. Chaque dépôt GitHub
+peut avoir une page GitHub dédiée à un projet spécifique.</li>
+</ul>
+<ol start="2" type="1">
+<li><strong>Créer un site GitHub Pages</strong></li>
+</ol>
+<p>Étape 1 : Créer un dépôt</p>
+<p>Pour créer un site avec GitHub Pages, commencez par créer un dépôt
+sur GitHub. Voici les deux cas possibles :</p>
+<ul>
+<li>Pour un <strong>site utilisateur ou organisation</strong>, le dépôt
+doit obligatoirement être nommé <code>username.github.io</code>.</li>
+<li>Pour un <strong>site de projet</strong>, vous pouvez nommer le dépôt
+comme vous le souhaitez.</li>
+</ul>
+<p>Etape 2 : Ajouter des fichiers de site web Une fois le dépôt créé,
+ajoutez les fichiers de votre site web (HTML, CSS, JavaScript).</p>
+<p>Exemple de structure de fichiers :</p>
+<pre><code>index.html
+style.css
+script.js</code></pre>
+<p>Étape 3 : Configurer GitHub Pages</p>
+<ol type="1">
+<li><p><strong>Accédez aux paramètres du dépôt</strong> :</p>
+<ul>
+<li>Dans le dépôt GitHub, allez dans l’onglet
+<code>Settings</code>.</li>
+</ul></li>
+<li><p><strong>Activer GitHub Pages</strong> :</p>
+<ul>
+<li>Faites défiler la page jusqu’à la section <strong>GitHub
+Pages</strong>.</li>
+<li>Sous “Source”, vous pouvez choisir quelle branche et quel répertoire
+de votre dépôt sera utilisé pour héberger les fichiers du site. Par
+défaut, c’est la branche <code>main</code> ou <code>master</code> du
+dépôt, mais vous pouvez aussi spécifier un sous-répertoire comme
+<code>/docs</code>.</li>
+</ul></li>
+<li><p><strong>Sélectionnez la branche</strong> :</p>
+<ul>
+<li>Choisissez la branche qui contient les fichiers HTML de votre site.
+Si vous avez une branche dédiée, comme <code>gh-pages</code>,
+sélectionnez-la.</li>
+</ul></li>
+<li><p><strong>Enregistrer les modifications</strong> :</p>
+<ul>
+<li>Après avoir configuré la source, GitHub génère et héberge
+automatiquement le site.</li>
+</ul></li>
+</ol>
+<p>Étape 4 : Accéder à votre site</p>
+<p>Une fois que GitHub Pages a terminé le déploiement de votre site (ce
+qui prend généralement quelques minutes), vous pouvez y accéder via
+l’URL <code>https://username.github.io</code> pour un site utilisateur
+ou <code>https://username.github.io/nom-du-repository</code> pour un
+site de projet.</p>
+<h2 id="github-student-developer-pack"><strong>GitHub Student Developer
+Pack</strong></h2>
+<p>Le <strong>GitHub Student Developer Pack</strong> est une collection
+de logiciels et de services gratuits ou à prix réduit fournis par GitHub
+et ses partenaires, exclusivement pour les étudiants. Il inclut des
+offres pour des outils de développement, d’hébergement, d’analyse de
+code, d’apprentissage, et même des services de marketing ou de
+design.</p>
+<p>Principaux avantages du Pack :</p>
+<ul>
+<li><strong>Accès gratuit à GitHub Pro</strong> :
+<ul>
+<li>Avec GitHub Pro, les étudiants bénéficient de fonctionnalités
+avancées sur GitHub, telles que l’accès à des <strong>dépôts privés
+illimités</strong>, des <strong>insights</strong> pour leurs projets, et
+un <strong>support avancé</strong>.</li>
+</ul></li>
+<li><strong>Outils de développement gratuits</strong> :
+<ul>
+<li>Des outils comme <strong>JetBrains</strong> (pour IntelliJ IDEA,
+PyCharm, etc.) qui offrent des licences d’accès à leur suite complète
+d’IDEs.</li>
+<li><strong>Visual Studio Code</strong> et des crédits Azure via
+<strong>Microsoft Azure for Students</strong> pour héberger des
+applications cloud.</li>
+</ul></li>
+<li><strong>Hébergement et services cloud</strong> :
+<ul>
+<li>Des crédits gratuits chez des services cloud tels que
+<strong>DigitalOcean</strong>, <strong>Heroku</strong>,
+<strong>AWS</strong>, et <strong>Google Cloud Platform</strong>.</li>
+<li>Hébergement de conteneurs et d’applications via <strong>GitHub
+Actions</strong> et des pipelines CI/CD intégrés.</li>
+</ul></li>
+<li><strong>Conception et développement web</strong> :
+<ul>
+<li>Accès à des outils de création et de design tels que <strong>Canva
+Pro</strong> pour la création graphique.</li>
+<li><strong>Bootstrap Studio</strong> et <strong>Figma</strong> pour la
+conception de sites web et d’interfaces utilisateurs.</li>
+</ul></li>
+<li><strong>Outils d’apprentissage et de gestion de projet</strong> :
+<ul>
+<li>Plateformes éducatives comme <strong>Educative</strong> (qui propose
+des cours interactifs) et <strong>Datacamp</strong> pour apprendre les
+compétences en science des données.</li>
+<li>Outils de gestion de projet et de collaboration tels que
+<strong>Trello</strong> et <strong>Notion</strong> pour organiser et
+suivre les tâches.</li>
+</ul></li>
+<li><strong>Autres outils</strong> : Par exemple,
+<strong>Namecheap</strong> offre des domaines gratuits pour
+l’hébergement de sites web.</li>
+</ul>
+<p>Exemples d’outils et services inclus : -
+<strong>DigitalOcean</strong> : 100$ de crédits pour l’hébergement
+cloud. - <strong>Heroku</strong> : Hébergement cloud gratuit avec
+fonctionnalités avancées. - <strong>JetBrains</strong> : Accès gratuit
+aux outils JetBrains, tels que PyCharm, IntelliJ, WebStorm, etc. -
+<strong>Namecheap</strong> : Un domaine gratuit <code>.me</code> et un
+certificat SSL. - <strong>AWS Educate</strong> : Crédits pour
+l’utilisation d’AWS. - <strong>Bootstrap Studio</strong> : Licence
+gratuite pour la création de sites web Bootstrap. - <strong>Microsoft
+Azure</strong> : Accès gratuit à des services cloud avec Azure. -
+<strong>Figma</strong> : Outil de conception d’interface collaborative.
+- <strong>Educative.io</strong> : Cours interactifs gratuits sur des
+sujets technologiques. - <strong>Notion</strong> : Outil de productivité
+gratuit pour les étudiants.</p>
+<ol start="2" type="1">
+<li><strong>Accès à GitHub Pro</strong> Le programme permet aux
+étudiants de bénéficier d’un abonnement gratuit à <strong>GitHub
+Pro</strong>. Les fonctionnalités incluent :</li>
+</ol>
+<ul>
+<li><strong>Dépôts privés illimités</strong> : En tant qu’étudiant, vous
+pouvez créer autant de dépôts privés que vous le souhaitez pour
+travailler sur vos projets personnels ou universitaires.</li>
+<li><strong>Outils de gestion de projet avancés</strong> : Suivez vos
+tâches, gérez des équipes, et obtenez des statistiques sur vos
+contributions grâce aux outils GitHub Pro.</li>
+<li><strong>Accès à GitHub Actions et Packages</strong> : Utilisation de
+GitHub Actions pour automatiser vos workflows de CI/CD, et GitHub
+Packages pour héberger des packages privés.</li>
+</ul>
+<ol start="3" type="1">
+<li><strong>Ressources d’apprentissage et de développement</strong> Le
+GitHub Student Developer Pack est un excellent moyen de
+<strong>développer des compétences</strong> en utilisant des outils de
+développement et des environnements de production professionnels. Voici
+quelques ressources d’apprentissage intégrées dans le Pack :</li>
+</ol>
+<ul>
+<li><strong>Cours interactifs et certifications</strong> : Grâce à des
+plateformes comme <strong>Educative</strong>, <strong>Datacamp</strong>,
+et <strong>Codecademy</strong>, les étudiants peuvent suivre des cours
+sur des sujets variés comme le développement web, les algorithmes, la
+science des données, etc.</li>
+<li><strong>Apprentissage du cloud</strong> : Avec des crédits AWS,
+Google Cloud et Azure, les étudiants peuvent apprendre à déployer des
+applications cloud, configurer des services d’hébergement et acquérir
+des compétences recherchées dans le monde professionnel.</li>
+<li><strong>Participation à des communautés open-source</strong> : Les
+étudiants peuvent contribuer à des projets open-source directement via
+GitHub, développer leur portfolio et leur visibilité dans la communauté
+de développeurs.</li>
+</ul>
+<ol start="4" type="1">
+<li><strong>Développement de portfolio professionnel</strong> Un autre
+avantage majeur du programme GitHub pour les étudiants est la
+possibilité de développer et d’héberger un <strong>portfolio
+professionnel</strong> avec GitHub Pages. Cela permet aux étudiants de
+:</li>
+</ol>
+<ul>
+<li><strong>Créer un site web personnel</strong> pour montrer leurs
+projets.</li>
+<li><strong>Mettre en avant des contributions open-source</strong>.</li>
+<li><strong>Partager des projets professionnels et académiques</strong>
+avec des employeurs potentiels ou des mentors.</li>
+</ul>
+<ol start="5" type="1">
+<li><strong>Accès aux outils de collaboration et de gestion</strong>
+Pour les projets d’équipe, GitHub facilite la collaboration à travers
+des outils comme <strong>GitHub Classroom</strong> et <strong>GitHub
+Projects</strong>. Ces outils permettent aux étudiants de travailler sur
+des projets de groupe, de suivre des tâches, de gérer le versioning de
+code, et d’intégrer des workflows CI/CD.</li>
+</ol>
+<p>GitHub Classroom : GitHub Classroom est particulièrement utile pour
+les enseignants et les étudiants dans le cadre de projets académiques.
+Il permet aux enseignants de créer des <strong>devoirs basés sur des
+dépôts GitHub</strong> et d’évaluer les projets des étudiants
+facilement.</p>
+<ol start="6" type="1">
+<li><strong>Éligibilité et inscription</strong> Conditions d’éligibilité
+: Pour bénéficier de ces avantages, les étudiants doivent répondre à
+certaines conditions :</li>
+</ol>
+<ul>
+<li><strong>Être inscrit dans un établissement d’enseignement</strong>
+(université, école, etc.).</li>
+<li>Fournir un <strong>e-mail académique</strong> valide ou une preuve
+d’inscription (comme une carte d’étudiant).</li>
+</ul>
+<p>Comment s’inscrire : 1. Rendez-vous sur la page du <strong>GitHub
+Student Developer Pack</strong> : <a
+href="https://education.github.com/pack">https://education.github.com/pack</a>.
+2. Cliquez sur “Get your Pack”. 3. Vérifiez votre statut étudiant en
+fournissant une <strong>adresse e-mail académique</strong> ou une
+<strong>preuve d’inscription</strong> (une photo de votre carte
+d’étudiant par exemple). 4. Une fois validé, vous aurez accès aux outils
+et services inclus dans le Pack.</p>
+<ol start="7" type="1">
+<li><strong>Pourquoi utiliser GitHub Student Developer Pack ?</strong>
+Le GitHub Student Developer Pack est une excellente opportunité pour
+:</li>
+</ol>
+<ul>
+<li><strong>Acquérir des compétences techniques</strong> en utilisant
+des outils professionnels.</li>
+<li><strong>Créer un portfolio solide</strong> en ligne pour attirer
+l’attention des employeurs.</li>
+<li><strong>Travailler sur des projets réels</strong> et se préparer au
+monde professionnel.</li>
+<li><strong>Collaborer</strong> avec d’autres étudiants ou des
+contributeurs open-source.</li>
+</ul>
+<p>Ce pack offre une <strong>valeur considérable</strong> aux étudiants,
+en rendant accessibles des outils et services normalement payants, tout
+en les aidant à développer des compétences pratiques et à s’immerger
+dans le monde du développement logiciel.</p>
+<h2 id="scénarii">Scénarii</h2>
+<p>Lorsque vous effectuez un <strong>push</strong> sur un dépôt GitHub,
+plusieurs scénarios peuvent survenir en fonction de l’état de votre
+dépôt local par rapport au dépôt distant. Voici les scénarios
+principaux, en fonction de si votre dépôt est <strong>à jour</strong>,
+<strong>en avance</strong> ou <strong>en retard</strong> par rapport au
+dépôt distant.</p>
+<ol type="1">
+<li><strong>Scénario 1 : Votre dépôt local est à jour avec le dépôt
+distant</strong> Dans ce cas, les branches locales et distantes sont
+synchronisées, c’est-à-dire qu’elles contiennent les mêmes commits. Le
+<code>push</code> se déroule alors sans problème, car il n’y a pas de
+divergence entre le dépôt local et le dépôt distant.</li>
+</ol>
+<p><strong>Commande :</strong></p>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push origin <span class="op">&lt;</span>nom-branche<span class="op">&gt;</span></span></code></pre></div>
+<ol start="2" type="1">
+<li><strong>Scénario 2 : Votre dépôt local est en avance sur le dépôt
+distant</strong> Cela signifie que vous avez effectué des
+<strong>commits</strong> localement, mais que ces commits n’existent pas
+encore sur le dépôt distant. Dans ce cas, votre dépôt local a de
+nouvelles modifications que le dépôt distant n’a pas.</li>
+</ol>
+<p>Cas où le dépôt distant n’a pas changé : - <strong>Résultat</strong>
+: Le <code>push</code> est simple et fonctionne correctement. Vos
+nouveaux commits seront ajoutés au dépôt distant.</p>
+<p>Cas où le dépôt distant a changé : - <strong>Problème
+potentiel</strong> : Si des changements ont été apportés au dépôt
+distant, il est possible que Git refuse le <code>push</code>, car il y
+aurait un <strong>conflit</strong> entre les deux versions (locale et
+distante).</p>
+<p><strong>Message d’erreur typique :</strong></p>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="ot">! </span><span class="ex">[rejected]</span>        <span class="op">&lt;</span>nom-branche<span class="op">&gt;</span> -<span class="op">&gt;</span> <span class="op">&lt;</span>nom-branche<span class="op">&gt;</span> <span class="er">(</span><span class="ex">non-fast-forward</span><span class="kw">)</span></span></code></pre></div>
+<ul>
+<li><strong>Solution</strong> : Vous devrez d’abord <strong>récupérer
+les modifications du dépôt distant</strong> avant de pouvoir pousser vos
+propres changements.</li>
+</ul>
+<p><strong>Commande :</strong></p>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull <span class="at">--rebase</span> origin <span class="op">&lt;</span>nom-branche<span class="op">&gt;</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Résolvez les conflits s&#39;il y en a</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push origin <span class="op">&lt;</span>nom-branche<span class="op">&gt;</span></span></code></pre></div>
+<ol start="3" type="1">
+<li><strong>Scénario 3 : Votre dépôt local est en retard par rapport au
+dépôt distant</strong> Votre dépôt local est “en retard” lorsqu’il
+manque des commits qui ont été ajoutés au dépôt distant par d’autres
+collaborateurs. Cela signifie que des modifications ont été faites sur
+le dépôt distant que vous n’avez pas encore récupérées.</li>
+</ol>
+<p>Cas où vous n’avez pas encore de nouveaux commits localement : -
+<strong>Solution</strong> : Vous pouvez simplement faire un
+<code>pull</code> pour récupérer les commits distants.</p>
+<p><strong>Commande :</strong></p>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull origin <span class="op">&lt;</span>nom-branche<span class="op">&gt;</span></span></code></pre></div>
+<p>Cas où vous avez des commits locaux (en avance et en retard à la
+fois) : - <strong>Problème</strong> : Vous ne pouvez pas effectuer de
+<code>push</code> tant que vous n’avez pas intégré les modifications
+distantes dans votre historique de commits local.</p>
+<p><strong>Solution</strong> : Faire un <strong>pull avec
+rebase</strong> pour intégrer les changements distants et placer vos
+commits locaux au-dessus.</p>
+<p><strong>Commande :</strong></p>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> pull <span class="at">--rebase</span> origin <span class="op">&lt;</span>nom-branche<span class="op">&gt;</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Résolvez les conflits s&#39;il y en a</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push origin <span class="op">&lt;</span>nom-branche<span class="op">&gt;</span></span></code></pre></div>
+<ol start="4" type="1">
+<li><strong>Scénario 4 : Conflits lors du pull</strong></li>
+</ol>
+<p>Lorsque vous tentez de faire un <code>git pull</code> (ou
+<code>git pull --rebase</code>), il peut y avoir des
+<strong>conflits</strong> si les mêmes fichiers ont été modifiés à la
+fois localement et sur le dépôt distant. Vous devrez résoudre ces
+conflits manuellement en choisissant quelles modifications garder.</p>
+<p><strong>Étapes pour résoudre un conflit :</strong></p>
+<pre><code>1. Git marquera les fichiers en conflit.  
+
+2. Ouvrez les fichiers pour voir les sections en conflit.  
+
+3. Modifiez manuellement le fichier pour résoudre le conflit.  
+
+4. Ajoutez les fichiers résolus (`git add`).  
+
+5. Continuez le rebase ou le merge (`git rebase --continue` ou `git merge --continue`).  
+
+6. Poussez ensuite vos modifications (`git push`).  </code></pre>
+<ol start="5" type="1">
+<li><strong>Scénario 5 : Force Push</strong></li>
+</ol>
+<p>Si vous avez réécrit l’historique des commits locaux, par exemple
+avec un <strong>rebase</strong> ou un <strong>reset</strong>, vous
+devrez utiliser un <strong>force push</strong> pour remplacer
+l’historique distant avec votre nouvel historique local.</p>
+<p><strong>Commande :</strong></p>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push <span class="at">--force</span> origin <span class="op">&lt;</span>nom-branche<span class="op">&gt;</span></span></code></pre></div>
+<blockquote>
+<p><strong>Attention</strong> : Le <code>force push</code> peut être
+dangereux car il réécrit l’historique sur le dépôt distant, ce qui peut
+poser des problèmes aux autres collaborateurs.</p>
+</blockquote>
+<p>Résumé :</p>
+<ul>
+<li><p><strong>Dépôt local à jour</strong> : Le <code>push</code> est
+simple et réussi.</p></li>
+<li><p><strong>Dépôt local en avance</strong> : Si le dépôt distant n’a
+pas changé, le <code>push</code> est direct. Sinon, un <code>pull</code>
+est nécessaire.</p></li>
+<li><p><strong>Dépôt local en retard</strong> : Il faut d’abord faire un
+<code>pull</code> pour récupérer les changements distants.<br />
+</p></li>
+<li><p><strong>Conflits</strong> : Ils doivent être résolus manuellement
+avant de pouvoir pousser.</p></li>
+<li><p><strong>Force Push</strong> : Nécessaire si l’historique a été
+réécrit localement.</p></li>
+</ul>
+<p>Ces scénarios couvrent la plupart des situations que vous pouvez
+rencontrer lors d’un <code>git push</code> sur GitHub.</p>
+<blockquote>
+<p>Si vous avez des questions plus spécifiques ou des scénarios en tête,
+n’hésitez pas à demander !</p>
+</blockquote>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

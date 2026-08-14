@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>UML Travaux Pratiques &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+  <header class="title-block">
+    <h1>UML Travaux Pratiques</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a
+href="#créer-un-diagramme-de-classe-pour-la-création-dun-site-web"
+id="toc-créer-un-diagramme-de-classe-pour-la-création-dun-site-web">Créer
+un diagramme de classe pour la création d’un site web</a></li>
+<li><a
+href="#créer-un-diagramme-de-séquence-uml-pour-une-navigation-de-page"
+id="toc-créer-un-diagramme-de-séquence-uml-pour-une-navigation-de-page">Créer
+un Diagramme de Séquence UML pour une Navigation de Page</a></li>
+<li><a
+href="#créer-un-diagramme-de-composants-uml-pour-un-site-web-statique"
+id="toc-créer-un-diagramme-de-composants-uml-pour-un-site-web-statique">Créer
+un Diagramme de Composants UML pour un Site Web Statique</a></li>
+<li><a href="#créer-un-diagramme-de-déploiement"
+id="toc-créer-un-diagramme-de-déploiement">Créer un Diagramme de
+Déploiement</a></li>
+<li><a href="#créer-un-diagramme-de-votre-choix-bonus"
+id="toc-créer-un-diagramme-de-votre-choix-bonus">Créer un Diagramme de
+votre choix (Bonus)</a></li>
+</ul>
+  </nav>
+  <main>
+<h2
+id="créer-un-diagramme-de-classe-pour-la-création-dun-site-web">Créer un
+diagramme de classe pour la création d’un site web</h2>
+<p>Description des classes du diagramme UML</p>
+<ol type="1">
+<li><strong>Page</strong> : Classe principale représentant chaque page
+du site.
+<ul>
+<li>Attributs : <code>titre</code>, <code>url</code>,
+<code>contenu</code></li>
+<li>Méthodes : <code>afficher()</code></li>
+</ul></li>
+<li><strong>Contenu</strong> : Contient le texte, les images, et les
+vidéos qui seront affichés sur chaque page.
+<ul>
+<li>Attributs : <code>texte</code>, <code>image</code>,
+<code>video</code></li>
+<li>Méthodes : <code>afficherTexte()</code>,
+<code>afficherImage()</code>, <code>afficherVideo()</code></li>
+</ul></li>
+<li><strong>Menu</strong> : Classe pour gérer le menu de navigation
+entre les pages.
+<ul>
+<li>Attributs : <code>listePages</code></li>
+<li>Méthodes : <code>afficherMenu()</code></li>
+</ul></li>
+<li><strong>Footer</strong> : Contient des informations de bas de page.
+<ul>
+<li>Attributs : <code>texteCopyright</code>,
+<code>liensExternes</code></li>
+<li>Méthodes : <code>afficherFooter()</code></li>
+</ul></li>
+<li><strong>Style</strong> : Définit le style CSS utilisé par les
+différentes pages.
+<ul>
+<li>Attributs : <code>couleurFond</code>, <code>police</code>,
+<code>marge</code></li>
+<li>Méthodes : <code>appliquerStyle()</code></li>
+</ul></li>
+</ol>
+<h2
+id="créer-un-diagramme-de-séquence-uml-pour-une-navigation-de-page">Créer
+un Diagramme de Séquence UML pour une Navigation de Page</h2>
+<p>Dans ce diagramme, l’utilisateur interagit avec la page, ce qui
+entraîne des appels de différentes méthodes pour afficher le contenu, le
+menu de navigation, et le pied de page.</p>
+<p>Scénario : Chargement et Affichage d’une Page Web Statique</p>
+<ol type="1">
+<li><strong>Acteurs principaux</strong> : <code>Utilisateur</code>,
+<code>Page</code>, <code>Contenu</code>, <code>Menu</code>,
+<code>Footer</code>, <code>Style</code>.</li>
+<li><strong>Flux d’interaction</strong> : L’utilisateur accède à une
+page, et la page appelle les différentes sections et le style pour se
+charger correctement.</li>
+</ol>
+<p>Déroulement du Scénario</p>
+<p>Voici les étapes d’interaction :</p>
+<ol type="1">
+<li><strong>Utilisateur</strong> accède à la page via son
+navigateur.</li>
+<li>La <strong>Page</strong> reçoit la requête et déclenche
+l’affichage.</li>
+<li><strong>Page</strong> appelle <strong>Menu</strong> pour afficher
+les liens de navigation.</li>
+<li><strong>Page</strong> appelle <strong>Contenu</strong> pour afficher
+le texte, les images et/ou les vidéos.</li>
+<li><strong>Page</strong> appelle <strong>Footer</strong> pour ajouter
+le pied de page.</li>
+<li><strong>Page</strong> applique <strong>Style</strong> pour styliser
+le contenu.</li>
+</ol>
+<p>Un autre diagramme utile pour la conception d’un site web statique
+est le <strong>diagramme de composants UML</strong>. Ce diagramme montre
+les différentes parties d’un site web en tant que composants
+indépendants et décrit comment ils sont reliés entre eux. Ce type de
+diagramme est particulièrement utile pour visualiser les modules
+principaux du site et leur organisation.</p>
+<h2
+id="créer-un-diagramme-de-composants-uml-pour-un-site-web-statique">Créer
+un Diagramme de Composants UML pour un Site Web Statique</h2>
+<p>Un site web statique est souvent composé de plusieurs composants,
+comme les pages, les éléments de navigation, le contenu statique, le
+style CSS, et les fichiers de configuration. Voici les composants
+essentiels et leurs relations.</p>
+<p>Principaux Composants</p>
+<ol type="1">
+<li><strong>Page Web (Index, About, Contact)</strong> : Représente
+chaque page principale du site, telles que la page d’accueil
+(<code>index.html</code>), la page “À propos” (<code>about.html</code>),
+et la page de contact (<code>contact.html</code>).</li>
+<li><strong>Menu</strong> : Composant de navigation qui contient les
+liens vers les différentes pages.</li>
+<li><strong>Contenu Statique</strong> : Contient les images, textes et
+autres éléments statiques affichés sur les pages.</li>
+<li><strong>Footer</strong> : Composant pour le pied de page.</li>
+<li><strong>CSS</strong> : Définit le style général du site avec des
+fichiers CSS.</li>
+<li><strong>Configuration</strong> : Contient des fichiers de
+configuration, tels que <code>config.json</code> pour les paramètres du
+site.</li>
+</ol>
+<p>Relations entre Composants</p>
+<ul>
+<li><strong>Dépendance</strong> : Les pages web dépendent du menu, du
+footer, du contenu statique, et des fichiers CSS pour un affichage
+complet et stylisé.</li>
+<li><strong>Connexion</strong> : Les pages sont liées entre elles via le
+composant Menu.</li>
+</ul>
+<p>Un autre diagramme pertinent pour la conception d’un site web
+statique est le <strong>diagramme de déploiement UML</strong>. Ce
+diagramme montre l’architecture de déploiement physique du site web,
+notamment où les fichiers sont stockés et comment ils sont distribués
+entre différents serveurs ou environnements.</p>
+<h2 id="créer-un-diagramme-de-déploiement">Créer un Diagramme de
+Déploiement</h2>
+<p>Le diagramme de déploiement met en évidence l’architecture
+d’hébergement du site, souvent composée de plusieurs composants de
+stockage et de distribution.</p>
+<p>Principaux Nœuds</p>
+<ol type="1">
+<li><strong>Client (Navigateur)</strong> : Représente le dispositif de
+l’utilisateur final, où le site est affiché via un navigateur.</li>
+<li><strong>Serveur Web</strong> : Héberge les fichiers HTML, CSS,
+JavaScript, et autres contenus statiques. Peut être un serveur Nginx,
+Apache ou hébergé sur une plateforme cloud (comme AWS S3, Firebase
+Hosting).</li>
+<li><strong>CDN (Content Delivery Network)</strong> : Distribue le
+contenu statique (images, vidéos, fichiers CSS et JavaScript) à partir
+de serveurs proches de l’utilisateur pour réduire les temps de
+chargement.</li>
+<li><strong>Serveur DNS</strong> : Traduit le nom de domaine du site (ex
+: www.monsite.com) en adresse IP pour que le client puisse accéder au
+serveur web.</li>
+</ol>
+<h2 id="créer-un-diagramme-de-votre-choix-bonus">Créer un Diagramme de
+votre choix (Bonus)</h2>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

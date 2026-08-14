@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="$if(lang)$$lang$$else$fr$endif$">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>$if(title)$$title$ &mdash; $endif$pl4y.store</title>
+</head>
+<body>
+<div class="pl4y-doc">
+$if(title)$
+  <header class="title-block">
+    <h1>$title$</h1>
+$if(subtitle)$    <p class="subtitle">$subtitle$</p>$endif$
+  </header>
+$endif$
+$if(toc)$
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+$table-of-contents$
+  </nav>
+$endif$
+  <main>
+$body$
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

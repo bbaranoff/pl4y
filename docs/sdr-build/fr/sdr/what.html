@@ -1,0 +1,251 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Qu’est-ce qu’un SDR ? &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Différents types de SDR" href="sdr.html" />
+    <link rel="prev" title="SDR" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../en/index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index-fr.html#navigation-sdr">Navigation SDR</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">SDR</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#navigation-rapide">Navigation rapide</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../2G/index.html">2G : GSM/GPRS/EDGE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq-fr.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about-fr.html">Qui suis je</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">SDR</a></li>
+      <li class="breadcrumb-item active">Qu’est-ce qu’un SDR ?</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/fr/sdr/what.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <p><a class="reference internal" href="../../en/sdr/what.html"><span class="std std-doc">English</span></a></p>
+<section id="quest-ce-quun-sdr">
+<h1>Qu’est-ce qu’un SDR ?<a class="headerlink" href="#quest-ce-quun-sdr" title="Link to this heading"></a></h1>
+<section id="definition">
+<h2>Définition<a class="headerlink" href="#definition" title="Link to this heading"></a></h2>
+<p>La <strong>radio définie par logiciel</strong> (SDR, Software‑Defined Radio) est un système radio où les composants classiques (mélangeurs, filtres, amplis, modulateurs/démodulateurs, détecteurs, etc.) sont implémentés en logiciel sur un ordinateur ou un système embarqué.<br />
+La vraie “radio” devient du code : le matériel ne sert qu’à numériser les signaux analogiques.</p>
+<blockquote>
+<div><p><strong>Analogie :</strong> Dans une radio classique, chaque standard (AM, FM, GSM, WiFi…) nécessite un circuit dédié. En SDR, un seul appareil—avec le bon logiciel—suffit pour tout faire.</p>
+</div></blockquote>
+</section>
+<hr class="docutils" />
+<section id="comment-ca-fonctionne">
+<h2>Comment ça fonctionne ?<a class="headerlink" href="#comment-ca-fonctionne" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Antenne</strong><br />
+Capte ou émet les ondes électromagnétiques (RF).</p></li>
+<li><p><strong>RF Front-End</strong><br />
+Circuit analogique minimal.<br />
+<em>En réception</em> : amplifie et convertit le signal pour numérisation.<br />
+<em>En émission</em> : l’inverse.</p></li>
+<li><p><strong>CAN / CNA</strong></p>
+<ul class="simple">
+<li><p><strong>Convertisseur Analogique-Numérique (CAN/ADC)</strong> : Échantillonne le signal à haute vitesse, convertit en numérique pour traitement logiciel.</p></li>
+<li><p><strong>Convertisseur Numérique-Analogique (CNA/DAC)</strong> : Reconvertit le signal traité en analogique pour l’émission.</p></li>
+</ul>
+</li>
+<li><p><strong>Unité de traitement (CPU/GPU/FPGA)</strong><br />
+Toute la modulation, démodulation, filtrage, décodage et logique protocolaire s’effectue en logiciel—PC, Raspberry Pi, smartphone ou FPGA.</p></li>
+<li><p><strong>Pile logicielle</strong><br />
+Les frameworks logiciels (GNU Radio, SDR#, SDRangel, GQRX, srsRAN…) gèrent le traitement du signal et fournissent l’interface utilisateur, la démodulation, et parfois toute la pile réseau.</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="avantages-et-points-forts">
+<h2>Avantages et points forts<a class="headerlink" href="#avantages-et-points-forts" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Flexibilité :</strong> Un seul SDR peut recevoir/décoder ou émettre une multitude de signaux — il suffit de changer de logiciel.</p></li>
+<li><p><strong>Évolutivité :</strong> Nouveaux protocoles ou standards ? Ajoute-les par mise à jour logicielle, sans changer de matériel.</p></li>
+<li><p><strong>Économies :</strong> Plus besoin de collectionner des appareils radio spécialisés.</p></li>
+<li><p><strong>Prototypage rapide :</strong> Ingénieurs, chercheurs et hackers peuvent expérimenter facilement.</p></li>
+<li><p><strong>Applications larges :</strong> De la FM, satellites météo, et ADS-B avion à l’analyse GSM/LTE, hacking, spectre radio ou radioamateur.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="exemples-de-materiels-sdr-courants">
+<h2>Exemples de matériels SDR courants<a class="headerlink" href="#exemples-de-materiels-sdr-courants" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Modèle</p></th>
+<th class="head"><p>Prix (€)</p></th>
+<th class="head"><p>Gamme de fréquences</p></th>
+<th class="head"><p>Cas d’usage notables</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>RTL‑SDR v3</p></td>
+<td><p>35‑50</p></td>
+<td><p>500 kHz–1,7 GHz</p></td>
+<td><p>Entrée de gamme, RX seul</p></td>
+</tr>
+<tr class="row-odd"><td><p>HackRF One</p></td>
+<td><p>300‑400</p></td>
+<td><p>1 MHz–6 GHz</p></td>
+<td><p>TX/RX, dev &amp; hacking</p></td>
+</tr>
+<tr class="row-even"><td><p>ADALM‑PLUTO</p></td>
+<td><p>150‑200</p></td>
+<td><p>325 MHz–3,8 GHz</p></td>
+<td><p>LTE, WiFi, éducatif</p></td>
+</tr>
+<tr class="row-odd"><td><p>LimeSDR Mini</p></td>
+<td><p>200‑300</p></td>
+<td><p>10 MHz–3,5 GHz</p></td>
+<td><p>MIMO, LTE, GSM, projet</p></td>
+</tr>
+<tr class="row-even"><td><p>USRP B200/B210</p></td>
+<td><p>1 000+</p></td>
+<td><p>70 MHz–6 GHz</p></td>
+<td><p>Recherche/pro, dev</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="applications-typiques-dun-sdr">
+<h2>Applications typiques d’un SDR<a class="headerlink" href="#applications-typiques-dun-sdr" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Radioamateur</strong> (tous modes, numérique/analogique)</p></li>
+<li><p><strong>Surveillance du spectre</strong> (recherche de signaux, chasse d’interférences)</p></li>
+<li><p><strong>Reverse Engineering</strong> (analyse protocoles, sécurité sans fil)</p></li>
+<li><p><strong>Réseaux cellulaires</strong> (sniffing GSM, LTE, IMSI-catcher, base station SDR)</p></li>
+<li><p><strong>Communication satellite</strong> (météo, navigation, TV, radioamateur)</p></li>
+<li><p><strong>Hacking objets connectés</strong> (IoT, pagers, compteurs intelligents…)</p></li>
+<li><p><strong>Éducation &amp; Recherche</strong> (TP, cours, projets étudiants)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="sdr-en-pratique">
+<h2>SDR en pratique<a class="headerlink" href="#sdr-en-pratique" title="Link to this heading"></a></h2>
+<section id="ce-quil-faut-pour-debuter">
+<h3>Ce qu’il faut pour débuter<a class="headerlink" href="#ce-quil-faut-pour-debuter" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>Matériel SDR :</strong> RTL-SDR pour la RX pas chère ; HackRF/PlutoSDR pour la RX/TX.</p></li>
+<li><p><strong>Antenne :</strong> Basique pour la FM, plus large ou optimisée pour d’autres usages.</p></li>
+<li><p><strong>PC ou appareil embarqué :</strong> Même un Raspberry Pi peut suffire.</p></li>
+<li><p><strong>Logiciel :</strong> GNU Radio (avancé), SDR# (Windows, simple), GQRX (Linux), etc.</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="exemple-reel-rtlsdr">
+<h2>Exemple réel : RTL‑SDR<a class="headerlink" href="#exemple-reel-rtlsdr" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Brancher la clé USB SDR</strong></p></li>
+<li><p><strong>Installer SDR# ou GQRX</strong></p></li>
+<li><p><strong>Se caler sur 100 MHz — écouter la FM !</strong></p></li>
+<li><p><strong>Changer de logiciel/plugin — décoder ADS-B avion, pagers, satellites météo, ou capter des signaux domotiques</strong></p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="pourquoi-le-sdr-est-revolutionnaire">
+<h2>Pourquoi le SDR est révolutionnaire ?<a class="headerlink" href="#pourquoi-le-sdr-est-revolutionnaire" title="Link to this heading"></a></h2>
+<p>Le <strong>SDR</strong> fait sauter les barrières matérielles de la radio.<br />
+Il donne le pouvoir d’analyser, prototyper et <em>reprendre la main</em> sur le spectre à toute personne munie d’un ordinateur.</p>
+<p><em>Que tu sois étudiant, hacker, ingénieur ou simple curieux : la radio n’est plus une boîte noire. Tu peux voir, entendre et <em>façonner</em> le monde invisible qui t’entoure.</em></p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="SDR" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sdr.html" class="btn btn-neutral float-right" title="Différents types de SDR" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

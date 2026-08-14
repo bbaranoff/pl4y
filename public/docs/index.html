@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pl4y.store &mdash; documentation</title>
+<style>
+  .hub { max-width:960px; margin:0 auto; padding:2.4rem 1rem 3rem; }
+  .hub-grid { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(19rem,1fr)); }
+  .hub-card { display:block; background:var(--panel); border:1px solid var(--border);
+    border-radius:16px; padding:1.2rem 1.35rem; text-decoration:none; color:var(--fg);
+    box-shadow:var(--shadow); transition:box-shadow .2s ease, transform .2s ease; }
+  .hub-card:hover { box-shadow:var(--shadow-lg); transform:translateY(-2px); color:var(--fg); }
+  .hub-card h2 { margin:0 0 .5rem; border:0; padding:0; font-size:1.1rem; }
+  .hub-card p { color:var(--muted); font-size:.92rem; margin:0 0 .7rem; }
+  .hub-card .meta { color:var(--muted); font-size:.78rem; font-family:var(--mono); }
+</style>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+  <div class="hub">
+    <h1>Documentation</h1>
+    <p class="subtitle" style="color:var(--muted);margin:0 0 1.8rem">
+      Les trois corpus servis par pl4y.store, unifies sous le meme rendu.
+    </p>
+    <div class="hub-grid">
+      <a class="hub-card" href="/calypso/">
+        <h2>QEMU Calypso</h2>
+        <p>Bundle complet du depot <code>qemu-calypso</code> : documentation, tests, headers, sources C du DSP C54x, scripts Python et shell — chaque fichier dans son bloc de code, avec filtre et recherche plein-texte.</p>
+        <span class="meta">18 pages &middot; /calypso/</span>
+      </a>
+      <a class="hub-card" href="/sdr/">
+        <h2>Software Defined Radio</h2>
+        <p>La documentation <strong>software-defined-radio.com</strong> : 2G / 3G / 4G / 5G et SDR, en francais et en anglais (Sphinx + MyST).</p>
+        <span class="meta">41 pages &middot; /sdr/</span>
+      </a>
+      <a class="hub-card" href="/bbaranoff/">
+        <h2>Cours, projets & CTF</h2>
+        <p>Le contenu de <strong>bbaranoff.github.io</strong> : cours (Agile, UML, Git), projets radio (IMSI catcher, chiffrement, LoRa, ADS-B), CTF et jeux.</p>
+        <span class="meta">32 pages &middot; /bbaranoff/</span>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

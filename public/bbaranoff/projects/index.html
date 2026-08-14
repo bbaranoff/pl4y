@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Projects &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+  <header class="title-block">
+    <h1>Projects</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#a51-cracking" id="toc-a51-cracking"><strong>A5/1
+Cracking</strong></a></li>
+</ul>
+  </nav>
+  <main>
+<p>00:00:57,265 –&gt; 00:00:58,975 - Seq, I’m in. - Captain.</p>
+<p>00:00:59,058 –&gt; 00:01:00,310 - You were right.</p>
+<p>00:01:00,393 –&gt; 00:01:01,811 - The skylight was a window pane.</p>
+<p>00:01:01,895 –&gt; 00:01:03,396 - I’ve got serious interference.</p>
+<p>00:01:03,480 –&gt; 00:01:04,814 - Weird. It’s some kind of Modal.</p>
+<p>00:01:04,898 –&gt; 00:01:06,691 - Looks like old code.</p>
+<p>00:01:06,775 –&gt; 00:01:08,151 - It feels really familiar.</p>
+<p>00:01:08,234 –&gt; 00:01:09,986 - Drop a pin. I’ll signal for
+backup.</p>
+<p>00:01:10,069 –&gt; 00:01:11,738 - I’m gonna check it out. -
+-Bugs?</p>
+<p>00:01:11,821 –&gt; 00:01:13,031 - If the general finds out we’ve been
+fishing…</p>
+<p>00:01:13,114 –&gt; 00:01:14,783 - A quick peek can’t hurt.</p>
+<p>00:01:14,866 –&gt; 00:01:16,159 - Did you hear that?</p>
+<p>00:01:16,242 –&gt; 00:01:17,619 - Shit. I think our signal was
+traced.</p>
+<p>00:01:17,702 –&gt; 00:01:19,829 - Bugs, this feels like a trap.</p>
+<p>00:01:19,913 –&gt; 00:01:21,039 - Bugs!</p>
+<p><strong>Radio-Frequencies Protocols :</strong></p>
+<p>A protocol is for computing (quoted from Oxford langage):</p>
+<blockquote>
+<p>” A set of rules governing the exchange or transmission of data
+between devices.” <img src="https://www.oed.com/"
+alt="Oxford Langage" /></p>
+</blockquote>
+<p>The goal like it is said is to make travel information from A-&gt;B,
+and (maybe) then B-&gt;A etcaetera. This information has a weight and it
+has to move so : energy is spent, at least F(A-&gt;B). Another goals
+came obviously from the first depending on the case of use : spending
+the less energy possible, have the maximum range, transmit the most data
+possible, have the best yield, and be the most secure possible (I mean
+by that, that it can’t be understood by a machine or an human on an
+undesired endpoint in a reasonable time at least at the time of
+conception and from the projected advances in technology), there are
+also another important points the latency, and the errors between the
+message sent and received. We will begin by enumerate some radio
+protocols, begin by saying their purpose. Then we gonna try to classify
+theses protocols by energy, data (raw and useful payload), power, range,
+frequencies and yield, security, latency, and error.</p>
+<p><strong>List (non-exhaustive) of Protocols</strong></p>
+<p>Protocol | Purpose RFID | Traceabitlity / Static Information Exchange
+NFC | Bank Operations / Static Information Exchange
+GSM/GPRS<em>/EDGE</em> | Calls / SMS / Internet UMTS/HSPA/HSPA_advanced
+| Calls / SMS / Internet LTE/LTE_Advanced|Calls / SMS / Internet / IoT
+5G SA/NSA | Calls / SMS / Internet / IoT Wifi| Internet / LAN / Calls
+(VoWifi) Bluetooth | Data exchange / Pairing devices LoRa/SigFox | Data
+exchange / IoT GPS/Galileo | Geolocalization</p>
+<p><strong>Radio-Telephony</strong></p>
+<ul>
+<li><strong>Example of SFR:</strong></li>
+</ul>
+<p><strong>Article 1</strong></p>
+<p>– The French Radiotelephone Company (“Société Française de
+Radiotéléphonie”) is authorized to use, in the 900 and 1800 MHz bands,
+the frequencies allocated to it in Article 2 of this decision to
+establish and operate a radio network open to the public in metropolitan
+France. For this, it complies with the provisions of the specifications
+located in appendix 2 of this decision.</p>
+<p><strong>Article 2</strong></p>
+<p>– The GSM channels allocated to the French Radiotelephone Company
+are, in accordance with the definitions in appendix 1:</p>
+<ul>
+<li>in the 900 MHz band, throughout mainland France: channels 75 to
+124;</li>
+<li>in the 900 MHz band, only in very dense areas: channels 63 to
+74;</li>
+<li>in the 1800 MHz band, throughout mainland France: channels 512 to
+525 and 647 to 751</li>
+</ul>
+<p>For others Operator (GSM)</p>
+<p>Operator GSM900 | DCS1800 Orange 1→62 | 527→646 SFR 63-74 &amp;
+75-124 | 512→525 &amp; 647→751 Bouygues 975-1023 | 752-885</p>
+<p>Free = ? (Free didn’t invest much in 2G antenna since 2G will die in
+2025 in France the use Orange roaming )</p>
+<h1 id="a51-cracking"><strong>A5/1 Cracking</strong></h1>
+<p>Download the tables :</p>
+<p><a
+href="assets/https://infocon.org/rainbow%20tables/A51/">a51_tables</a></p>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

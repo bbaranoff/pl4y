@@ -1,0 +1,2931 @@
+---
+title: "3 - Headers"
+---
+
+
+## `hw/arm/calypso/calypso_arm2dsp.h` {#f-hw-arm-calypso-calypso-arm2dsp-h}
+
+::: {.file-meta}
+[.h]{.tag} 37 lignes - 1,9KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_arm2dsp.h"}
+#ifndef CALYPSO_ARM2DSP_H
+#define CALYPSO_ARM2DSP_H
+
+#include "calypso_c54x.h"
+
+/*
+ * calypso_arm2dsp — ARM->DSP orchestration bridge.
+ *
+ * On real Calypso the ARM (osmocom L1) orchestrates the C54x DSP: it uploads
+ * the DSP tasks and commands them via the shared API RAM. The FB/FCCH search is
+ * commanded by writing d_dsp_page bit1 (B_GSM_TASK). In this emulator the DSP
+ * stalls in its go-live wait-loop (0xa4d4, BITF data[0x3f70] #0x0002) because the
+ * foreground setter that would set bit1 (0xde9c/0xa5bd/0xb3ef/0x710c) is never
+ * dispatched — the ARM->DSP go-live handshake is not wired.
+ *
+ * This module wires that handshake: when the ARM issues the FB-task orchestration
+ * write, we drive the DSP into a setter path so it sets 0x3f70 bit1, runs the
+ * go-live follow-through (ST #2,0x3f70 ; CALL 0xa9ea ; ... ; ORM #,IMR / RSBX INTM)
+ * and arms its own IMR. Gated by CALYPSO_ARM2DSP=1 (off by default).
+ *
+ * Env overrides (for bracketing, no rebuild):
+ *   CALYPSO_ARM2DSP=1            enable
+ *   CALYPSO_ARM2DSP_TGT=0xb3ec   redirect target PC (default 0xb3ec setter path)
+ *   CALYPSO_ARM2DSP_AT=0xa4d4    DSP PC at which to apply the redirect (default 0xa4d4)
+ *   CALYPSO_ARM2DSP_SP=0x1100    if set, force SP to this before redirect (context)
+ *   CALYPSO_ARM2DSP_N=1          how many times to drive (default 1)
+ */
+
+/* Called from the ARM->DSP API-RAM write path (calypso_trx.c) on every ARM write.
+ * offset = ARM byte offset into the DSP API window; value = 16-bit written value. */
+void calypso_arm2dsp_on_arm_write(uint16_t offset, uint16_t value);
+
+/* Called once per DSP instruction step (calypso_c54x.c) with the DSP state and the
+ * PC about to execute. Applies a pending go-live drive at the configured PC. */
+void calypso_arm2dsp_on_dsp_step(C54xState *s, uint16_t exec_pc);
+
+#endif /* CALYPSO_ARM2DSP_H */
+
+```
+
+## `hw/arm/calypso/calypso_c54x.h` {#f-hw-arm-calypso-calypso-c54x-h}
+
+::: {.file-meta}
+[.h]{.tag} 396 lignes - 18KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_c54x.h"}
+/*
+ * calypso_c54x.h — TMS320C54x DSP emulator for Calypso
+ *
+ * Emulates the C54x DSP core found in the TI Calypso baseband chip.
+ * Loads ROM dump, executes instructions, shares API RAM with ARM.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_C54X_H
+#define CALYPSO_C54X_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/* Memory sizes (in 16-bit words) */
+#define C54X_PROG_SIZE   0x40000  /* 256K words program space */
+#define C54X_DATA_SIZE   0x10000  /* 64K words data space */
+#define C54X_IO_SIZE     0x10000  /* 64K words I/O space */
+
+/* API RAM: shared between ARM and DSP */
+#define C54X_API_BASE    0x0800   /* DSP data address of API RAM */
+#define C54X_API_SIZE    0x2000   /* 8K words */
+
+/* DSP start address (after boot) */
+#define C54X_DSP_START   0x7000
+
+/* MMR addresses (data memory 0x00-0x1F) */
+#define MMR_IMR   0x00
+#define MMR_IFR   0x01
+#define MMR_ST0   0x06
+#define MMR_ST1   0x07
+#define MMR_AL    0x08
+#define MMR_AH    0x09
+#define MMR_AG    0x0A
+#define MMR_BL    0x0B
+#define MMR_BH    0x0C
+#define MMR_BG    0x0D
+#define MMR_T     0x0E
+#define MMR_TRN   0x0F
+#define MMR_AR0   0x10
+#define MMR_AR1   0x11
+#define MMR_AR2   0x12
+#define MMR_AR3   0x13
+#define MMR_AR4   0x14
+#define MMR_AR5   0x15
+#define MMR_AR6   0x16
+#define MMR_AR7   0x17
+#define MMR_SP    0x18
+#define MMR_BK    0x19
+#define MMR_BRC   0x1A
+#define MMR_RSA   0x1B
+#define MMR_REA   0x1C
+#define MMR_PMST  0x1D
+#define MMR_XPC   0x1E
+
+/* Timer registers (memory-mapped at 0x0024-0x0026) */
+#define TIM_ADDR  0x0024   /* Timer counter */
+#define PRD_ADDR  0x0025   /* Timer period */
+#define TCR_ADDR  0x0026   /* Timer control */
+
+/* TCR bit positions (TMS320C54x hardware spec) */
+#define TCR_TDDR_MASK  0x000F   /* bits 3:0 — prescaler reload value */
+#define TCR_TSS        (1 << 4) /* bit 4 — Timer Stop Status (1=stopped) */
+#define TCR_TRB        (1 << 5) /* bit 5 — Timer Reload (write 1 reloads) */
+#define TCR_PSC_SHIFT  6        /* bits 9:6 — prescale counter */
+#define TCR_PSC_MASK   (0xF << TCR_PSC_SHIFT)
+#define TCR_SOFT       (1 << 10)
+#define TCR_FREE       (1 << 11)
+
+/* ST0 bit positions */
+#define ST0_DP_MASK  0x01FF  /* bits 8-0: data page pointer */
+#define ST0_OVB      (1 << 9)
+#define ST0_OVA      (1 << 10)
+#define ST0_C        (1 << 11)
+#define ST0_TC       (1 << 12)
+#define ST0_ARP_SHIFT 13
+#define ST0_ARP_MASK (7 << ST0_ARP_SHIFT)
+
+/* ST1 bit positions */
+#define ST1_ASM_MASK 0x001F  /* bits 4-0: accumulator shift mode */
+#define ST1_CMPT     (1 << 5)
+#define ST1_FRCT     (1 << 6)
+#define ST1_C16      (1 << 7)
+#define ST1_SXM      (1 << 8)
+#define ST1_OVM      (1 << 9)
+#define ST1_INTM     (1 << 11)
+#define ST1_HM       (1 << 12)
+#define ST1_XF       (1 << 13)
+#define ST1_BRAF     (1 << 14)
+
+/* PMST bit positions (per SPRU131: SST=0 SMUL=1 CLKOFF=2 DROM=3 APTS=4 OVLY=5 MP/MC=6) */
+#define PMST_SST     (1 << 0)
+#define PMST_SMUL    (1 << 1)
+#define PMST_CLKOFF  (1 << 2)
+#define PMST_DROM    (1 << 3)
+#define PMST_APTS    (1 << 4)
+#define PMST_OVLY    (1 << 5)
+#define PMST_MP_MC   (1 << 6)
+#define PMST_IPTR_SHIFT 7
+#define PMST_IPTR_MASK (0x1FF << PMST_IPTR_SHIFT)
+
+/* Interrupt vectors */
+#define C54X_INT_RESET   0
+#define C54X_INT_NMI     1
+/* ============================================================================
+ * TABLE DES INTERRUPTIONS DU DSP CALYPSO — SOURCE : CAL000 §5.1 (ti-calypso1.pdf,
+ * « DSP INTERRUPTS », p.24). Ver 1.3, HERCROM400G2.
+ *
+ * [2026-08-03] CE BLOC REMPLACE LA TABLE SPRU131 QUI ÉTAIT ICI. C'ÉTAIT L'ERREUR
+ * SOURCE DE TOUTE LA CASCADE : SPRU131 décrit le TMS320C54x GÉNÉRIQUE, alors que
+ * le sous-chip DSP du Calypso (S28C128) a son propre mapping de périphériques.
+ * Les deux tables divergent à partir du bit 3 : le C54x générique a QUATRE lignes
+ * externes (INT0..INT3) avant TINT, le Calypso n'en a que TROIS (INT0n..INT2n).
+ * D'où un décalage de 1 sur tout le reste, et des noms faux (BRINT0/BXINT0/DMAC0
+ * n'existent pas sur Calypso).
+ *
+ * §5.1 : « The DSP subchip owns 17 interrupt lines with 11 of which INT0n to
+ * INT10n are dedicated for external peripherals. »
+ *
+ * [2026-08-03, DEUXIÈME CORRECTION] La première version de ce bloc suivait l'ORDRE
+ * DE LA LISTE EN PROSE de CAL000 §5.1, faute de mieux. Cette liste est FAUSSE à
+ * partir du bit 6 : elle plaçait AINT en bit 12. La table qui fait autorité est
+ * CAL207 §15.1, « DSP interrupts Mapping », qui donne l'EMPLACEMENT EN HEXA de
+ * chaque vecteur — pas un ordre à interpréter. vec = Location / 4.
+ *
+ *  bit  vec  Loc.  ligne     source (CAL207 §15.1)              sens
+ *  ---  ---  ----  --------  ---------------------------------  ------
+ *   0    16  0x40  INT0n     RIF receive interrupt              niveau
+ *   1    17  0x44  INT1n     RIF transmit interrupt             niveau
+ *   2    18  0x48  INT2n     UART interrupt                     niveau
+ *   3    19  0x4C  TINT      Timer interrupts
+ *   4    20  0x50  RINT      SPI receive interrupt
+ *   5    21  0x54  XINT      SPI transmit interrupt
+ *   6    22  0x58  INT4n     MCSI transmit interrupt            niveau
+ *   7    23  0x5C  INT5n     MCSI frame duration error          niveau
+ *   8    24  0x60  INT3n     MCSI receive interrupt             niveau
+ *   9    25  0x64  AINT      API interrupts (ARM ↔ DSP)
+ *  10    26  0x68  INT6n     MCSI DAI interrupt                 niveau
+ *  11    27  0x6C  INT7n     CYPHER interrupts                  FRONT
+ *  12    28  0x70  INT8n     TPU FRAME interrupt                FRONT
+ *  13    29  0x74  INT9n     TPU programmable interrupt         FRONT
+ *  14    30  0x78  INT10n    DMA interrupt                      niveau
+ *        1   0x04  nMIN      Abort on Rhea bus OR redirection INT4n (= NMI)
+ *
+ * CE QUI CHANGE PAR RAPPORT À LA LISTE EN PROSE : INT3n/INT4n/INT5n sont permutés,
+ * **AINT est en bit 9 (pas 12)**, INT6n en bit 10, INT7n en bit 11, et l'IT TRAME
+ * du TPU (INT8n) est en **bit 12 / vec 28**.
+ *
+ * VÉRIFIÉ PAR LA MESURE, et c'est ce qui rend cette table crédible : l'IMR du ROM
+ * vaut 0x52ef = bits 0,1,2,3,5,6,7,9,12,14, soit RIF rx + RIF tx + UART + timer +
+ * SPI tx + MCSI tx/err + **AINT** + **IT trame TPU** + DMA. Les bits laissés
+ * masqués sont CYPHER (11), MCSI rx (8), TPU programmable (13) et SPI rx (4) —
+ * exactement ce qu'un L1 GSM n'utilise pas à ce stade. Sous l'ancienne lecture, le
+ * bit 11 « IT trame » n'était JAMAIS ouvert alors qu'osmocom ne signale que par
+ * lui : l'incohérence venait de la table, pas du firmware.
+ *
+ * CONFIRMATION CROISÉE (§15.2.1) : le firmware écrit 0x0380 dans CNTRL_REG
+ * (XIO:FA00), qui assigne edge/niveau par canal — bits 7, 8, 9 → canaux 7, 8, 9
+ * en FRONT. Or §15.1 marque exactement INT7n, INT8n et INT9n comme « edge ». Le
+ * canal N est donc bien INTNn.
+ *
+ * Formule inchangée et confirmée : vec = imr_bit + 16.
+ * Note §5.1 sur INT9n : « a facility offered to the DSP programmer in order to
+ * allow the generation of a DSP interrupt at a dedicated time with a quarter of
+ * GSM bit accuracy. The interrupt is set in a scenario by using a time-stamped
+ * instruction. » → c'est exactement le MOVE TPUI_DSP_INT_PG du séquenceur TPU.
+ *
+ * RECOUPEMENTS DE MESURE (ce qui rend la table crédible, pas seulement lue) :
+ *   • vec21 = XINT/SPI TX → périphérique inutilisé en L1 GSM, et le ROM y a bien
+ *     un stub RETE ; idem vec20 = RINT/SPI RX.
+ *   • vec28 = AINT et vec30 = INT10n/DMA : deux slots déjà mesurés dans le ROM.
+ *   • IMR mesurée 0x52ed → bits 0,2,3,5,6,7,9,12,14 = RIF RX, UART, TINT, SPI TX,
+ *     MCSI RX/TX, MCSI DAI, AINT, DMA. Un L1 GSM plausible.
+ *   • le ROM fait IMR |= 0x3000 = bits 12+13 = AINT + TPU programmable.
+ * ==========================================================================*/
+#define C54X_IT_RIF_RX_VEC     16   /* INT0n  RIF receive              */
+#define C54X_IT_RIF_RX_BIT      0
+#define C54X_IT_RIF_TX_VEC     17   /* INT1n  RIF transmit             */
+#define C54X_IT_RIF_TX_BIT      1
+#define C54X_IT_UART_VEC       18   /* INT2n  UART                     */
+#define C54X_IT_UART_BIT        2
+#define C54X_IT_TINT_VEC       19   /* TINT   timer DSP                */
+#define C54X_IT_TINT_BIT        3
+#define C54X_IT_SPI_RX_VEC     20   /* RINT   SPI receive              */
+#define C54X_IT_SPI_RX_BIT      4
+#define C54X_IT_SPI_TX_VEC     21   /* XINT   SPI transmit             */
+#define C54X_IT_SPI_TX_BIT      5
+#define C54X_IT_MCSI_TX_VEC    22   /* INT4n  MCSI transmit     (0x58) */
+#define C54X_IT_MCSI_TX_BIT     6
+#define C54X_IT_MCSI_ERR_VEC   23   /* INT5n  MCSI frame dur.   (0x5C) */
+#define C54X_IT_MCSI_ERR_BIT    7
+#define C54X_IT_MCSI_RX_VEC    24   /* INT3n  MCSI receive      (0x60) */
+#define C54X_IT_MCSI_RX_BIT     8
+#define C54X_IT_API_VEC        25   /* AINT   API (ARM ↔ DSP)   (0x64) */
+#define C54X_IT_API_BIT         9
+#define C54X_IT_MCSI_DAI_VEC   26   /* INT6n  MCSI DAI          (0x68) */
+#define C54X_IT_MCSI_DAI_BIT   10
+#define C54X_IT_CRYPT_VEC      27   /* INT7n  CYPHER            (0x6C) */
+#define C54X_IT_CRYPT_BIT      11
+#define C54X_IT_TPU_FRAME_VEC  28   /* INT8n  TPU frame         (0x70) */
+#define C54X_IT_TPU_FRAME_BIT  12
+#define C54X_IT_TPU_PROG_VEC   29   /* INT9n  TPU programmable  (0x74) */
+#define C54X_IT_TPU_PROG_BIT   13
+#define C54X_IT_DMA_VEC        30   /* INT10n DMA               (0x78) */
+#define C54X_IT_DMA_BIT        14
+
+/* SAS — CALYPSO_IT_TABLE_DOC=1 : bascule les émetteurs d'IT encore câblés sur
+ * l'ancienne table SPRU131 vers la table §5.1 ci-dessus. Défaut 0 : comportement
+ * strictement inchangé, parce que ces émetteurs-là sont sur le chemin du shunt qui
+ * campe. Protocole : tester SOUS CHARGE (camp + LU + SMS), puis effacer LA
+ * CONDITION — pas le correctif. */
+
+/* ⚠ LEGACY — valeur MAL MAPPÉE, conservée le temps du sas ci-dessus.
+ * L'ancien commentaire disait « bit 3 = INT3 = la ligne frame-sync du TPU » :
+ * FAUX deux fois. Le bit 3 est TINT (le timer du DSP), et l'IT trame du TPU est
+ * INT8n = bit 11 = vec 27 (C54X_IT_TPU_FRAME_*). L'IMR 0xFF88 citée à l'appui
+ * n'est plus celle qu'on mesure (0x52ed). Utiliser C54X_IT_TPU_FRAME_* pour tout
+ * nouveau câblage. */
+#define C54X_INT_FRAME_VEC   19  /* LEGACY : en réalité TINT, pas l'IT trame  */
+#define C54X_INT_FRAME_BIT   3   /* LEGACY : voir C54X_IT_TPU_FRAME_BIT = 11 */
+#define C54X_NUM_INTS        16
+
+typedef struct C54xState {
+    /* Accumulators (40-bit) stored as int64 for convenience */
+    int64_t a;   /* A accumulator: bits 39-0 */
+    int64_t b;   /* B accumulator: bits 39-0 */
+
+    /* Auxiliary registers */
+    uint16_t ar[8];
+
+    /* Other registers */
+    uint16_t t;      /* Temporary register */
+    uint16_t trn;    /* Transition register (Viterbi) */
+    uint16_t sp;
+    uint16_t bk;     /* Circular buffer size */
+    uint16_t brc;    /* Block repeat counter */
+    uint16_t rsa;    /* Block repeat start address */
+    uint16_t rea;    /* Block repeat end address */
+
+    /* Status registers */
+    uint16_t st0;
+    uint16_t st1;
+    uint16_t pmst;
+
+    /* Interrupt registers */
+    uint16_t imr;
+    uint16_t ifr;
+
+    /* Optional reset-state override loaded from calypso_dsp.Registers.bin via
+     * `-M calypso,dsp-registers=<path>` (default-wired by run.sh, like the
+     * other ROM sections). reg_init[i] = value for MMR index i (0x00..0x1F).
+     * When reg_init_valid, c54x_reset() applies these AFTER its silicon
+     * hardcode defaults, so the .bin snapshot is authoritative. */
+    uint16_t reg_init[0x20];
+    bool     reg_init_valid;
+
+    /* Program counter */
+    uint32_t pc;     /* 16-bit (or 23-bit with XPC) */
+    uint16_t xpc;
+
+    /* Timer0 prescale counter (PSC) — not memory-mapped directly */
+    uint16_t timer_psc;
+
+    /* DMA sub-register bank (6 channels × 4 regs) */
+    uint16_t dma_subaddr;
+    uint16_t dma_subregs[24];
+    /* McBSP sub-register bank */
+    uint16_t spsa;
+
+    /* RPT state */
+    uint16_t rpt_count;  /* remaining RPT iterations */
+    uint16_t rpt_pc;     /* PC of repeated instruction */
+    bool     rpt_active;
+    bool     rpt_fresh;   /* RPT vient d'etre arme : 1ere lecture READA/MVPD repart de la base, pas du mvpd_src stale (fix 2026-06-24) */
+    uint16_t par;        /* Program Address Register (for READA/WRITA/MACD/MACP) */
+    bool     par_set;
+    bool     lk_used;    /* resolve_smem consumed extra word for lk */
+    uint16_t mvpd_src;   /* MVPD auto-increment source address during RPT */
+
+    /* RPTB state */
+    bool     rptb_active;
+
+    /* Delayed-branch state (CALLD/RETD/BD/CCD/...): when set, the next
+     * `delay_slots` instructions execute normally, then PC is forced to
+     * `delayed_pc`. */
+    uint16_t delayed_pc;
+    uint8_t  delay_slots;
+
+    /* Memory */
+    uint16_t prog[C54X_PROG_SIZE];   /* Program memory */
+    uint16_t data[C54X_DATA_SIZE];   /* Data memory */
+
+    /* API RAM pointer (shared with ARM calypso_trx.c) */
+    uint16_t *api_ram;  /* points into ARM's dsp_ram[] */
+
+    /* DSP → ARM notify hook: called whenever the DSP writes to api_ram. */
+    void (*api_write_cb)(void *opaque, uint16_t woff, uint16_t val);
+    void  *api_write_cb_opaque;
+
+    /* State */
+    bool     running;
+    bool     idle;       /* IDLE instruction executed */
+    bool     blob_loaded; /* Test fixture: set by c54x_set_initial_pc().
+                           * Suppresses the secondary c54x_reset() that
+                           * normally fires when ARM writes DSP_DL_STATUS_READY,
+                           * which would otherwise clobber the user's blob
+                           * via the reset-time PROM→DARAM auto-copy. */
+    uint64_t cycles;
+    uint32_t insn_count;
+
+    /* BSP (Baseband Serial Port) — burst sample buffer */
+    uint16_t bsp_buf[2048]; /* burst I/Q samples from radio */
+    int      bsp_len;       /* number of samples */
+    int      bsp_pos;       /* read position */
+
+    /* Debug */
+    uint32_t unimpl_count;
+    uint16_t last_unimpl;
+    /* Last executed instruction snapshot — captured at end of each
+     * c54x_run iteration. Used by the INTM-TRANS tracer (and others)
+     * to attribute post-instruction state changes to the actual cause
+     * PC/opcode rather than the post-advance PC. */
+    uint16_t last_exec_pc;
+    uint16_t last_exec_op;
+
+    /* writer_kind : set by each opcode handler / external writer before
+     * calling data_write. Logged in DATA-W-MMR trace to disambiguate
+     * which path is responsible for stray writes to MMR (addr<=0x1F).
+     * Reset to WK_UNKNOWN at the top of c54x_exec_one. */
+    uint8_t  writer_kind;
+} C54xState;
+
+/* writer_kind enum — keep small, extend as needed */
+enum {
+    WK_UNKNOWN     = 0,
+    WK_OPCODE_F3   = 1,   /* 0xF3xx family (SFTL/AND/OR/XOR/INTR/etc.) */
+    WK_OPCODE_8x   = 2,   /* 0x80xx-0x8Fxx (STL/STH/STLM/STM/LD-Smem) */
+    WK_OPCODE_77   = 3,   /* 0x77xx STM #lk, MMR */
+    WK_OPCODE_76   = 4,   /* 0x76xx ST #lk, Smem */
+    WK_OPCODE_PSHM = 5,   /* PSHM/POPM stack ops */
+    WK_OPCODE_RET  = 6,   /* RET/RETI/RETD frame restore */
+    WK_IRQ_ACK     = 7,   /* IRQ acknowledge / vector dispatch */
+    WK_ARM_MMIO    = 8,   /* ARM-side write through shared region */
+    WK_RESOLVE_AR  = 9,   /* resolve_smem AR-modify side effect */
+    WK_OPCODE_OTHER= 10,  /* anything else inside an opcode handler */
+};
+
+/* Feed burst samples to BSP (called by calypso_trx) */
+void c54x_bsp_load(C54xState *s, const uint16_t *samples, int n);
+
+/* Create and initialize C54x state */
+C54xState *c54x_init(void);
+
+/* Link API RAM (shared memory with ARM) */
+void c54x_set_api_ram(C54xState *s, uint16_t *api_ram);
+
+/* Reset the DSP */
+void c54x_reset(C54xState *s);
+
+/* Execute N instructions (returns actual count executed) */
+int c54x_run(C54xState *s, int n_insns);
+
+/* Raise an interrupt */
+/* Send interrupt: vec = vector number (for PC), imr_bit = bit in IMR/IFR */
+void c54x_interrupt_ex(C54xState *s, int vec, int imr_bit);
+
+/* Wake from IDLE */
+void c54x_wake(C54xState *s);
+
+/* Test fixture: override PC after reset.
+ * Used by `-M calypso,dsp-blob=<path>` to start execution at a custom
+ * address instead of the silicon-default reset vector (IPTR * 0x80). */
+void c54x_set_initial_pc(C54xState *s, uint32_t pc);
+
+/* Test fixture: load a raw binary blob into DARAM starting at daram_addr.
+ * File bytes are read pairwise as little-endian DSP words.
+ * Returns number of words loaded, or -1 on error. */
+int  c54x_load_blob_daram(C54xState *s, const char *path, uint16_t daram_addr);
+
+/* Explicit per-section ROM load: write raw LE 16-bit words from `path`
+ * into either prog[] (when is_program=true) or data[] (when false),
+ * starting at DSP word address `start_addr`. Used by the per-section
+ * machine properties (dsp-prom0/prom1/prom2/prom3/drom/pdrom) to load
+ * each ROM section at its silicon-correct DSP address.
+ * Returns number of words loaded, or -1 on error. */
+int  c54x_load_section(C54xState *s, const char *path,
+                       uint32_t start_addr, bool is_program);
+
+/* Load the DSP register snapshot (calypso_dsp.Registers.bin: raw LE 16-bit
+ * words, MMR page 0x00..0x1F first) into reg_init[] so c54x_reset() applies
+ * it as the reset state. Words >= 0x20 are written into data[] (low scratch).
+ * Used by the `-M calypso,dsp-registers=<path>` machine property.
+ * Returns number of words loaded, or -1 on error. */
+int  c54x_load_registers(C54xState *s, const char *path);
+
+#endif /* CALYPSO_C54X_H */
+
+```
+
+## `hw/arm/calypso/calypso_dma.h` {#f-hw-arm-calypso-calypso-dma-h}
+
+::: {.file-meta}
+[.h]{.tag} 75 lignes - 3,7KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_dma.h"}
+/*
+ * calypso_dma.h — contrôleur DMA interne du TMS320C54x
+ *
+ * [2026-07-29] Pourquoi ce module existe.
+ *
+ *   Le firmware DSP empile ses demandes de transfert dans une file circulaire
+ *   de 14 entrées (pointeurs `data[0x433e]` lecture / `data[0x433f]` écriture,
+ *   producteur en `0xaa75`, consommateur en `0xaa87`). Mesuré le 2026-07-29 :
+ *   le producteur empile, le pointeur de lecture n'avance JAMAIS, l'anneau se
+ *   remplit, l'écriture rattrape la lecture et le firmware lève
+ *   `DSP_ERR_DMA_PROG` (bit 3 de `data[0x3f92]`, publié dans `d_error_status`
+ *   = `0x08d5`, imprimé par l'ARM : « DSP Error Status: 8 », 605 fois).
+ *
+ *   Les instructions de cette séquence sont TOUTES correctement émulées —
+ *   `MVDM`, `MAR *ARn-0` et `BANZ` ont été vérifiés un par un, registres et
+ *   cellules relevés au PC du test. Ce qui manque n'est pas du décodage, c'est
+ *   un OBJET : le contrôleur DMA lui-même. Le modèle accepte la programmation
+ *   (banc de sous-registres, `calypso_c54x.c`) mais n'exécute aucun transfert
+ *   et ne lève jamais `DMAC0..5`. Rien ne signale donc la complétion, le
+ *   consommateur n'a jamais de raison de dépiler, et la file sature.
+ *
+ * ⚠️ CONFLIT DE MAPPING, à trancher par la mesure.
+ *   SPRU131 place  DMPREC=0x54  DMSA=0x55  DMSDI=0x56  DMSDN=0x57.
+ *   `calypso_c54x.c` utilise 0x54 comme DMSA (décalage d'un registre) — la
+ *   sonde DMAWATCH le signale déjà par son libellé « DMPREC?(modele:DMSA) ».
+ *   Ce module implémente le mapping du MANUEL et reste OPTIONNEL
+ *   (`CALYPSO_DMA=1`, défaut OFF) : tant qu'il est éteint, le décodage
+ *   existant tourne inchangé et aucune régression n'est possible.
+ *
+ * ⚠️ CE QUI N'EST PAS MODÉLISÉ, et doit le rester tant que ce n'est pas mesuré :
+ *   - la synchronisation par événement (DMSFC : McBSP, timer, ligne externe) —
+ *     ici le transfert est fait EN BLOC au tick de trame, pas au rythme réel ;
+ *   - les transferts vers/depuis l'espace PROGRAMME et l'espace I/O (DMMCR) ;
+ *   - l'entrelacement des priorités entre canaux (DPRC) ;
+ *   - le mode ABU (adressage circulaire matériel du canal).
+ *   Chacun de ces points est une approximation ASSUMÉE, pas un oubli. Le seul
+ *   objectif ici est de fermer la boucle « programme -> transfère -> signale ».
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_DMA_H
+#define CALYPSO_DMA_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+typedef struct C54xState C54xState;
+
+/* Adresses MMR selon SPRU131. */
+#define C54X_DMPREC   0x0054   /* contrôle/priorité, bits 0..5 = canal actif */
+#define C54X_DMSA     0x0055   /* sous-adresse */
+#define C54X_DMSDI    0x0056   /* données, auto-incrémente DMSA */
+#define C54X_DMSDN    0x0057   /* données, sans auto-incrément */
+
+/* Sous-registres, 5 par canal (SPRU131 §DMA). Le banc existant de
+ * calypso_c54x.c n'en compte que 4 (SRC/DST/CTR/MCR) — DMSFC manque, d'où
+ * l'impossibilité de modéliser la synchronisation par événement. */
+#define C54X_DMA_CANAUX   6
+
+/* Le module a-t-il été activé ? Testé en ligne sur les chemins chauds. */
+extern int calypso_dma_actif;
+
+/* Lit la configuration (CALYPSO_DMA). Idempotent, appelé paresseusement. */
+void calypso_dma_init(void);
+
+/* Interception d'une écriture MMR. Rend true si le module l'a traitée — dans
+ * ce cas l'appelant ne fait rien de plus. Rend false quand le module est
+ * éteint, laissant le décodage historique s'appliquer. */
+bool calypso_dma_mmr_write(C54xState *s, uint16_t addr, uint16_t val);
+
+/* À appeler une fois par trame TDMA : exécute les canaux actifs et lève
+ * l'interruption de fin de transfert. */
+void calypso_dma_tick(C54xState *s);
+
+#endif /* CALYPSO_DMA_H */
+
+```
+
+## `hw/arm/calypso/calypso_dsp_shunt.h` {#f-hw-arm-calypso-calypso-dsp-shunt-h}
+
+::: {.file-meta}
+[.h]{.tag} 69 lignes - 3,3KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_dsp_shunt.h"}
+/*
+ * calypso_dsp_shunt.h — public API for the DSP shunt mock.
+ *
+ * Active only when CALYPSO_DSP_SHUNT=1. When active, all code paths
+ * that write into API RAM / DARAM (BSP DMA, ARM scenario-end DMA, etc)
+ * must skip themselves to avoid trampling on the mock's responses.
+ */
+
+#ifndef CALYPSO_DSP_SHUNT_H
+#define CALYPSO_DSP_SHUNT_H
+
+#include "qemu/osdep.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
+#include <stdbool.h>
+
+/* Init at machine setup. Called from calypso.c. */
+void calypso_dsp_shunt_init(MemoryRegion *system_memory, AddressSpace *as);
+
+/* Called by calypso_trx frame_irq tick to service any pending task. */
+void calypso_dsp_shunt_on_frame_tick(void);
+
+/* True if CALYPSO_DSP_SHUNT=1 in env. Use to gate BSP/TPU DMA into DARAM. */
+bool calypso_dsp_shunt_active(void);
+/* le shunt REMPLACE le DSP (mock) — seul ce predicat doit gater les c54x_run */
+bool calypso_dsp_shunt_substitutes(void);
+bool calypso_dsp_shunt_sb_valid(void);  /* gr-gsm a decode la SCH (detection reelle) */
+bool calypso_dsp_shunt_si_valid(void);  /* gr-gsm a decode un SI (a_cd pret) */
+uint16_t calypso_dsp_shunt_burst_d(void);  /* d_burst_d echote (gates BURST_OFS/FN) */
+/* Mission courante du DSP (d_task_md) : FB=5 SB=6 TCH_FB=8 TCH_SB=9, 0=aucune.
+ * Sert a gater les wires inter-blocs (BSP BRINT0) sur la mission FB/SB. */
+uint16_t calypso_dsp_shunt_get_task_md(void);
+
+/* Phase 2 future hook (IPC fed). */
+void calypso_dsp_shunt_feed_fb_result(int found, int16_t toa,
+                                      int16_t pm, int16_t angle, int16_t snr);
+
+/* Injection du SI RÉEL (gr-gsm via pont, ou démod C native) : frame L2 23 o
+ * décodée depuis l'I/Q réel du BTS, écrite dans a_cd à la place du SI3 canned.
+ * Point d'injection commun aux deux fronts de démod. */
+void calypso_dsp_shunt_feed_si(const uint8_t *l2, int len);
+/* [2026-07-22] Mirror d_burst_d PAR COMMANDE (de-alias) : appele depuis
+ * calypso_dsp_write a chaque write ARM de la write-page. off = MMIO offset. */
+void calypso_dsp_shunt_wp_burst_write(uint32_t off, uint16_t value);
+
+/* ENTREE du DSP shunte : la BSP pousse l'I/Q DL (cs16, n int16 entrelaces
+ * I,Q) dans le buffer shm pour que gr-gsm (le DSP) la lise et la decode. */
+void calypso_dsp_shunt_feed_iq(uint32_t fn, const int16_t *iq, int n);
+bool calypso_dsp_shunt_fb_stream_next(uint16_t *outI, uint16_t *outQ); /* FB-STREAM */
+
+/* [2026-07-22] Injection READ-SIDE des resultats FB/SB REELS (gate
+ * CALYPSO_SHUNT_REAL_FB) : appelee depuis calypso_dsp_read sur le read MMIO
+ * ARM, immunise contre l'ordonnancement intra-trame (l'ARM lit TOUJOURS la
+ * derniere detection reelle). off = ARM byte offset dans l'API RAM.
+ * Retourne true si elle a override *out. */
+bool calypso_dsp_shunt_real_fb_read(uint32_t off, uint16_t *out);
+
+/* SONDE B : enregistre la FN TDMA reelle par RA lors dun RACH UL. */
+void calypso_dsp_shunt_record_rach(uint8_t ra);
+
+/* CALYPSO_DSP=c54x : relie le handle du VRAI DSP au shunt (type opaque pour
+ * ne pas tirer calypso_c54x.h). Appelé depuis calypso_mb.c après l'init. */
+struct C54xState;
+void calypso_dsp_shunt_l1_reset(void);
+void calypso_dsp_shunt_set_c54x(struct C54xState *s);
+bool calypso_dsp_shunt_route_c54x_active(void);
+bool calypso_dsp_shunt_early_booted(void);
+
+#endif /* CALYPSO_DSP_SHUNT_H */
+
+```
+
+## `hw/arm/calypso/calypso_fbsb.h` {#f-hw-arm-calypso-calypso-fbsb-h}
+
+::: {.file-meta}
+[.h]{.tag} 144 lignes - 6,7KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_fbsb.h"}
+/*
+ * calypso_fbsb.h — QEMU-side FBSB (FCCH/SCH burst search) orchestration
+ *
+ * Mirrors the firmware's prim_fbsb.c state machine but lives entirely in
+ * QEMU. The goal is to handle the FBSB sequence autonomously when the
+ * emulated DSP cannot drive the NDB cells correctly (because of opcode
+ * gaps, missing C548 extensions, etc).
+ *
+ * The "real" osmocom-bb flow is in:
+ *   src/target/firmware/layer1/prim_fbsb.c
+ *
+ * That file's state machine, mirrored here:
+ *
+ *   IDLE
+ *     │
+ *     │  ARM writes d_task_md = FB_DSP_TASK (mode 0)
+ *     ▼
+ *   FB0_SEARCH ── correlator finds burst ──► FB0_FOUND
+ *     │                                         │
+ *     │ 12 attempts no FB                       │ ferr small enough
+ *     │                                         ▼
+ *     ▼                                       FB1_SEARCH ──► FB1_FOUND
+ *   FAIL (result=255)                            │              │
+ *                                                ▼              ▼
+ *                                              FAIL          SB_SEARCH ──► SB_FOUND
+ *                                                                │            │
+ *                                                                ▼            ▼
+ *                                                              FAIL        SUCCESS
+ *
+ * NDB cells we read/write (offsets in DSP data words from API base 0x0800):
+ *   d_dsp_page         0x08E2    (page toggle from ARM)
+ *   d_fb_det           0x08F9    (DSP → ARM: non-zero = FB found)
+ *   d_fb_mode          0x08FA    (ARM → DSP: 0 = wideband search, 1 = narrow)
+ *   a_sync_demod[0]    0x08FB    D_TOA  — time-of-arrival
+ *   a_sync_demod[1]    0x08FB    D_PM   — power measurement
+ *     [2026-07-30] Corrige : ce commentaire disait 0x08FC, en desaccord d'UN MOT
+ *     avec le #define NDB_A_SYNC_DEMOD_PM (0x08FB) plus bas. Le firmware tranche
+ *     (include/calypso/dsp_api.h:202-204) : d_fb_det, d_fb_mode, puis
+ *     a_sync_demod[4] = {D_TOA, D_PM, D_ANGLE, D_SNR} -> 0x08F8, 0x08F9, puis
+ *     0x08FA..0x08FD. Le define etait bon, le commentaire faux. Meme famille
+ *     d'erreur que l'offset d_dsp_page corrige le 29/07 : un decalage d'un mot
+ *     dans un commentaire finit par etre lu comme une adresse.
+ *   a_sync_demod[2]    0x08FD    D_ANGLE — frequency phase angle
+ *   a_sync_demod[3]    0x08FE    D_SNR  — signal-to-noise ratio
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_FBSB_H
+#define CALYPSO_FBSB_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/* NDB cell offsets — DSP data word addresses. */
+/* Offsets verified against calypso_trx.c lines 575-581: ARM sees NDB
+ * starting at byte 0x01A8 (= dsp_ram word 0xD4), and d_fb_det is at
+ * dsp_ram[0xF8]. With api_base=0x0800 → DSP word = 0x0800 + 0xF8. */
+/* [2026-07-29] CORRECTION D'ADRESSE — d_dsp_page etait defini a 0x08E2, soit
+ * NDB+14 mots : c'est d_dsp_state. Trois sources concordantes :
+ *   1. osmocom-bb dsp_api.h:18  BASE_API_NDB = 0xFFD001A8 -> mot DSP 0x0800 +
+ *      0x1A8/2 = 0x08D4, et d_dsp_page est le champ 0 de T_NDB_MCU_DSP ;
+ *      d_dsp_state est le champ 14 -> 0x08E2.
+ *   2. Runtime : la seule ecriture ARM sur 0x08E2 vient de dsp.c:215
+ *      (ndb->d_dsp_state = 3 = C_DSP_IDLE3), a l'offset ARM 0x01C4.
+ *   3. La ROM DSP lit 0x08d4 (0xa51c = selecteur de page bit0 -> pages
+ *      0x0800/0x0828 vs 0x0814/0x083c ; 0xc8ea) et ne reference JAMAIS 0x08e2
+ *      dans les 5 ROM programme.
+ * Le commentaire ci-dessus disait deja « NDB = mot 0xD4 » — seule la constante
+ * etait fausse. Le chemin ARM principal, lui, etait correct (api_ram==dsp_ram,
+ * cf calypso_trx.c:2033), donc seuls les ecrivains/sondes SECONDAIRES tapaient
+ * a cote. */
+#define NDB_D_DSP_PAGE       0x08D4
+#define NDB_D_DSP_STATE      0x08E2
+#define NDB_D_FB_DET         0x08F8
+#define NDB_D_FB_MODE        0x08F9
+#define NDB_A_SYNC_DEMOD_TOA 0x08FA
+#define NDB_A_SYNC_DEMOD_PM  0x08FB
+#define NDB_A_SYNC_DEMOD_ANG 0x08FC
+#define NDB_A_SYNC_DEMOD_SNR 0x08FD
+
+/* d_task_md values used by the firmware (subset).
+ * From osmocom-bb dsp_api.h — verified against l1s_pm_cmd / l1s_fbdet_cmd. */
+#define DSP_TASK_NONE       0
+#define DSP_TASK_PM         1   /* PM_DSP_TASK (power measurement, NOT FB) */
+#define DSP_TASK_FB         5   /* FB_DSP_TASK (frequency burst, idle) */
+#define DSP_TASK_SB         6   /* SB_DSP_TASK (sync burst, idle)      */
+#define DSP_TASK_TCH_FB     8   /* TCH_FB_DSP_TASK (dedicated) */
+#define DSP_TASK_TCH_SB     9   /* TCH_SB_DSP_TASK (dedicated) */
+#define DSP_TASK_ALLC      24   /* ALLC_DSP_TASK (CCCH read while FULL BCCH/CCCH) */
+
+/* FBSB orchestration state. One instance per Calypso. */
+typedef enum {
+    FBSB_IDLE = 0,
+    FBSB_FB0_SEARCH,
+    FBSB_FB0_FOUND,
+    FBSB_FB1_SEARCH,
+    FBSB_FB1_FOUND,
+    FBSB_SB_SEARCH,
+    FBSB_SB_FOUND,
+    FBSB_DONE,
+    FBSB_FAIL,
+} CalypsoFbsbState;
+
+typedef struct CalypsoFbsb {
+    CalypsoFbsbState state;
+    uint16_t        *ndb;          /* points into ARM dsp_ram[] (word-addressed) */
+    uint16_t         api_base;     /* DSP-side word base (0x0800) */
+
+    /* Per-attempt counters mirroring prim_fbsb.c. Ceux-ci sont REELLEMENT
+     * incrementes (calypso_fbsb_on_dsp_task_change). */
+    uint8_t          fb0_attempt;
+    uint8_t          fb1_attempt;
+    uint8_t          sb_attempt;
+    /* [2026-08-03] fb0_retries / afc_retries SUPPRIMES — meme defaut que les
+     * quatre champs last_* decrits juste dessous, et passe inapercu au meme
+     * menage : declares, remis a 0, imprimes, jamais incrementes. Le `fb0_ret=0`
+     * qui en sortait a ete cite comme mesure dans six endroits, dont
+     * doc/ETAT_ACTUEL.md §13.1. Detail : note dans calypso_fbsb_dump(). */
+
+    /* [2026-07-29] Vue ARM. `ndb` pointe sur data[] cote DSP ; `api` pointe sur
+     * api_ram, c est-a-dire ce que le firmware lit REELLEMENT (prim_fbsb.c
+     * read_fb_result). Les deux vues peuvent diverger — c est le diagnostic.
+     * Remplace les 4 champs last_* qui etaient MORTS (mis a 0 au reset, jamais
+     * ecrits) et faisaient lire « last(snr=0 toa=0 ang=0 pm=0) » comme « le DSP
+     * ne rend rien » alors que la ligne ne disait rien du tout. */
+    uint16_t        *api;
+
+    /* Bookkeeping. */
+    uint64_t         fn_started;
+} CalypsoFbsb;
+
+/* Lifecycle. */
+void calypso_fbsb_init(CalypsoFbsb *s, uint16_t *ndb_word_base,
+                       uint16_t api_base, uint16_t *api_ram);
+void calypso_fbsb_reset(CalypsoFbsb *s);
+
+/* Hooks. */
+void calypso_fbsb_on_dsp_task_change(CalypsoFbsb *s, uint16_t d_task_md,
+                                     uint64_t fn);
+
+/* Trace helper — single-line dump of current state. */
+void calypso_fbsb_dump(const CalypsoFbsb *s, const char *tag);
+
+#endif /* CALYPSO_FBSB_H */
+
+```
+
+## `hw/arm/calypso/calypso_full_pcb.h` {#f-hw-arm-calypso-calypso-full-pcb-h}
+
+::: {.file-meta}
+[.h]{.tag} 112 lignes - 5,1KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_full_pcb.h"}
+/*
+ * calypso_full_pcb.h — Calypso PCB-level threading orchestrator
+ *
+ * Interface entre les composants autonomes (DSP/BSP/TPU/SIM/IOTA) et
+ * l'ARM main TCG thread. Wire les IRQ via la map osmocom-bb (irq.h) et
+ * fournit les locks partagés (DARAM, API RAM, MMR).
+ *
+ * Voir THREADING_TODO.md pour le plan complet + chaîne IRQ.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef HW_ARM_CALYPSO_FULL_PCB_H
+#define HW_ARM_CALYPSO_FULL_PCB_H
+
+#include "qemu/osdep.h"
+#include "qemu/thread.h"
+#include "hw/irq.h"
+
+/* === IRQ map (mirror osmocom-bb include/calypso/irq.h) ===================
+ * Référence canonique : firmware OsmocomBB. Used by qemu_irq dispatching
+ * from device threads back to ARM (via INTH). */
+#define CALYPSO_IRQ_WATCHDOG        0
+#define CALYPSO_IRQ_TIMER1          1
+#define CALYPSO_IRQ_TIMER2          2
+#define CALYPSO_IRQ_TSP_RX          3
+#define CALYPSO_IRQ_TPU_FRAME       4   /* TDMA frame tick → ARM frame_irq */
+#define CALYPSO_IRQ_TPU_PAGE        5
+#define CALYPSO_IRQ_SIMCARD         6   /* SIM IT_RX/WT/OV → sim_irq_handler */
+#define CALYPSO_IRQ_UART_MODEM      7   /* osmocon L1CTL */
+#define CALYPSO_IRQ_KEYPAD_GPIO     8
+#define CALYPSO_IRQ_RTC_TIMER       9
+#define CALYPSO_IRQ_RTC_ALARM_I2C  10
+#define CALYPSO_IRQ_ULPD_GAUGING   11
+#define CALYPSO_IRQ_EXTERNAL       12
+#define CALYPSO_IRQ_SPI            13
+#define CALYPSO_IRQ_DMA            14   /* BSP DMA done → ARM */
+#define CALYPSO_IRQ_API            15   /* DSP↔ARM mailbox done */
+#define CALYPSO_IRQ_SIM_DETECT     16
+#define CALYPSO_IRQ_EXTERNAL_FIQ   17
+#define CALYPSO_IRQ_UART_IRDA      18
+#define CALYPSO_IRQ_ULPD_GSM_TIMER 19
+#define CALYPSO_IRQ_GEA            20
+#define CALYPSO_IRQ_MAX            21
+
+/* === Locks partagés (à take/release par les thread entry points) ========
+ * Convention d'ordre canonique pour éviter deadlock :
+ *   daram_lock < api_ram_lock < sim_lock < bsp_q_lock < tpu_lock
+ * Toujours acquire dans cet ordre, release dans l'inverse. */
+extern QemuMutex calypso_pcb_daram_lock;    /* DARAM 0x0000-0x27FF */
+extern QemuMutex calypso_pcb_api_ram_lock;  /* API mailbox 0x0800-0x0FFF */
+extern QemuMutex calypso_pcb_sim_lock;      /* SIM controller it/fifo */
+extern QemuMutex calypso_pcb_bsp_q_lock;    /* BSP UDP queue */
+extern QemuMutex calypso_pcb_tpu_lock;      /* TPU registers + scenarios */
+
+typedef struct CalypsoPcb CalypsoPcb;
+
+/* === API publique ======================================================== */
+
+/* Initialize PCB orchestrator: locks + IRQ routing table.
+ * Called once during SoC init (from calypso_soc.c). */
+CalypsoPcb *calypso_pcb_init(qemu_irq *inth_inputs);
+
+/* No-op stubs kept for API compat with calypso_soc.c. */
+void calypso_pcb_start_threads(CalypsoPcb *pcb);
+void calypso_pcb_stop_threads(CalypsoPcb *pcb);
+
+/* IRQ helper : raise/lower a Calypso IRQ. Thread-safe. */
+void calypso_pcb_raise_irq(CalypsoPcb *pcb, int irq_nr);
+void calypso_pcb_lower_irq(CalypsoPcb *pcb, int irq_nr);
+
+/* === Async log queue ====================================================
+ * Pour les sites de log haute fréquence (UART IER, tdma tick, etc.) qui
+ * fire depuis ARM TCG main thread. fprintf inline bloque le TCG (stdio
+ * lock + write syscall). Cette queue les défère vers un drain thread
+ * dédié — TCG juste enqueue (mutex bref) et continue. */
+void calypso_async_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
+
+/* === DARAM access helpers (cross-thread safety) =========================
+ *
+ * Wrappers pour les sites hors c54x.c qui lisent/écrivent dsp->data[] —
+ * BSP IQ burst writes, TRX/FBSB API RAM mailbox mirror, etc.
+ *
+ * Avant 2026-05-25 : ces sites accédaient dsp->data[] direct sans lock.
+ * En single-thread (no PCB DSP thread) c'est OK — pas de racer. Mais dès
+ * qu'on active calypso_pcb_dsp_thread (qui boucle c54x_run en pthread
+ * indépendant), DSP-side reads/writes (déjà locked par data_read/write
+ * dans calypso_c54x.c) racent avec les writes externes non-protégés →
+ * DARAM corruption non-déterministe.
+ *
+ * Usage :
+ *   - Single-access : calypso_dsp_daram_read(dsp, addr) / _write(dsp,a,v)
+ *     → encapsulent lock+access+unlock (impl dans pcb.c)
+ *   - Burst (boucle 100+ iters) : lock externe via les pcb_daram_lock_*
+ *     fonctions, accès direct dsp->data[] entre lock/unlock.
+ *
+ * Performance : qemu_mutex non-contended ~20-30ns. Pour ~300k ops/sec
+ * overall (estimation), overhead < 1% wall. */
+
+/* Burst lock helpers — pour les sections où on accède dsp->data[] en
+ * boucle. Acquire une fois, accès directs entre, release une fois.
+ *
+ * IMPORTANT : pas de return/break dans la section sans release préalable. */
+void calypso_pcb_daram_lock_acquire(void);
+void calypso_pcb_daram_lock_release(void);
+
+/* Single-access helpers — encapsulent lock+access+unlock.
+ * dsp_void = C54xState* (typé void* pour éviter de tirer calypso_c54x.h
+ * dans tous les .c qui includent pcb.h). */
+uint16_t calypso_dsp_daram_read(void *dsp_void, uint16_t addr);
+void     calypso_dsp_daram_write(void *dsp_void, uint16_t addr, uint16_t val);
+
+#endif /* HW_ARM_CALYPSO_FULL_PCB_H */
+
+```
+
+## `hw/arm/calypso/calypso_layer1.h` {#f-hw-arm-calypso-calypso-layer1-h}
+
+::: {.file-meta}
+[.h]{.tag} 31 lignes - 1,4KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_layer1.h"}
+/*
+ * calypso_layer1.h — HLE L1 model for the Calypso DSP (CALYPSO_L1=c).
+ *
+ * Intermediate FUNCTIONAL SCAFFOLD: models the DSP's L1 signal processing in C,
+ * clocked by calypso_tdma_tick. It lets the upper stack (cell selection, BCCH,
+ * SI) be exercised while the real-c54x revival (the LLE / IPTR-faithful arc)
+ * stays the goal behind CALYPSO_L1 off. NOT the endgame — a conscious bridge.
+ *
+ * Reads I/Q from DARAM 0x2a00, writes results into the API RAM where the ARM L1
+ * (osmocom-bb, unmodified) reads them.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_LAYER1_H
+#define CALYPSO_LAYER1_H
+
+#include "hw/arm/calypso/calypso_c54x.h"
+
+/* CALYPSO_L1=c → 1 (memoized once). Default off → mock/revival untouched. */
+int calypso_l1_c_active(void);
+
+/* Per-frame hook, called from calypso_tdma_tick just before the TPU FRAME IRQ.
+ * dsp->data = shared API RAM / DARAM (I/Q at 0x2a00, outputs at NDB offsets).
+ * dsp_ram   = ARM-side mirror (write-page task fields d_task_md/d_task_d).
+ * fn        = current TDMA frame number. */
+void calypso_layer1_tick(C54xState *dsp, uint16_t *dsp_ram, uint32_t fn);
+
+/* Latch the ARM's d_task_md write (called from calypso_dsp_write). The tick-time
+ * poll misses the transient task=5; this captures it at write time. */
+void calypso_layer1_on_task_write(uint16_t md);
+
+#endif /* CALYPSO_LAYER1_H */
+
+```
+
+## `hw/arm/calypso/calypso_mailbox.h` {#f-hw-arm-calypso-calypso-mailbox-h}
+
+::: {.file-meta}
+[.h]{.tag} 79 lignes - 3,7KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_mailbox.h"}
+/*
+ * calypso_mailbox.h — moniteur COMPLET de la mailbox ARM <-> DSP
+ *
+ * [2026-07-29] Pourquoi ce module existe.
+ *
+ *   La mailbox (API RAM, mots DSP 0x0800..0x0FFF) est le SEUL point de contact
+ *   entre l'ARM et le c54x. Tout ce qu'on a passé la journée à chercher — quelle
+ *   tâche est commandée, qui écrit d_burst_d, pourquoi le DSP ne voit pas la
+ *   tâche 24, quelle cellule le dispatcher interroge — est un événement de cette
+ *   frontière. Jusqu'ici on l'observait avec des sondes ponctuelles, écrites une
+ *   par une, chacune câblée en dur sur UNE adresse ou UNE valeur :
+ *
+ *     - TASKGO / FBCALL  : câblées sur d_task_md == 5. Quand l'ARM a enfin
+ *                          commandé ALLC (24), on était AVEUGLES dessus.
+ *     - ARM-WRITE-0810   : une seule cellule.
+ *     - WATCH_WR_ADDR    : une adresse (étendue à 8 aujourd'hui, dans l'urgence).
+ *
+ *   À chaque question nouvelle il fallait écrire, compiler et relancer une sonde
+ *   de plus — et une sonde absente rend zéro, ce qui ressemble à une réponse.
+ *   Neuf conclusions fausses en une journée sont venues de là.
+ *
+ *   Ce module trace TOUT le flux, dans les deux sens, tout le temps.
+ *
+ * SORTIE SÉPARÉE, et c'est délibéré : le moniteur écrit dans SON fichier, pas
+ * sur stderr. Un flux complet sur stderr noierait qemu.log et tronquerait les
+ * autres sondes — exactement l'accident du matin (480 898 lignes, 35 Mo, les
+ * traces voisines effacées). Ici les deux journaux sont indépendants.
+ *
+ * FORMAT UNIFORME, pour que deux runs soient DIFFÉRENTIABLES. C'est le but :
+ * capturer une séquence en `shunt_legit` (qui marche, donc exerce la vraie
+ * séquence de commande) puis en natif, et lire le delta — le delta EST la liste
+ * de ce qui n'est pas câblé.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_MAILBOX_H
+#define CALYPSO_MAILBOX_H
+
+#include <stdint.h>
+
+/* Sens de l'accès, du point de vue de la mailbox. */
+typedef enum {
+    MBX_ARM_WR = 0,   /* l'ARM écrit   (commande) */
+    MBX_ARM_RD,       /* l'ARM lit     (résultat) */
+    MBX_DSP_WR,       /* le DSP écrit  (résultat) */
+    MBX_DSP_RD,       /* le DSP lit    (commande) */
+} CalypsoMbxSens;
+
+/* Testé en ligne sur les chemins CHAUDS (data_read / data_write du c54x sont
+ * appelés à chaque instruction) : quand le moniteur est éteint, le coût se
+ * réduit à la lecture d'un int.
+ *
+ * TROIS états, et c'est nécessaire : -1 = pas encore initialisé, 0 = éteint,
+ * 1 = actif. Première version : le drapeau démarrait à 0, donc l'enveloppe en
+ * ligne n'appelait jamais calypso_mbx_evt(), donc calypso_mbx_init() n'était
+ * jamais atteint, donc le drapeau restait à 0 — aucun fichier n'était créé.
+ * Avec -1 le premier accès passe, l'init tranche, et les suivants sont filtrés. */
+extern int calypso_mbx_actif;
+
+/* Ouvre le fichier et lit la configuration. Idempotent. Appelé paresseusement
+ * au premier événement, donc rien à ordonnancer au démarrage. */
+void calypso_mbx_init(void);
+
+/* Enregistre un événement. `avant` n'a de sens que pour les écritures (sinon 0).
+ * `ctx` = PC du DSP, ou offset MMIO côté ARM. */
+void calypso_mbx_evt(CalypsoMbxSens sens, uint16_t mot, uint16_t val,
+                     uint16_t avant, uint32_t ctx, uint32_t fn, uint32_t insn);
+
+/* Enveloppes en ligne : le test du drapeau évite l'appel quand c'est éteint. */
+static inline void calypso_mbx(CalypsoMbxSens sens, uint16_t mot, uint16_t val,
+                               uint16_t avant, uint32_t ctx, uint32_t fn,
+                               uint32_t insn)
+{
+    if (calypso_mbx_actif) {
+        calypso_mbx_evt(sens, mot, val, avant, ctx, fn, insn);
+    }
+}
+
+#endif /* CALYPSO_MAILBOX_H */
+
+```
+
+## `hw/arm/calypso/calypso_orch.h` {#f-hw-arm-calypso-calypso-orch-h}
+
+::: {.file-meta}
+[.h]{.tag} 19 lignes - 734B
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_orch.h"}
+#ifndef HW_ARM_CALYPSO_ORCH_H
+#define HW_ARM_CALYPSO_ORCH_H
+#include <stdlib.h>
+/* CALYPSO_ORCH master flag.
+ *   set & non-empty & != "0"  -> ORCHESTRATION ON  (host-side L1 injection:
+ *                                BSP FB/SB synth, grgsm SI -> a_cd, FORCE_NB).
+ *   unset / empty / "0"        -> EXECUTION (default): the real C54x DSP ROM
+ *                                runs its own L1 and writes the NDB itself.
+ * Independent of CALYPSO_DSP_SHUNT (the separate full-DSP-replacement path). */
+static inline int calypso_orch(void)
+{
+    static int v = -1;
+    if (v < 0) {
+        const char *e = getenv("CALYPSO_ORCH");
+        v = (e && e[0] && e[0] != '0') ? 1 : 0;
+    }
+    return v;
+}
+#endif /* HW_ARM_CALYPSO_ORCH_H */
+
+```
+
+## `hw/arm/calypso/calypso_rhea_dma.h` {#f-hw-arm-calypso-calypso-rhea-dma-h}
+
+::: {.file-meta}
+[.h]{.tag} 41 lignes - 1,8KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_rhea_dma.h"}
+/*
+ * calypso_rhea_dma.h — contrôleur DMA RHEA du Calypso, côté MCU (FFFF:FC00).
+ * Source : CAL207 §11 (ti-calypso2.pdf).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_RHEA_DMA_H
+#define CALYPSO_RHEA_DMA_H
+
+#include "exec/hwaddr.h"
+#include <stdint.h>
+#include <stdbool.h>
+
+#define CALYPSO_RHEA_DMA_BASE 0xFFFFFC00
+
+uint64_t calypso_rhea_dma_read(void *opaque, hwaddr off, unsigned size);
+void     calypso_rhea_dma_write(void *opaque, hwaddr off, uint64_t val, unsigned size);
+
+/* Meme banc de registres vu du bus Rhea du DSP (XIO:FC00..FCFF, §11.1).
+ * Rend true si PA appartient a la fenetre DMA. */
+bool     calypso_rhea_dma_xio(bool write, uint16_t pa, uint16_t *val, uint16_t pc);
+
+/* [2026-08-03] Requete de reception : le RIF signale qu'un burst est disponible
+ * et que le firmware a choisi le mode DMA (RDMA_MASK=0). Le controleur vide
+ * alors le recepteur vers la memoire API a l'adresse DMA2_AAD, pose IRQ_STATE
+ * et leve INT10n si IRQ_MODE le demande.
+ *
+ * Gate `CALYPSO_RHEA_DMA_XFER` (defaut 0) : sans lui le module reste l'instrument
+ * de lecture qu'il etait, il journalise sans rien transferer. C'est un changement
+ * de NATURE (d'instrument a piece de materiel), donc opt-in d'abord. */
+struct C54xState;
+void     calypso_rhea_dma_rx_request(struct C54xState *s);
+
+/* [2026-08-04] Niveau de la ligne INT10n. CAL000 §5.1 : « INT10n (level) -> DMA
+ * interrupt ». La ligne reste assertee tant que le canal a son IRQ_STATE pose ;
+ * c'est la LECTURE du registre qui l'efface (CAL207 §11.3.5). Sans ca le modele
+ * traite l'IT comme un FRONT et la perd des qu'elle arrive avec INTM=1 — ce qui
+ * est le cas 15 fois sur 15 dans les runs mesures. */
+bool     calypso_rhea_dma_irq_level(void);
+
+#endif /* CALYPSO_RHEA_DMA_H */
+
+```
+
+## `hw/arm/calypso/calypso_rif.h` {#f-hw-arm-calypso-calypso-rif-h}
+
+::: {.file-meta}
+[.h]{.tag} 46 lignes - 2,0KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_rif.h"}
+/*
+ * calypso_rif.h — Radio InterFace (RIF) du Calypso, vue DSP (espace XIO).
+ *
+ * Source : CAL207 « Register Mapping » §12 (ti-calypso2.pdf) + CAL000 §3.7.1
+ * et §5.1 (ti-calypso1.pdf).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_RIF_H
+#define CALYPSO_RIF_H
+
+#include <stdint.h>
+#include <stdbool.h>
+#include "hw/arm/calypso/calypso_c54x.h"
+
+/* Adresses XIO du §12.1 (Table 19). */
+#define RIF_XIO_DXR    0x0000   /* Transmit Data Register   — 16b R/W        */
+#define RIF_XIO_DRR    0x0001   /* Receive Data Register    — 16b R          */
+#define RIF_XIO_SPCX   0x0002   /* Control Register (TX)    — 15b, rst 0x059E */
+#define RIF_XIO_SPCR   0x0003   /* Control Register (RX)    — 15b, rst 0x3CA2 */
+
+/* true si le module est arme (CALYPSO_RIF_XIO, defaut 1). */
+bool calypso_rif_on(void);
+
+/* PORTR PA,Smem / PORTW Smem,PA : rendent true si PA appartient au RIF.
+ * portr renseigne *out avec la valeur lue. */
+bool calypso_rif_portr(C54xState *s, uint16_t pa, uint16_t *out);
+bool calypso_rif_portw(C54xState *s, uint16_t pa, uint16_t val);
+
+/* Un burst arrive du front radio : les mots sont mis en attente et coulent
+ * dans la FIFO de reception a mesure que le DSP lit DRR. */
+void calypso_rif_rx_burst(C54xState *s, const uint16_t *w, int n);
+
+/* [2026-08-03] Drainage par le DMA. En mode DMA (RDMA_MASK=0), ce n'est pas le
+ * DSP qui lit DRR mot a mot : le controleur RHEA vide le recepteur vers la
+ * memoire API (CAL000 §3.7.1, « an end-DMA request is sent »). Cette fonction
+ * est le seul chemin par lequel calypso_rhea_dma.c preleve les echantillons —
+ * la FIFO et l'etage d'attente restent prives au RIF.
+ *
+ * Rend le nombre de mots reellement copies (0 si le recepteur est vide), et
+ * realimente la FIFO depuis l'etage d'attente, exactement comme le fait la
+ * lecture de DRR. Aucun effet de bord sur SPCR : c'est l'appelant qui decide
+ * de la notification, pas le RIF. */
+int calypso_rif_drain(uint16_t *dst, int max);
+
+#endif /* CALYPSO_RIF_H */
+
+```
+
+## `hw/arm/calypso/calypso_tint0.h` {#f-hw-arm-calypso-calypso-tint0-h}
+
+::: {.file-meta}
+[.h]{.tag} 51 lignes - 1,8KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_tint0.h"}
+/*
+ * calypso_tint0.h -- TINT0 master clock for Calypso GSM virtualization
+ *
+ * On real Calypso hardware, the C54x DSP Timer 0 (TIM/PRD/TCR at
+ * DSP addresses 0x0024-0x0026) generates TINT0 (IFR bit 4, vector 20).
+ * The DSP ROM configures Timer 0 to fire at TDMA frame rate (4.615ms).
+ * TINT0 is the master clock that synchronizes everything:
+ *
+ *   TINT0 (DSP Timer 0, 4.615ms)
+ *     +-- DSP: SINT17 frame interrupt -> process GSM tasks
+ *     +-- TPU: frame sync -> burst scheduling
+ *     +-- ARM: TPU_FRAME IRQ -> L1 scheduler
+ *     +-- ARM: API IRQ -> read DSP results
+ *     +-- UART: poll TX/RX
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_TINT0_H
+#define CALYPSO_TINT0_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/* Hardware constants from TMS320C54x Timer 0 */
+#define TINT0_PERIOD_US     4615         /* 4.615 ms per TDMA frame */
+#define TINT0_PERIOD_NS     4615000ULL   /* in nanoseconds */
+#define GSM_HYPERFRAME      2715648      /* GSM hyperframe modulus */
+
+/* C54x Timer 0 registers (DSP data addresses) */
+#define TINT0_TIM_ADDR      0x0024       /* Timer counter */
+#define TINT0_PRD_ADDR      0x0025       /* Timer period */
+#define TINT0_TCR_ADDR      0x0026       /* Timer control */
+
+/* C54x IFR/IMR bit for TINT0 */
+#define TINT0_IFR_BIT       4            /* IFR/IMR bit 4 */
+#define TINT0_VEC           20           /* Interrupt vector 20 (offset 0x50) */
+
+/* Start the master clock */
+void calypso_tint0_start(void);
+
+/* Notify that TPU_CTRL_EN was written (ARM requests frame processing) */
+void calypso_tint0_tpu_en(void);
+bool calypso_tint0_tpu_en_pending(void);
+void calypso_tint0_tpu_en_clear(void);
+
+/* Frame number access */
+uint32_t calypso_tint0_fn(void);
+void calypso_tint0_set_fn(uint32_t fn);
+bool calypso_tint0_running(void);
+
+#endif /* CALYPSO_TINT0_H */
+
+```
+
+## `hw/arm/calypso/calypso_trf6151.h` {#f-hw-arm-calypso-calypso-trf6151-h}
+
+::: {.file-meta}
+[.h]{.tag} 34 lignes - 1,6KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_trf6151.h"}
+/*
+ * calypso_trf6151.h — modele de gain RF frontend TRF6151 (porte du firmware
+ * osmocom-bb src/target/firmware/rf/trf6151.c).
+ *
+ * But : le firmware calcule le niveau RF recu par
+ *   rf_dbm = pm_baseband_dbm - (system_inherent_gain(71) + trf6151_get_gain())
+ * (layer1/agc.c:agc_inp_dbm8_by_pm + board/compal/rffe_dualband.c).
+ * Le gain trf6151 est programme par le firmware via des writes TSP (dev 1)
+ * dans REG_RX. QEMU suit ces writes, reconstruit le gain, et fournit la
+ * valeur a_pm a poser pour qu'un niveau RF cible soit rapporte -> rxlev correct.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef HW_ARM_CALYPSO_TRF6151_H
+#define HW_ARM_CALYPSO_TRF6151_H
+
+#include <stdint.h>
+
+/* Appele depuis calypso_tsp.c a chaque write TSP vers un device != TWL3025.
+ * word = mot 16 bits transmis (reg|val). Si c'est un write REG_RX, met a jour
+ * le gain courant. dev_idx sert au filtrage (trf6151 = dev 1 en pratique). */
+void calypso_trf6151_tsp_write(uint8_t dev_idx, uint32_t word);
+
+/* Gain total courant du frontend RF en dB (system_inherent_gain + trf6151),
+ * = ce que le firmware soustrait au baseband. Defaut 71+67=138 (REG_RX=0x9E00,
+ * vga=40 + FE_GAIN_HIGH=27, gain max au demarrage du scan). */
+int calypso_trf6151_total_gain_db(void);
+
+/* Valeur a ecrire dans a_pm[] (format DSP : l1ddsp_meas_read fait a_pm>>3, puis
+ * baseband_dbm = pm/8, donc a_pm = baseband_dbm*64) pour que le firmware
+ * rapporte target_rf_dbm au RF : a_pm = (target_rf_dbm + total_gain)*64, borne. */
+uint16_t calypso_trf6151_apm_for_rf(int target_rf_dbm);
+
+#endif /* HW_ARM_CALYPSO_TRF6151_H */
+
+```
+
+## `hw/arm/calypso/calypso_xio.h` {#f-hw-arm-calypso-calypso-xio-h}
+
+::: {.file-meta}
+[.h]{.tag} 20 lignes - 671B
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_xio.h"}
+/*
+ * calypso_xio.h — fenêtres XIO du DSP non modélisées ailleurs (API Control F900,
+ * INTH du DSP FA00). Source : CAL207 §7.2.2, §11.3.5 (note), CAL000 §3.7.6.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_XIO_H
+#define CALYPSO_XIO_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/* Rend true si PA appartient à l'une des fenêtres traitées ici. */
+bool calypso_xio_misc(bool write, uint16_t pa, uint16_t *val, uint16_t pc);
+
+/* true si le DSP a mis la RAM API en mode HOM (Host Only Mode, §9.1 bit 1) :
+ * la fenetre API est alors reservee a l'ARM et au DMA, CAL000 §7.2.1. */
+bool calypso_xio_api_hom(void);
+
+#endif /* CALYPSO_XIO_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_bsp.h` {#f-include-hw-arm-calypso-calypso-bsp-h}
+
+::: {.file-meta}
+[.h]{.tag} 75 lignes - 2,9KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_bsp.h"}
+/*
+ * Calypso BSP/RIF DMA — public interface.
+ *
+ * Faithful path for downlink I/Q samples between sercomm_gate (the QEMU
+ * surrogate of the IOTA RF frontend wired through calypso-ipc-device) and the
+ * Calypso DSP DARAM. No NDB result hacking — the DSP code itself is
+ * expected to find FB/SB and post results in the NDB.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef HW_ARM_CALYPSO_BSP_H
+#define HW_ARM_CALYPSO_BSP_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+struct C54xState;
+
+/*
+ * Initialise the BSP DMA module. Call once after the C54x has been created.
+ *
+ * Two env vars control the DMA destination:
+ *   CALYPSO_BSP_DARAM_ADDR — word address inside DSP data space (hex/dec)
+ *   CALYPSO_BSP_DARAM_LEN  — max number of int16 words to copy per burst
+ *
+ * When CALYPSO_BSP_DARAM_ADDR is unset/zero the BSP runs in DISCOVERY mode:
+ * it logs every received burst but writes nothing into DARAM. This lets the
+ * c54x.c FBDET data-read tracer reveal the real buffer location before we
+ * lock the address.
+ */
+void calypso_bsp_init(struct C54xState *dsp);
+
+/*
+ * Receive a downlink burst.
+ *
+ *   tn       — timeslot number (0..7)
+ *   fn       — TDMA frame number
+ *   iq       — interleaved int16 I,Q,I,Q,... in DSP-native (host) endianness
+ *   n_int16  — number of int16 elements in iq[]  (= 2 * n_complex_samples)
+ */
+void calypso_bsp_rx_burst(uint8_t tn, uint32_t fn,
+                          const int16_t *iq, int n_int16);
+
+/*
+ * Transmit an uplink burst — symmetric to rx_burst.
+ *
+ * Reads 148 hard bits from the DSP UL buffer (where the L1 firmware
+ * deposits encoded TX data) and fills bits[148]. Returns true if
+ * the burst is valid (any non-zero), false otherwise.
+ */
+bool calypso_bsp_tx_burst(uint8_t tn, uint32_t fn, uint8_t bits[148]);
+
+/* Build a RACH access burst (148 bits) by reading d_rach from NDB and
+ * channel-encoding it via libosmocoding (gsm0503_rach_ext_encode).
+ * Returns true if a valid RACH was produced, false if d_rach is zero or
+ * the encoder failed. Called by calypso_trx.c when ARM L1 commits a
+ * d_task_ra (RACH access). */
+bool calypso_bsp_tx_rach_burst(uint32_t fn, uint8_t bits[148]);
+bool calypso_bsp_send_rach_ra(uint8_t ra, uint8_t bsic, uint32_t fn, uint8_t tn);  /* [PORT LU] RACH UL depuis d_rach */
+
+uint16_t calypso_bsp_get_daram_addr(void);
+uint16_t calypso_bsp_get_daram_len(void);
+uint8_t  calypso_bsp_get_last_att(void);
+
+/* Send UL burst via UDP to BTS */
+void calypso_bsp_send_ul(uint8_t tn, uint32_t fn, const uint8_t bits[148]);
+
+/* Deliver buffered DL bursts when BDLENA windows are available.
+ * Called each TDMA frame from calypso_tdma_tick().
+ * current_fn is the QEMU virtual FN — only bursts tagged with that FN
+ * (per TN) are delivered; stale bursts (fn < current_fn) are dropped,
+ * future bursts (fn > current_fn) are kept for later frames. */
+void calypso_bsp_deliver_buffered(uint32_t current_fn);
+
+#endif /* HW_ARM_CALYPSO_BSP_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_debug.h` {#f-include-hw-arm-calypso-calypso-debug-h}
+
+::: {.file-meta}
+[.h]{.tag} 115 lignes - 5,0KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_debug.h"}
+/*
+ * calypso_debug.h — env-gated probe output infrastructure
+ *
+ * Per la règle "la mesure EST la maladie" : tous les probes diagnostic
+ * sont SILENT par défaut. Activation via UNE seule env var :
+ *
+ *   CALYPSO_DEBUG="probe1,probe2,probe3,..."    — allume liste
+ *   CALYPSO_DEBUG=ALL                          — allume tout
+ *   CALYPSO_DEBUG="ALL,..."                     — pareil
+ *
+ * Le nom de probe est normalisé upper-case, avec '-' / ' ' / '.' / '/'
+ * remplacés par '_'. Match insensitive : probe "IMR-W" matche entry
+ * "imr-w" comme "IMR_W".
+ *
+ * Cache : la liste est parsée UNE FOIS au premier appel et stockée.
+ * Lookup = O(N) sur la liste (= ~50ns pour 10-20 probes typiques).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef HW_ARM_CALYPSO_DEBUG_H
+#define HW_ARM_CALYPSO_DEBUG_H
+
+#include <stdbool.h>
+#include <stdio.h>
+
+/* Master gate : caché, parsé une fois. Quand CALYPSO_DEBUG est vide,
+ * calypso_debug_master == 0 et calypso_debug_enabled() retourne false en
+ * inline, SANS aucun appel de fonction (supprime l'overhead per-instruction
+ * des 76 call-sites dans la hot-loop DSP). Comportement identique sinon. */
+extern int  calypso_debug_master;
+void        calypso_debug_master_init(void);
+bool        calypso_debug_enabled_(const char *probe_name);   /* impl réelle */
+
+static inline bool calypso_debug_enabled(const char *probe_name)
+{
+    if (__builtin_expect(calypso_debug_master < 0, 0)) {
+        calypso_debug_master_init();
+    }
+    if (__builtin_expect(calypso_debug_master == 0, 1)) {
+        return false;
+    }
+    return calypso_debug_enabled_(probe_name);
+}
+
+/* CALYPSO_DBG : gated fprintf. probe_name est string literal compile-time.
+ * fmt inclut le préfixe (ex: "[c54x] IMR-W ...") et le \n final. */
+#define CALYPSO_DBG(probe_name, fmt, ...) \
+    do { \
+        if (calypso_debug_enabled(probe_name)) { \
+            fprintf(stderr, fmt, ##__VA_ARGS__); \
+        } \
+    } while (0)
+
+/* Wrappers par composant — préfixe automatique + \n + gate sur le nom
+ * de probe spécifique au composant ou un nom passé. */
+#define C54_DBG(probe, fmt, ...) \
+    CALYPSO_DBG(probe, "[c54x] " fmt "\n", ##__VA_ARGS__)
+#define TRX_DBG(probe, fmt, ...) \
+    CALYPSO_DBG(probe, "[calypso-trx] " fmt "\n", ##__VA_ARGS__)
+#define BSP_DBG(probe, fmt, ...) \
+    CALYPSO_DBG(probe, "[BSP] " fmt "\n", ##__VA_ARGS__)
+#define IOTA_DBG(probe, fmt, ...) \
+    CALYPSO_DBG(probe, "[iota] " fmt "\n", ##__VA_ARGS__)
+#define PCB_DBG(probe, fmt, ...) \
+    CALYPSO_DBG(probe, "[pcb] " fmt "\n", ##__VA_ARGS__)
+#define INTH_DBG(probe, fmt, ...) \
+    CALYPSO_DBG(probe, "[INTH] " fmt "\n", ##__VA_ARGS__)
+#define UART_DBG(probe, fmt, ...) \
+    CALYPSO_DBG(probe, fmt "\n", ##__VA_ARGS__)
+#define TIMER_DBG(probe, fmt, ...) \
+    CALYPSO_DBG(probe, "[timer] " fmt "\n", ##__VA_ARGS__)
+#define TWL3025_DBG(probe, fmt, ...) \
+    CALYPSO_DBG(probe, "[twl3025] " fmt "\n", ##__VA_ARGS__)
+
+/* cdbg_env : shim retro-compat pour les sites qui testaient
+ * getenv("CALYPSO_X")=="1". Retourne "1" si le token est actif dans
+ * CALYPSO_DEBUG, NULL sinon. Migre un gate getenv vers un token en
+ * changeant seulement l'appel getenv -> cdbg_env. */
+static inline const char *cdbg_env(const char *token)
+{
+    return calypso_debug_enabled(token) ? "1" : NULL;
+}
+
+#endif /* HW_ARM_CALYPSO_DEBUG_H */
+
+/* =============================================================================
+ *  calypso_gate() — UNE sémantique pour toutes les gardes par environnement
+ * =============================================================================
+ *
+ *  POURQUOI. Le modèle utilisait TROIS idiomes concurrents pour la même
+ *  question « cette option est-elle active ? » :
+ *
+ *      getenv("X") ? 1 : 0     103 sites   X=0 n'y coupe RIEN — seul `unset`
+ *      e && *e == '1'           79 sites   X posée vide vaut 0
+ *      atoi(getenv("X")) > 0    22 sites
+ *
+ *  Trois réponses différentes à « X=0 » et à « X= ». La documentation appelle
+ *  cela « la première source d'erreur de manipulation », et le terrain lui donne
+ *  raison : `CALYPSO_LDK8_SHIFT16` est déclarée VIDE dans opcodes.env, ce qui
+ *  sous l'idiome EXISTS la rend ACTIVE — l'inverse de l'intention lisible.
+ *
+ *  SÉMANTIQUE UNIQUE, celle que tout le monde suppose déjà :
+ *
+ *      variable absente                      -> `defaut`
+ *      "0" · "" · "no" · "off" · "false"     -> 0     (insensible à la casse)
+ *      tout le reste                         -> 1
+ *
+ *  Donc `X=0` coupe TOUJOURS, et `X=1` active toujours. `defaut` rend explicite,
+ *  à l'appel, ce que vaut l'absence — l'information qui manquait le plus.
+ *
+ *  CE QUE CE HELPER N'EST PAS. Il répond par oui ou non. Les variables qui
+ *  portent une VALEUR (adresse, longueur, cadence, chemin, liste) gardent leur
+ *  `getenv` + `strtoul`/`atoi` : les convertir n'aurait aucun sens.
+ * ---------------------------------------------------------------------------- */
+int calypso_gate(const char *nom, int defaut);
+
+```
+
+## `include/hw/arm/calypso/calypso_inth.h` {#f-include-hw-arm-calypso-calypso-inth-h}
+
+::: {.file-meta}
+[.h]{.tag} 47 lignes - 1,6KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_inth.h"}
+/*
+ * calypso_inth.h — Calypso INTH (Interrupt Handler) QOM device
+ *
+ * Two-level interrupt controller with 32 IRQ lines,
+ * priority-based arbitration, and IRQ/FIQ routing.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef HW_INTC_CALYPSO_INTH_H
+#define HW_INTC_CALYPSO_INTH_H
+
+#include "hw/sysbus.h"
+#include "qom/object.h"
+
+#define TYPE_CALYPSO_INTH "calypso-inth"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoINTHState, CALYPSO_INTH)
+
+#define CALYPSO_INTH_NUM_IRQS  32
+
+struct CalypsoINTHState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
+    MemoryRegion iomem;
+
+    /* Output lines to CPU */
+    qemu_irq parent_irq;   /* CPU IRQ line */
+    qemu_irq parent_fiq;   /* CPU FIQ line */
+
+    /* Interrupt Level Registers: bits[4:0]=priority, bit[8]=FIQ */
+    uint16_t ilr[CALYPSO_INTH_NUM_IRQS];
+
+    uint16_t ith_v;        /* Current highest-priority active IRQ number */
+    uint16_t fiq_v;        /* Current highest-priority active FIQ number
+                            * (separate channel from ith_v — see audit fix
+                            * 2026-05-08 night in calypso_inth_update). */
+    int irq_in_service;    /* IRQ being serviced (-1 = none). Set on IRQ_NUM read,
+                            * cleared on IRQ_CTRL write. Prevents ith_v update
+                            * so IRQ_CTRL acks the correct interrupt. */
+    uint32_t levels;       /* Bitmask of current input levels (level-sensitive) */
+    uint32_t mask;         /* Bitmask: 1 = masked (disabled) */
+    int rr_start;          /* Round-robin: start scan from here next time */
+};
+
+#endif /* HW_INTC_CALYPSO_INTH_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_invariants.h` {#f-include-hw-arm-calypso-calypso-invariants-h}
+
+::: {.file-meta}
+[.h]{.tag} 9 lignes - 415B
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_invariants.h"}
+#ifndef CALYPSO_INVARIANTS_H
+#define CALYPSO_INVARIANTS_H
+#include <stdbool.h>
+/* Manifeste : dump des CALYPSO_* actifs une fois. Gate CALYPSO_INVARIANTS. */
+void calypso_manifest_once(void);
+/* Invariant : si ok=false, [INVARIANT-FAIL] <tag> une fois. Gate CALYPSO_INVARIANTS (defaut off). */
+bool calypso_invariant(const char *tag, bool ok, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_iota.h` {#f-include-hw-arm-calypso-calypso-iota-h}
+
+::: {.file-meta}
+[.h]{.tag} 48 lignes - 1,8KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_iota.h"}
+/*
+ * TWL3025 / IOTA — analog baseband chip model.
+ *
+ * Sits on the Calypso TSP serial bus (dev_idx 0). The L1 firmware programs
+ * BDLON / BDLENA / BULON / BULENA via single-byte TSP writes; this model
+ * tracks the resulting downlink/uplink window state so other QEMU
+ * components (notably calypso_bsp) can gate sample DMA the way the real
+ * BSP serial link is gated by IOTA's BDLENA pin.
+ *
+ * Reference: osmocom-bb src/target/firmware/include/abb/twl3025.h
+ *            (BDLON/BDLENA/BULON/BULENA bit values).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef HW_ARM_CALYPSO_IOTA_H
+#define HW_ARM_CALYPSO_IOTA_H
+
+#include <stdbool.h>
+#include <stdint.h>
+
+/* Bit values written by twl3025_tsp_write() — straight from twl3025.h */
+#define IOTA_TSP_BULON      0x80
+#define IOTA_TSP_BULENA     0x40
+#define IOTA_TSP_BULCAL     0x20
+#define IOTA_TSP_BDLON      0x10
+#define IOTA_TSP_BDLCAL     0x08
+#define IOTA_TSP_BDLENA     0x04
+
+void calypso_iota_init(void);
+
+/* Process one TSP write (TPU sequencer feeds us). `data` is the 7-bit byte
+ * the firmware passed to twl3025_tsp_write(). `expected_tn` is the GSM
+ * timeslot the L1 has armed this BDLENA window for, derived by the TPU
+ * sequencer from the AT instruction immediately preceding this MOVE. */
+void calypso_iota_tsp_write(uint8_t data, uint8_t expected_tn);
+
+/* True while the firmware has BDLENA asserted on IOTA. */
+bool calypso_iota_bdl_ena(void);
+
+/* Number of times BDLENA has been asserted (rising edge counter). */
+uint32_t calypso_iota_bdl_ena_pulses(void);
+
+/* Atomically take one bdl_ena rising-edge credit if it matches the burst's
+ * timeslot. Returns true if a credit existed for this `tn` and was consumed,
+ * false otherwise. */
+bool calypso_iota_take_bdl_pulse(uint8_t tn);
+
+#endif /* HW_ARM_CALYPSO_IOTA_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_sim.h` {#f-include-hw-arm-calypso-calypso-sim-h}
+
+::: {.file-meta}
+[.h]{.tag} 51 lignes - 1,7KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_sim.h"}
+#ifndef HW_ARM_CALYPSO_SIM_H
+#define HW_ARM_CALYPSO_SIM_H
+
+#include "qemu/osdep.h"
+#include "exec/hwaddr.h"
+#include "hw/irq.h"
+
+/* Calypso SIM controller register offsets (relative to 0xFFFE0000) */
+#define CALYPSO_SIM_REG_CMD      0x00
+#define CALYPSO_SIM_REG_STAT     0x02
+#define CALYPSO_SIM_REG_CONF1    0x04
+#define CALYPSO_SIM_REG_CONF2    0x06
+#define CALYPSO_SIM_REG_IT       0x08
+#define CALYPSO_SIM_REG_DRX      0x0A
+#define CALYPSO_SIM_REG_DTX      0x0C
+#define CALYPSO_SIM_REG_MASKIT   0x0E
+#define CALYPSO_SIM_REG_IT_CD    0x10
+
+/* CMD bits */
+#define CALYPSO_SIM_CMD_CARDRST       (1 << 0)
+#define CALYPSO_SIM_CMD_IFRST         (1 << 1)
+#define CALYPSO_SIM_CMD_STOP          (1 << 2)
+#define CALYPSO_SIM_CMD_START         (1 << 3)
+#define CALYPSO_SIM_CMD_MODULE_CLK_EN (1 << 4)
+
+/* STAT bits */
+#define CALYPSO_SIM_STAT_NOCARD       (1 << 0)
+#define CALYPSO_SIM_STAT_TXPAR        (1 << 1)
+#define CALYPSO_SIM_STAT_FIFOFULL     (1 << 2)
+#define CALYPSO_SIM_STAT_FIFOEMPTY    (1 << 3)
+
+/* IT bits — interrupt sources */
+#define CALYPSO_SIM_IT_NATR           (1 << 0)
+#define CALYPSO_SIM_IT_WT             (1 << 1)
+#define CALYPSO_SIM_IT_OV             (1 << 2)
+#define CALYPSO_SIM_IT_TX             (1 << 3)
+#define CALYPSO_SIM_IT_RX             (1 << 4)
+
+/* CONF1 bits */
+#define CALYPSO_SIM_CONF1_BYPASS      (1 << 8)
+#define CALYPSO_SIM_CONF1_SVCCLEV     (1 << 9)
+#define CALYPSO_SIM_CONF1_SRSTLEV     (1 << 10)
+
+typedef struct CalypsoSim CalypsoSim;
+
+CalypsoSim *calypso_sim_new(qemu_irq sim_irq);
+
+uint16_t calypso_sim_reg_read(CalypsoSim *s, hwaddr off);
+void     calypso_sim_reg_write(CalypsoSim *s, hwaddr off, uint16_t val);
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_soc.h` {#f-include-hw-arm-calypso-calypso-soc-h}
+
+::: {.file-meta}
+[.h]{.tag} 48 lignes - 1,1KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_soc.h"}
+/*
+ * calypso_soc.h - TI Calypso System-on-Chip
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef HW_ARM_CALYPSO_SOC_H
+#define HW_ARM_CALYPSO_SOC_H
+
+#include "hw/sysbus.h"
+#include "qom/object.h"
+#include "hw/arm/calypso/calypso_inth.h"
+#include "hw/arm/calypso/calypso_timer.h"
+#include "hw/arm/calypso/calypso_uart.h"
+#include "hw/arm/calypso/calypso_spi.h"
+
+#define TYPE_CALYPSO_SOC "calypso-soc"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoSoCState, CALYPSO_SOC)
+
+#define CALYPSO_SOC_NUM_IRQS  2
+
+struct CalypsoSoCState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
+    MemoryRegion iram;
+
+    CalypsoINTHState  inth;
+    CalypsoTimerState timer1;
+    CalypsoTimerState timer2;
+    CalypsoUARTState  uart_modem;
+    CalypsoUARTState  uart_irda;
+    CalypsoSPIState   spi;
+
+    void *trx;
+
+    qemu_irq cpu_irq;
+    qemu_irq cpu_fiq;
+
+    /* IRAM-at-zero alias (controlled by CNTL register) */
+    MemoryRegion iram_alias;
+    bool iram_at_zero;
+    MemoryRegion cntl_iomem;
+    uint16_t extra_conf;
+
+};
+
+#endif /* HW_ARM_CALYPSO_SOC_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_spi.h` {#f-include-hw-arm-calypso-calypso-spi-h}
+
+::: {.file-meta}
+[.h]{.tag} 53 lignes - 1,4KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_spi.h"}
+/*
+ * calypso_spi.h — Calypso SPI + TWL3025 ABB
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef HW_SSI_CALYPSO_SPI_H
+#define HW_SSI_CALYPSO_SPI_H
+
+#include "hw/sysbus.h"
+#include "qom/object.h"
+
+#define TYPE_CALYPSO_SPI "calypso-spi"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoSPIState, CALYPSO_SPI)
+
+struct CalypsoSPIState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
+    MemoryRegion iomem;
+    qemu_irq     irq;
+
+    /* Registers matching real Calypso SPI layout */
+    uint16_t set1;      /* 0x00 SET1 */
+    uint16_t set2;      /* 0x02 SET2 */
+    uint16_t ctrl;      /* 0x04 CTRL */
+    uint16_t status;    /* 0x06 STATUS */
+    uint16_t tx_data;   /* 0x08/0x0A TX_LSB/MSB */
+    uint16_t rx_data;   /* 0x0C/0x0E RX_LSB/MSB */
+
+    /* TWL3025 shadow registers (256 possible addresses) */
+    uint16_t abb_regs[256];
+};
+
+/* TWL3025 important register addresses */
+#define ABB_VRPCDEV    0x01
+#define ABB_VRPCSTS    0x02
+#define ABB_VBUCTRL    0x03
+#define ABB_VBDR1      0x04
+#define ABB_TOGBR1     0x09
+#define ABB_TOGBR2     0x0A
+#define ABB_AUXLED     0x17
+#define ABB_ITSTATREG  0x1B
+
+/* SPI status bits (real Calypso) */
+#define SPI_STATUS_RE        (1 << 1)   /* Ready / transfer complete */
+
+/* Legacy compat */
+#define SPI_STATUS_TX_READY  SPI_STATUS_RE
+#define SPI_STATUS_RX_READY  SPI_STATUS_RE
+
+#endif /* HW_SSI_CALYPSO_SPI_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_timer.h` {#f-include-hw-arm-calypso-calypso-timer-h}
+
+::: {.file-meta}
+[.h]{.tag} 48 lignes - 1,5KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_timer.h"}
+/*
+ * calypso_timer.h — Calypso GP/Watchdog Timer QOM device
+ *
+ * 16-bit down-counter with auto-reload and IRQ support.
+ * Clocked from 13 MHz / (prescaler + 1).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef HW_TIMER_CALYPSO_TIMER_H
+#define HW_TIMER_CALYPSO_TIMER_H
+
+#include "hw/sysbus.h"
+#include "qom/object.h"
+#include "qemu/timer.h"
+
+#define TYPE_CALYPSO_TIMER "calypso-timer"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoTimerState, CALYPSO_TIMER)
+
+struct CalypsoTimerState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
+    MemoryRegion iomem;
+    QEMUTimer    *timer;
+    qemu_irq     irq;
+
+    uint16_t load;        /* Reload value */
+    uint16_t count;       /* Current counter (frozen value, only used when stopped) */
+    uint16_t ctrl;        /* CNTL byte (firmware layout) */
+    uint16_t prescaler;
+    int64_t  tick_ns;     /* Nanoseconds per tick */
+    int64_t  epoch_ns;    /* Virtual time when count==load (lazy compute) */
+    bool     running;
+
+    /* Frame-locked lost-frame latch (timer #1 only) — see calypso_timer.c. */
+    bool     lost_latch_active;
+    uint16_t lost_latch_count;
+    uint32_t lost_read_phase;   /* read-driven grid phase (timer #1 only) */
+};
+
+/* Register the timer instance read by firmware check_lost_frame() (timer #1). */
+void calypso_timer_register_lost(DeviceState *d);
+/* Called from the TDMA frame-IRQ raise with the current GSM frame number. */
+void calypso_timer_lost_frame_tick(uint32_t fn);
+
+#endif /* HW_TIMER_CALYPSO_TIMER_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_trx.h` {#f-include-hw-arm-calypso-calypso-trx-h}
+
+::: {.file-meta}
+[.h]{.tag} 159 lignes - 6,3KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_trx.h"}
+/*
+ * calypso_trx.h — Calypso DSP/TPU hardware emulation
+ * Pure hardware — no sockets, no DSP processing. Firmware does everything.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_TRX_H
+#define CALYPSO_TRX_H
+
+#include "hw/irq.h"
+#include "exec/memory.h"
+#include "hw/arm/calypso/calypso_c54x.h"
+
+/* IRQ map */
+#define CALYPSO_IRQ_WATCHDOG       0
+#define CALYPSO_IRQ_TIMER1         1
+#define CALYPSO_IRQ_TIMER2         2
+#define CALYPSO_IRQ_TSP_RX         3
+#define CALYPSO_IRQ_TPU_FRAME      4
+#define CALYPSO_IRQ_TPU_PAGE       5
+#define CALYPSO_IRQ_SIM            6
+#define CALYPSO_IRQ_UART_MODEM     7
+#define CALYPSO_IRQ_KEYPAD_GPIO    8
+#define CALYPSO_IRQ_RTC_TIMER      9
+#define CALYPSO_IRQ_RTC_ALARM      10
+#define CALYPSO_IRQ_ULPD_GAUGING   11
+#define CALYPSO_IRQ_EXTERNAL       12
+#define CALYPSO_IRQ_SPI            13
+#define CALYPSO_IRQ_DMA            14
+#define CALYPSO_IRQ_API            15
+#define CALYPSO_IRQ_SIM_DETECT     16
+#define CALYPSO_IRQ_EXTERNAL_FIQ   17
+#define CALYPSO_IRQ_UART_IRDA      18
+#define CALYPSO_IRQ_ULPD_GSM_TIMER 19
+#define CALYPSO_IRQ_GEA            20
+#define CALYPSO_NUM_IRQS           32
+
+/* Hardware addresses */
+#define CALYPSO_DSP_BASE      0xFFD00000
+#define CALYPSO_DSP_SIZE      (64 * 1024)
+#define CALYPSO_TPU_BASE      0xFFFF1000
+#define CALYPSO_TPU_SIZE      0x0100
+#define CALYPSO_TPU_RAM_BASE  0xFFFF9000
+#define CALYPSO_TPU_RAM_SIZE  0x0800
+#define CALYPSO_TSP_BASE      0xFFFE0800
+#define CALYPSO_TSP_SIZE      0x0100
+#define CALYPSO_SIM_BASE      0xFFFE0000
+#define CALYPSO_SIM_SIZE      0x0100
+#define CALYPSO_ULPD_BASE     0xFFFE2800
+#define CALYPSO_ULPD_SIZE     0x0100
+
+/* TPU register offsets */
+#define TPU_CTRL              0x0000
+#define TPU_INT_CTRL          0x0002
+#define TPU_INT_STAT          0x0004
+#define TPU_OFFSET            0x000C
+#define TPU_SYNCHRO           0x000E
+#define TPU_IT_DSP_PG         0x0020
+
+/* TPU_CTRL bits */
+#define TPU_CTRL_RESET        (1 << 0)
+#define TPU_CTRL_PAGE         (1 << 1)
+#define TPU_CTRL_EN           (1 << 2)
+#define TPU_CTRL_DSP_EN       (1 << 4)
+#define TPU_CTRL_MCU_RAM_ACC  (1 << 6)
+#define TPU_CTRL_TSP_RESET    (1 << 7)
+#define TPU_CTRL_IDLE         (1 << 8)
+#define TPU_CTRL_WAIT         (1 << 9)
+#define TPU_CTRL_CK_ENABLE    (1 << 10)
+#define TPU_CTRL_FULL_WRITE   (1 << 11)
+
+/* TPU INT_CTRL bits */
+#define ICTRL_MCU_FRAME       (1 << 0)
+#define ICTRL_MCU_PAGE        (1 << 1)
+#define ICTRL_DSP_FRAME       (1 << 2)
+#define ICTRL_DSP_FRAME_FORCE (1 << 3)
+
+/* TSP */
+#define TSP_RX_REG            0x08
+
+/* ULPD */
+#define ULPD_SETUP_CLK13      0x00
+#define ULPD_COUNTER_HI       0x1C
+#define ULPD_COUNTER_LO       0x1E
+#define ULPD_GAUGING_CTRL     0x24
+#define ULPD_GSM_TIMER        0x28
+
+/* GSM timing — vraie période trame TDMA = 60/13 ms = 4 615 384,6 ns.
+ * 4615384 matche EXACTEMENT osmo-trx (WALL_TDMA_NS, 1250 smpl / 270833,33 sps)
+ * -> zéro dérive FN QEMU↔radio. L'ancien 4615000 était 384 ns/trame TROP RAPIDE
+ * (~83 µs/s) = source des 'We were N FN faster than TRX'. */
+#define GSM_TDMA_NS           4615384
+#define GSM_HYPERFRAME        2715648
+
+/* DSP boot */
+#define DSP_DL_STATUS_ADDR    0x0FFE
+#define DSP_API_VER_ADDR      0x01B4
+#define DSP_API_VER2_ADDR     0x01B6
+#define DSP_DL_STATUS_RESET   0x0000
+#define DSP_DL_STATUS_BOOT    0x0001
+#define DSP_DL_STATUS_READY   0x0002
+#define DSP_API_VERSION       0x3606
+
+void calypso_trx_init(MemoryRegion *sysmem, qemu_irq *irqs);
+
+/* Test fixture: return the C54x DSP state pointer for `-M calypso,dsp-blob=`.
+ * Returns NULL if calypso_trx_init() hasn't run or the DSP ROM load failed. */
+C54xState *calypso_trx_get_dsp(void);
+
+/* Per-section ROM paths — called by mb.c machine_init BEFORE sysbus_realize
+ * so trx_init can load each section at its silicon-correct DSP address
+ * before c54x_reset() (PROM→DARAM auto-copy depends on prog[] populated).
+ * Pass NULL for sections that should be left empty. */
+/* Set the optional DSP register-snapshot path (calypso_dsp.Registers.bin).
+ * Loaded into the C54x reg_init[] before c54x_reset() so the snapshot is the
+ * authoritative reset MMR state. NULL = no override (silicon hardcode used). */
+void calypso_trx_set_registers_path(const char *registers);
+
+void calypso_trx_set_section_paths(const char *prom0, const char *prom1,
+                                   const char *prom2, const char *prom3,
+                                   const char *drom,  const char *pdrom);
+
+/* W1C (Write-1-to-Clear) latch toggle for ARM↔DSP a_sync_* cells.
+ * Returns 1 if CALYPSO_W1C_LATCH=1 env is set, 0 otherwise. Used by
+ * both calypso_c54x.c (capture side) and calypso_trx.c (consume side)
+ * to gate the latch flow. */
+int calypso_w1c_latch_enabled(void);
+
+/* Sercomm burst transport (DLCI 4) — called by UART hardware */
+void calypso_trx_rx_burst(const uint8_t *data, int len);
+void calypso_trx_tx_burst_poll(void);
+
+/* Current TDMA frame number (0..GSM_HYPERFRAME-1). Used by BSP for
+ * FN-alignment of arriving DL bursts. Returns 0 before TDMA starts. */
+uint32_t calypso_trx_get_fn(void);
+
+/* [2026-07-30] Commit d'un mot de la fenetre API (offset ARM en OCTETS depuis
+ * 0xFFD00000) dans dsp_ram[] ET dsp->data[], sans round-trip MMIO ni verrou.
+ * Pour un handler qui superpose une region IO sur un mot de l'API et doit
+ * quand meme committer la valeur : QEMU donne l'acces EXCLUSIF a la region de
+ * plus haute priorite, il n'y a pas de pass-through. Cf. le correctif
+ * d_dsp_page dans calypso_dsp_shunt.c. */
+void calypso_trx_api_commit_w(uint32_t arm_offset, uint16_t value);
+
+/* calypso_tpu.c: interpret a committed TPU RAM scenario (MOVE
+ * instructions only; AT/SYNC/WAIT/OFFSET timing unmodeled). Called
+ * from calypso_dsp_done() when TPU_CTRL_EN is written. */
+void calypso_tpu_run_scenario(uint16_t *tpu_ram, C54xState *dsp, uint32_t fn);
+/* Variant that also wires SYNCHRO/OFFSET writes back into the TPU MMIO
+ * regs[] array (pass s->tpu_regs). */
+void calypso_tpu_run_scenario_regs(uint16_t *tpu_ram, C54xState *dsp,
+                                    uint32_t fn, uint16_t *tpu_regs);
+
+/* calypso_tpu.c: advance the TPU sequencer's qbit-position wait
+ * (AT/WAIT instructions can pause it for N real TDMA frames). Call once
+ * per real TDMA frame tick, from calypso_tdma_tick(). No-op if no
+ * scenario is currently paused. */
+void calypso_tpu_sequencer_tick(uint32_t fn);
+
+#endif /* CALYPSO_TRX_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_tsp.h` {#f-include-hw-arm-calypso-calypso-tsp-h}
+
+::: {.file-meta}
+[.h]{.tag} 52 lignes - 2,2KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_tsp.h"}
+/*
+ * calypso_tsp.h -- Calypso DBB internal TSP (Time Serial Port) device layer
+ *
+ * Mirrors osmocom-bb-transceiver's src/target/firmware/calypso/tsp.c: the
+ * TSP protocol built on top of raw TPU MOVE instructions (tpu_enq_move)
+ * to talk to companion chips (TWL3025/Iota, TRF6151 RF frontend, ...)
+ * over the Calypso's internal serial bus. The TPU sequencer
+ * (calypso_tpu.c) decodes AT/WAIT/SYNCHRO/OFFSET/MOVE timing; MOVE
+ * instructions whose address falls in the TSP device register range are
+ * handed off here for protocol-level decoding (multi-byte TX assembly,
+ * dev_idx/bitlen extraction, TSPACT enable-line tracking).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef CALYPSO_TSP_H
+#define CALYPSO_TSP_H
+
+#include <stdint.h>
+
+/* TSP device register addresses, reached via tpu_enq_move(addr, data) --
+ * osmocom-bb-transceiver's include/calypso/tpu.h `enum tpu_reg_int`,
+ * verbatim (the subset owned by the TSP protocol layer; TPUI_DSP_INT_PG
+ * and TPUI_GAUGING_EN are handled directly by calypso_tpu.c). */
+#define TPUI_TSP_CTRL1   0x00
+#define TPUI_TSP_CTRL2   0x01
+#define TPUI_TX_3        0x02
+#define TPUI_TX_2        0x03
+#define TPUI_TX_1        0x04
+#define TPUI_TX_4        0x05
+#define TPUI_TSP_ACT_L   0x06
+#define TPUI_TSP_ACT_U   0x07
+#define TPUI_TSP_SET1    0x09
+#define TPUI_TSP_SET2    0x0a
+#define TPUI_TSP_SET3    0x0b
+
+#define TPUI_CTRL2_RD    (1 << 0)
+#define TPUI_CTRL2_WR    (1 << 1)
+
+/* True if `addr` belongs to the TSP device register range (as opposed to
+ * TPU-native addresses like TPUI_DSP_INT_PG/TPUI_GAUGING_EN). */
+bool calypso_tsp_owns_addr(uint8_t addr);
+
+/* Feed one decoded MOVE(addr, data) into the TSP protocol state machine.
+ * Only valid for addr where calypso_tsp_owns_addr() is true. On a CTRL2
+ * WR pulse, reconstructs the full multi-byte payload (tsp_write()'s
+ * MSB-first TX_1..TX_4 assembly per bitlen) and dispatches it: dev_idx==0
+ * (TWL3025) goes to calypso_iota_tsp_write(); other devices have no
+ * downstream hardware model yet and are logged instead of silently
+ * dropped. */
+void calypso_tsp_move(uint8_t addr, uint8_t data, uint32_t fn);
+
+#endif /* CALYPSO_TSP_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_twl3025.h` {#f-include-hw-arm-calypso-calypso-twl3025-h}
+
+::: {.file-meta}
+[.h]{.tag} 50 lignes - 2,1KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_twl3025.h"}
+/*
+ * calypso_twl3025.h — TWL3025 ABB AFC propagation API.
+ *
+ * Modèle minimal qui propage l'AFC (Automatic Frequency Correction)
+ * du firmware vers les samples BSP. Voir calypso_twl3025.c pour la
+ * chaîne complète.
+ *
+ * Activation : env CALYPSO_TWL3025_AFC=1.
+ * Test forçage : env CALYPSO_TWL3025_AFC_HZ=N (= offset constant Hz).
+ */
+#ifndef CALYPSO_TWL3025_H
+#define CALYPSO_TWL3025_H
+
+#include "qemu/osdep.h"
+
+/* Update DAC value (received from DSP via TSP serial, decoded TWL3025 reg).
+ * Phase 1 API direct : à appeler quand on détecte une écriture d_afc côté
+ * QEMU. Phase 2 : à appeler depuis hook TSP byte stream. */
+void calypso_twl3025_set_afc_dac(int16_t dac_value);
+
+/* Read current DAC (signed, ±4095). */
+int16_t calypso_twl3025_get_afc_dac(void);
+
+/* Get current AFC offset in Hz (DAC * slope). */
+double calypso_twl3025_get_afc_hz(void);
+
+/* Phase step per sample (rad) for sample rotation in BSP receive path.
+ * Returns 0.0 si AFC propagation désactivée (CALYPSO_TWL3025_AFC != 1).
+ * Sign convention : VCXO + → samples reçus shift opposite, donc step est
+ * la rotation à appliquer aux samples bruts pour matcher le local osc. */
+double calypso_twl3025_get_afc_phase_step(void);
+
+/* Apply AFC rotation in-place to N I/Q samples (interleaved int16).
+ * No-op si AFC désactivée OU dac_value == 0.
+ *
+ * Phase computation FN/TN-based (2026-05-28) : la phase au sample i du burst
+ * est determinee uniquement par (fn, tn, i), pas par un accumulateur :
+ *   sample_offset = fn * SAMPLES_PER_FRAME + tn * SAMPLES_PER_SLOT
+ *   phase(i) = step * (sample_offset + i)
+ * Avantages vs ancien phase_accum :
+ *   - Pas de drift (chaque burst recalcule de zero a partir de fn)
+ *   - Pas de race si bursts arrivent out-of-order ou doublons
+ *   - Gaps TDMA inter-bursts pris en compte automatiquement (= fn avance) */
+void calypso_twl3025_apply_phase(int16_t *iq_samples, int n_samples,
+                                 uint32_t fn, uint8_t tn);
+
+/* Reset DAC + phase accumulator. À appeler au reset DSP/BSP. */
+void calypso_twl3025_reset(void);
+
+#endif /* CALYPSO_TWL3025_H */
+
+```
+
+## `include/hw/arm/calypso/calypso_uart.h` {#f-include-hw-arm-calypso-calypso-uart-h}
+
+::: {.file-meta}
+[.h]{.tag} 105 lignes - 3,0KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_uart.h"}
+/*
+ * calypso_uart.h — Calypso UART device
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef HW_CHAR_CALYPSO_UART_H
+#define HW_CHAR_CALYPSO_UART_H
+
+#include "hw/sysbus.h"
+#include "chardev/char-fe.h"
+#include "qom/object.h"
+
+#define TYPE_CALYPSO_UART "calypso-uart"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoUARTState, CALYPSO_UART)
+
+/*
+ * Large RX FIFO to tolerate Compal/sercomm bursts.
+ */
+#define CALYPSO_UART_RX_FIFO_SIZE 8192
+
+typedef struct CalypsoUARTState {
+    SysBusDevice parent_obj;
+
+    /* MMIO */
+    MemoryRegion iomem;
+
+    /* QEMU backend */
+    CharBackend chr;
+    qemu_irq irq;
+
+    /* Debug label ("modem", "irda") */
+    char *label;
+
+    /* Base registers */
+    uint8_t ier;
+    uint8_t iir;
+    uint8_t fcr;
+    uint8_t lcr;
+    uint8_t mcr;
+    uint8_t lsr;
+    uint8_t msr;
+    uint8_t spr;
+    uint8_t dll;
+    uint8_t dlh;
+    uint8_t mdr1;
+
+    /* Extended/banked registers used by Calypso loader/uart driver */
+    uint8_t efr;
+    uint8_t xon1;
+    uint8_t xon2;
+    uint8_t xoff1;
+    uint8_t xoff2;
+    uint8_t scr;
+    uint8_t ssr;
+
+    /* RX FIFO */
+    uint8_t rx_fifo[CALYPSO_UART_RX_FIFO_SIZE];
+    uint16_t rx_head;
+    uint16_t rx_tail;
+    uint16_t rx_count;
+
+    /* TX empty fires once per THR transition */
+    bool thr_empty_pending;
+
+    /* TX burst drain: count consecutive IIR(TX_EMPTY) reads without
+     * a THR write.  Allows firmware ISR to loop and drain multiple
+     * bytes per invocation.  Clear pending only after 2 reads without
+     * a write (ISR has nothing left to send). */
+    uint8_t tx_empty_reads;
+
+    /* Periodic RX poll timer — works around QEMU not delivering
+     * chardev input while the CPU runs in a tight loop. */
+    QEMUTimer *rx_poll_timer;
+
+} CalypsoUARTState;
+
+/* Char backend callbacks */
+int calypso_uart_can_receive(void *opaque);
+void calypso_uart_receive(void *opaque, const uint8_t *buf, int size);
+
+/* Inject bytes directly into RX FIFO, bypassing sercomm DLCI parser.
+ * Used by l1ctl_sock to avoid interference with bridge DLCI 4 parsing. */
+void calypso_uart_inject_raw(CalypsoUARTState *s, const uint8_t *buf, int size);
+
+/* Force IRQ re-evaluation if RX data is pending */
+void calypso_uart_kick_rx(CalypsoUARTState *s);
+
+/* Tell the chardev backend we can accept more data. */
+void calypso_uart_poll_backend(CalypsoUARTState *s);
+
+/* Nudge TX: if TX_EMPTY IRQ is enabled, set pending to trigger ISR.
+ * This ensures queued sercomm data gets drained even without console output. */
+void calypso_uart_kick_tx(CalypsoUARTState *s);
+void calypso_uart_force_init(CalypsoUARTState *s);
+
+/* L1CTL socket — sercomm↔L1CTL relay */
+void l1ctl_sock_init(CalypsoUARTState *uart, const char *path);
+void l1ctl_sock_uart_tx_byte(uint8_t byte);
+void l1ctl_sock_poll(void);
+bool l1ctl_client_active(void);
+/* Hop 5 : injection directe DL SI -> mobile en L1CTL DATA_IND. */
+void l1ctl_inject_dl_si(const uint8_t *l2, int l2len, uint32_t fn);
+
+#endif /* HW_CHAR_CALYPSO_UART_H */
+
+```
+
+## `include/hw/arm/calypso/fw_console.h` {#f-include-hw-arm-calypso-fw-console-h}
+
+::: {.file-meta}
+[.h]{.tag} 6 lignes - 109B
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/fw_console.h"}
+#ifndef HW_ARM_CALYPSO_FW_CONSOLE_H
+#define HW_ARM_CALYPSO_FW_CONSOLE_H
+
+void fw_console_init(void);
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/sercomm_gate.h` {#f-include-hw-arm-calypso-sercomm-gate-h}
+
+::: {.file-meta}
+[.h]{.tag} 28 lignes - 1,1KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/sercomm_gate.h"}
+/*
+ * sercomm_gate.h — Sercomm DLCI router (HDLC demux)
+ *
+ * Emulates the hardware separation between:
+ *   - BSP path (bursts) : DLCI 4 → calypso_trx_rx_burst → c54x BSP
+ *   - UART path (L1CTL) : all other DLCIs → re-wrap → FIFO → firmware
+ *
+ * On real Calypso, bursts come from the ABB via BSP hardware, not UART.
+ * In QEMU, the bridge sends them as sercomm DLCI 4 on the PTY, so the
+ * gate intercepts them and routes to the BSP emulation layer.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef SERCOMM_GATE_H
+#define SERCOMM_GATE_H
+
+#include "hw/arm/calypso/calypso_uart.h"
+
+/* Feed raw bytes from PTY into the sercomm HDLC parser.
+ * Complete frames are routed by DLCI:
+ *   4 (bursts) → calypso_trx_rx_burst (BSP emulation)
+ *   * (L1CTL, debug, console) → re-wrap → UART FIFO (firmware) */
+void sercomm_gate_feed(CalypsoUARTState *s, const uint8_t *buf, int size);
+
+/* Bind UDP CLK listener starting at base_port. */
+void sercomm_gate_init(int base_port);
+
+#endif /* SERCOMM_GATE_H */
+
+```
+
+## `tools/calypso-ipc-device/debug.h` {#f-tools-calypso-ipc-device-debug-h}
+
+::: {.file-meta}
+[.h]{.tag} 23 lignes - 357B
+:::
+
+```{.c .numberLines filename="tools/calypso-ipc-device/debug.h"}
+#pragma once
+
+#include <stdbool.h>
+
+#include <osmocom/core/logging.h>
+
+extern const struct log_info log_info;
+
+/* Debug Areas of the code */
+enum {
+	DMAIN,
+	DTRXCLK,
+	DTRXCTRL,
+	DTRXDDL,
+	DTRXDUL,
+	DDEV,
+	DDEVDRV,
+	DCTR,
+};
+
+#define CLOGCHAN(chan, category, level, fmt, args...) do { \
+	LOGP(category, level, "[chan=%zu] " fmt, chan, ##args);  \
+} while(0)
+
+```
+
+## `tools/calypso-ipc-device/ipc_chan.h` {#f-tools-calypso-ipc-device-ipc-chan-h}
+
+::: {.file-meta}
+[.h]{.tag} 25 lignes - 1006B
+:::
+
+```{.c .numberLines filename="tools/calypso-ipc-device/ipc_chan.h"}
+/*
+* Copyright 2020 sysmocom - s.f.m.c. GmbH <info@sysmocom.de>
+* Author: Pau Espin Pedrol <pespin@sysmocom.de>
+*
+* SPDX-License-Identifier: 0BSD
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose
+* with or without fee is hereby granted.THE SOFTWARE IS PROVIDED "AS IS" AND THE
+* AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR
+* BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+* CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
+* USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+#ifndef IPC_CHAN_H
+#define IPC_CHAN_H
+
+#include "shm.h"
+#include "ipc-driver-test.h"
+
+int ipc_chan_sock_send(struct msgb *msg, uint8_t chan_nr);
+int ipc_chan_sock_accept(struct osmo_fd *bfd, unsigned int flags);
+
+#endif // IPC_CHAN_H
+
+```
+
+## `tools/calypso-ipc-device/ipc-driver-test.h` {#f-tools-calypso-ipc-device-ipc-driver-test-h}
+
+::: {.file-meta}
+[.h]{.tag} 45 lignes - 2,0KB
+:::
+
+```{.c .numberLines filename="tools/calypso-ipc-device/ipc-driver-test.h"}
+/*
+* Copyright 2020 sysmocom - s.f.m.c. GmbH <info@sysmocom.de>
+* Author: Pau Espin Pedrol <pespin@sysmocom.de>
+*
+* SPDX-License-Identifier: 0BSD
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose
+* with or without fee is hereby granted.THE SOFTWARE IS PROVIDED "AS IS" AND THE
+* AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR
+* BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+* CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
+* USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+#pragma once
+
+#include <osmocom/core/select.h>
+#include "shm.h"
+
+extern struct ipc_sock_state *global_ipc_sock_state;
+
+/* 8 channels are plenty */
+extern struct ipc_sock_state *global_ctrl_socks[8];
+extern struct ipc_shm_io *ios_tx_to_device[8];
+extern struct ipc_shm_io *ios_rx_from_device[8];
+
+struct ipc_sock_state {
+	struct osmo_fd listen_bfd; /* fd for listen socket */
+	struct osmo_fd conn_bfd; /* fd for connection */
+	struct llist_head upqueue; /* queue for sending messages */
+};
+
+int ipc_sock_init(const char *path, struct ipc_sock_state **global_state_var,
+		  int (*sock_callback_fn)(struct osmo_fd *fd, unsigned int what), int n);
+
+int ipc_rx_greeting_req(struct ipc_sk_if_greeting *greeting_req);
+int ipc_rx_info_req(struct ipc_sk_if_info_req *info_req);
+int ipc_rx_open_req(struct ipc_sk_if_open_req *open_req);
+
+int ipc_rx_chan_start_req(struct ipc_sk_chan_if_op_void *req, uint8_t chan_nr);
+int ipc_rx_chan_stop_req(struct ipc_sk_chan_if_op_void *req, uint8_t chan_nr);
+int ipc_rx_chan_setgain_req(struct ipc_sk_chan_if_gain *req, uint8_t chan_nr);
+int ipc_rx_chan_setfreq_req(struct ipc_sk_chan_if_freq_req *req, uint8_t chan_nr);
+int ipc_rx_chan_settxatten_req(struct ipc_sk_chan_if_tx_attenuation *req, uint8_t chan_nr);
+
+```
+
+## `tools/calypso-ipc-device/ipc_shm.h` {#f-tools-calypso-ipc-device-ipc-shm-h}
+
+::: {.file-meta}
+[.h]{.tag} 45 lignes - 1,7KB
+:::
+
+```{.c .numberLines filename="tools/calypso-ipc-device/ipc_shm.h"}
+/*
+* Copyright 2020 sysmocom - s.f.m.c. GmbH <info@sysmocom.de>
+* Author: Eric Wild <ewild@sysmocom.de>
+*
+* SPDX-License-Identifier: 0BSD
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose
+* with or without fee is hereby granted.THE SOFTWARE IS PROVIDED "AS IS" AND THE
+* AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR
+* BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+* CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
+* USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+#ifndef IPC_SHM_H
+#define IPC_SHM_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <shm.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+}
+#endif
+
+struct ipc_shm_io {
+	volatile struct ipc_shm_raw_stream *this_stream;
+	volatile struct ipc_shm_raw_smpl_buf **volatile buf_ptrs;
+	uint32_t partial_read_begin_ptr;
+};
+
+struct ipc_shm_io *ipc_shm_init_consumer(struct ipc_shm_stream *s);
+struct ipc_shm_io *ipc_shm_init_producer(struct ipc_shm_stream *s);
+void ipc_shm_close(struct ipc_shm_io *r);
+int32_t ipc_shm_enqueue(struct ipc_shm_io *r, uint64_t timestamp, uint32_t len_in_sps, uint16_t *data);
+int32_t ipc_shm_tryenqueue(struct ipc_shm_io *r, uint64_t timestamp, uint32_t len_in_sps, uint16_t *data);
+volatile struct ipc_shm_raw_smpl_buf *ipc_shm_dequeue(struct ipc_shm_io *r);
+int32_t ipc_shm_read(struct ipc_shm_io *r, uint16_t *out_buf, uint32_t num_samples, uint64_t *timestamp,
+		     uint32_t timeout_seconds);
+
+#endif // IPC_SHM_H
+
+```
+
+## `tools/calypso-ipc-device/ipc_sock.h` {#f-tools-calypso-ipc-device-ipc-sock-h}
+
+::: {.file-meta}
+[.h]{.tag} 26 lignes - 1,1KB
+:::
+
+```{.c .numberLines filename="tools/calypso-ipc-device/ipc_sock.h"}
+/*
+* Copyright 2020 sysmocom - s.f.m.c. GmbH <info@sysmocom.de>
+* Author: Pau Espin Pedrol <pespin@sysmocom.de>
+*
+* SPDX-License-Identifier: 0BSD
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose
+* with or without fee is hereby granted.THE SOFTWARE IS PROVIDED "AS IS" AND THE
+* AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR
+* BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+* CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
+* USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+#ifndef IPC_SOCK_H
+#define IPC_SOCK_H
+
+#include "shm.h"
+#include "ipc-driver-test.h"
+
+int ipc_sock_send(struct msgb *msg);
+int ipc_sock_accept(struct osmo_fd *bfd, unsigned int flags);
+void ipc_sock_close(struct ipc_sock_state *state);
+
+#endif // IPC_SOCK_H
+
+```
+
+## `tools/calypso-ipc-device/_ref_uhdwrap.h` {#f-tools-calypso-ipc-device-ref-uhdwrap-h}
+
+::: {.file-meta}
+[.h]{.tag} 83 lignes - 2,5KB
+:::
+
+```{.c .numberLines filename="tools/calypso-ipc-device/_ref_uhdwrap.h"}
+/*
+* Copyright 2020 sysmocom - s.f.m.c. GmbH <info@sysmocom.de>
+* Author: Eric Wild <ewild@sysmocom.de>
+*
+* SPDX-License-Identifier: 0BSD
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose
+* with or without fee is hereby granted.THE SOFTWARE IS PROVIDED "AS IS" AND THE
+* AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR
+* BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+* CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
+* USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+#ifndef IPC_UHDWRAP_H
+#define IPC_UHDWRAP_H
+
+#ifdef __cplusplus
+#include "../uhd/UHDDevice.h"
+
+class uhd_wrap : public uhd_device {
+    public:
+	//	std::thread *t;
+	size_t samps_per_buff_rx;
+	size_t samps_per_buff_tx;
+	int channel_count;
+
+	std::vector<std::vector<short> > wrap_rx_buffs;
+	std::vector<std::vector<short> > wrap_tx_buffs;
+	std::vector<short *> wrap_rx_buf_ptrs;
+	std::vector<short *> wrap_tx_buf_ptrs;
+
+	template <typename... Args> uhd_wrap(Args... args) : uhd_device(args...)
+	{
+		//	t = new std::thread(magicthread);
+		// give the thread some time to start and set up
+		//	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	virtual ~uhd_wrap();
+
+	//    void ipc_sock_close() override {};
+	int wrap_read(TIMESTAMP *timestamp);
+	virtual int open() override;
+
+	//	bool start() override;
+	//	bool stop() override;
+	//	virtual TIMESTAMP initialWriteTimestamp() override;
+	//	virtual TIMESTAMP initialReadTimestamp() override;
+
+	int getTimingOffset()
+	{
+		return ts_offset;
+	}
+	size_t bufsizerx();
+	size_t bufsizetx();
+	int chancount();
+};
+#else
+void *uhdwrap_open(struct ipc_sk_if_open_req *open_req);
+
+int32_t uhdwrap_get_bufsizerx(void *dev);
+
+int32_t uhdwrap_get_timingoffset(void *dev);
+
+int32_t uhdwrap_read(void *dev, uint32_t num_chans);
+
+int32_t uhdwrap_write(void *dev, uint32_t num_chans, bool *underrun);
+
+double uhdwrap_set_freq(void *dev, double f, size_t chan, bool for_tx);
+
+double uhdwrap_set_gain(void *dev, double f, size_t chan, bool for_tx);
+
+int32_t uhdwrap_start(void *dev, int chan);
+
+int32_t uhdwrap_stop(void *dev, int chan);
+
+void uhdwrap_fill_info_cnf(struct ipc_sk_if *ipc_prim);
+
+double uhdwrap_set_txatt(void *dev, double a, size_t chan);
+#endif
+
+#endif // IPC_B210_H
+
+```
+
+## `tools/calypso-ipc-device/shm.h` {#f-tools-calypso-ipc-device-shm-h}
+
+::: {.file-meta}
+[.h]{.tag} 234 lignes - 6,6KB
+:::
+
+```{.c .numberLines filename="tools/calypso-ipc-device/shm.h"}
+/*
+* Copyright 2020 sysmocom - s.f.m.c. GmbH <info@sysmocom.de>
+* Author: Pau Espin Pedrol <pespin@sysmocom.de>
+*
+* SPDX-License-Identifier: 0BSD
+*
+* Permission to use, copy, modify, and/or distribute this software for any purpose
+* with or without fee is hereby granted.THE SOFTWARE IS PROVIDED "AS IS" AND THE
+* AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR
+* BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+* CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE
+* USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+#pragma once
+
+#include <stdint.h>
+#include <unistd.h>
+#include <limits.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+/* RAW structures */
+struct ipc_shm_raw_smpl_buf {
+	uint64_t timestamp;
+	uint32_t data_len; /* In samples */
+	uint16_t samples[0];
+};
+
+struct ipc_shm_raw_stream {
+	pthread_mutex_t lock; /* protects this struct */
+	pthread_cond_t cf; /* signals fill to reader */
+	pthread_cond_t ce; /* signals empty nbuf to writer */
+	uint32_t num_buffers;
+	uint32_t buffer_size; /* In samples */
+	uint32_t read_next;
+	uint32_t write_next;
+	uint32_t buffer_offset[0];
+	//struct ipc_shm_smpl_buf buffers[0];
+};
+
+struct ipc_shm_raw_channel {
+	uint32_t dl_buf_offset;
+	uint32_t ul_buf_offset;
+};
+
+struct ipc_shm_raw_region {
+	uint32_t num_chans;
+	uint32_t chan_offset[0];
+};
+
+/* non-raw, Pointer converted structures */
+struct ipc_shm_stream {
+	uint32_t num_buffers;
+	uint32_t buffer_size;
+	volatile struct ipc_shm_raw_stream *raw;
+	volatile struct ipc_shm_raw_smpl_buf *buffers[0];
+};
+
+struct ipc_shm_channel {
+	struct ipc_shm_stream *dl_stream;
+	struct ipc_shm_stream *ul_stream;
+};
+
+/* Pointer converted structures */
+struct ipc_shm_region {
+	uint32_t num_chans;
+	struct ipc_shm_channel *channels[0];
+};
+
+unsigned int ipc_shm_encode_region(struct ipc_shm_raw_region *root_raw, uint32_t num_chans, uint32_t num_buffers,
+				   uint32_t buffer_size);
+struct ipc_shm_region *ipc_shm_decode_region(void *tall_ctx, struct ipc_shm_raw_region *root_raw);
+/****************************************/
+/* UNIX SOCKET API                      */
+/****************************************/
+
+//////////////////
+// Master socket
+//////////////////
+#define IPC_SOCK_API_VERSION 1
+
+/* msg_type */
+#define IPC_IF_MSG_GREETING_REQ 0x00
+#define IPC_IF_MSG_GREETING_CNF 0x01
+#define IPC_IF_MSG_INFO_REQ 0x02
+#define IPC_IF_MSG_INFO_CNF 0x03
+#define IPC_IF_MSG_OPEN_REQ 0x04
+#define IPC_IF_MSG_OPEN_CNF 0x05
+
+#define MAX_NUM_CHANS 30
+#define RF_PATH_NAME_SIZE 25
+#define MAX_NUM_RF_PATHS 10
+#define SHM_NAME_MAX NAME_MAX /* 255 */
+
+#define FEATURE_MASK_CLOCKREF_INTERNAL (0x1 << 0)
+#define FEATURE_MASK_CLOCKREF_EXTERNAL (0x1 << 1)
+struct ipc_sk_if_info_chan {
+	char tx_path[MAX_NUM_RF_PATHS][RF_PATH_NAME_SIZE];
+	char rx_path[MAX_NUM_RF_PATHS][RF_PATH_NAME_SIZE];
+	double min_rx_gain;
+	double max_rx_gain;
+	double min_tx_gain;
+	double max_tx_gain;
+	double nominal_tx_power; /* dBm */
+} __attribute__((packed));
+
+struct ipc_sk_if_open_req_chan {
+	char tx_path[RF_PATH_NAME_SIZE];
+	char rx_path[RF_PATH_NAME_SIZE];
+} __attribute__((packed));
+
+struct ipc_sk_if_open_cnf_chan {
+	char chan_ipc_sk_path[108];
+} __attribute__((packed));
+
+struct ipc_sk_if_greeting {
+	uint8_t req_version;
+} __attribute__((packed));
+
+struct ipc_sk_if_info_req {
+	uint8_t spare;
+} __attribute__((packed));
+
+struct ipc_sk_if_info_cnf {
+	uint32_t feature_mask;
+	double iq_scaling_val_rx; /* for scaling, sample format is 16 bit, but adc/dac might be less */
+	double iq_scaling_val_tx;
+	uint32_t max_num_chans;
+	char dev_desc[200];
+	struct ipc_sk_if_info_chan chan_info[MAX_NUM_CHANS];
+} __attribute__((packed));
+
+struct ipc_sk_if_open_req {
+	uint32_t num_chans;
+	uint32_t clockref; /* One of FEATUER_MASK_CLOCKREF_* */
+	uint32_t rx_sample_freq_num;
+	uint32_t rx_sample_freq_den;
+	uint32_t tx_sample_freq_num;
+	uint32_t tx_sample_freq_den;
+	uint32_t bandwidth;
+	struct ipc_sk_if_open_req_chan chan_info[MAX_NUM_CHANS];
+} __attribute__((packed));
+
+struct ipc_sk_if_open_cnf {
+	uint8_t return_code;
+	uint32_t path_delay;
+	char shm_name[SHM_NAME_MAX];
+	struct ipc_sk_if_open_cnf_chan chan_info[MAX_NUM_CHANS];
+} __attribute__((packed));
+
+struct ipc_sk_if {
+	uint8_t msg_type; /* message type */
+	uint8_t spare[2];
+
+	union {
+		struct ipc_sk_if_greeting greeting_req;
+		struct ipc_sk_if_greeting greeting_cnf;
+		struct ipc_sk_if_info_req info_req;
+		struct ipc_sk_if_info_cnf info_cnf;
+		struct ipc_sk_if_open_req open_req;
+		struct ipc_sk_if_open_cnf open_cnf;
+	} u;
+} __attribute__((packed));
+
+//////////////////
+// Channel socket
+//////////////////
+#define IPC_IF_CHAN_MSG_OFFSET 50
+#define IPC_IF_MSG_START_REQ IPC_IF_CHAN_MSG_OFFSET + 0
+#define IPC_IF_MSG_START_CNF IPC_IF_CHAN_MSG_OFFSET + 1
+#define IPC_IF_MSG_STOP_REQ IPC_IF_CHAN_MSG_OFFSET + 2
+#define IPC_IF_MSG_STOP_CNF IPC_IF_CHAN_MSG_OFFSET + 3
+#define IPC_IF_MSG_SETGAIN_REQ IPC_IF_CHAN_MSG_OFFSET + 4
+#define IPC_IF_MSG_SETGAIN_CNF IPC_IF_CHAN_MSG_OFFSET + 5
+#define IPC_IF_MSG_SETFREQ_REQ IPC_IF_CHAN_MSG_OFFSET + 6
+#define IPC_IF_MSG_SETFREQ_CNF IPC_IF_CHAN_MSG_OFFSET + 7
+
+#define IPC_IF_NOTIFY_UNDERFLOW IPC_IF_CHAN_MSG_OFFSET + 8
+#define IPC_IF_NOTIFY_OVERFLOW IPC_IF_CHAN_MSG_OFFSET + 9
+
+#define IPC_IF_MSG_SETTXATTN_REQ IPC_IF_CHAN_MSG_OFFSET + 10
+#define IPC_IF_MSG_SETTXATTN_CNF IPC_IF_CHAN_MSG_OFFSET + 11
+
+struct ipc_sk_chan_if_op_void {
+	// at least one dummy byte, to allow c/c++ compatibility
+	uint8_t dummy;
+} __attribute__((packed));
+
+struct ipc_sk_chan_if_op_rc {
+	uint8_t return_code;
+} __attribute__((packed));
+
+struct ipc_sk_chan_if_gain {
+	double gain;
+	uint8_t is_tx;
+} __attribute__((packed));
+
+struct ipc_sk_chan_if_freq_req {
+	double freq;
+	uint8_t is_tx;
+} __attribute__((packed));
+
+struct ipc_sk_chan_if_freq_cnf {
+	uint8_t return_code;
+} __attribute__((packed));
+
+struct ipc_sk_chan_if_notfiy {
+	uint8_t dummy;
+} __attribute__((packed));
+
+struct ipc_sk_chan_if_tx_attenuation {
+	double attenuation;
+} __attribute__((packed));
+
+struct ipc_sk_chan_if {
+	uint8_t msg_type; /* message type */
+	uint8_t spare[2];
+
+	union {
+		struct ipc_sk_chan_if_op_void start_req;
+		struct ipc_sk_chan_if_op_rc start_cnf;
+		struct ipc_sk_chan_if_op_void stop_req;
+		struct ipc_sk_chan_if_op_rc stop_cnf;
+		struct ipc_sk_chan_if_gain set_gain_req;
+		struct ipc_sk_chan_if_gain set_gain_cnf;
+		struct ipc_sk_chan_if_freq_req set_freq_req;
+		struct ipc_sk_chan_if_freq_cnf set_freq_cnf;
+		struct ipc_sk_chan_if_notfiy notify;
+		struct ipc_sk_chan_if_tx_attenuation txatten_req;
+		struct ipc_sk_chan_if_tx_attenuation txatten_cnf;
+	} u;
+} __attribute__((packed));
+
+```
+
+## `tools/calypso-ipc-device/uhdwrap.h` {#f-tools-calypso-ipc-device-uhdwrap-h}
+
+::: {.file-meta}
+[.h]{.tag} 28 lignes - 1,1KB
+:::
+
+```{.c .numberLines filename="tools/calypso-ipc-device/uhdwrap.h"}
+/*
+* uhdwrap.h — protos C only pour calypso-ipc-device.
+*
+* Fork de osmo-trx/.../ipc/uhdwrap.h : on garde uniquement la partie #else
+* (interface C), la classe C++ uhd_wrap est exclue parce que notre backend
+* device est UDP 6702 vers QEMU, pas UHD.
+*
+* L'implémentation de ces 11 hooks vit dans qemu_wrap.c.
+*/
+#pragma once
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include "shm.h"  /* struct ipc_sk_if, struct ipc_sk_if_open_req */
+
+void   *uhdwrap_open(struct ipc_sk_if_open_req *open_req);
+int32_t uhdwrap_get_bufsizerx(void *dev);
+int32_t uhdwrap_get_timingoffset(void *dev);
+int32_t uhdwrap_read(void *dev, uint32_t num_chans);
+int32_t uhdwrap_write(void *dev, uint32_t num_chans, bool *underrun);
+double  uhdwrap_set_freq(void *dev, double f, size_t chan, bool for_tx);
+double  uhdwrap_set_gain(void *dev, double f, size_t chan, bool for_tx);
+int32_t uhdwrap_start(void *dev, int chan);
+int32_t uhdwrap_stop(void *dev, int chan);
+void    uhdwrap_fill_info_cnf(struct ipc_sk_if *ipc_prim);
+double  uhdwrap_set_txatt(void *dev, double a, size_t chan);
+
+```

@@ -1,0 +1,206 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5G Evolution: Major Breakthroughs &amp; New Use Cases &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="5G SA Lab: srsRAN Project + Open5GS (Ubuntu, 2024)" href="tutorial.html" />
+    <link rel="prev" title="5G : NSA/SA" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#quick-navigation">Quick Navigation</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../sdr/index.html">SDR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../2G/index.html">2G</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">5G : NSA/SA</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#quick-access">Quick Access</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../faq.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about.html">Who am I</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fr/index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">5G : NSA/SA</a></li>
+      <li class="breadcrumb-item active">5G Evolution: Major Breakthroughs &amp; New Use Cases</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/en/5G/evolution.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="g-evolution-major-breakthroughs-new-use-cases">
+<h1>5G Evolution: Major Breakthroughs &amp; New Use Cases<a class="headerlink" href="#g-evolution-major-breakthroughs-new-use-cases" title="Link to this heading"></a></h1>
+<section id="g-goals-and-key-breakthroughs">
+<h2>1. 5G Goals and Key Breakthroughs<a class="headerlink" href="#g-goals-and-key-breakthroughs" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>10x to 100x faster than 4G</strong> (up to 10 Gbps peak, 1 Gbps typical)</p></li>
+<li><p><strong>Ultra-low latency</strong> (as low as &lt; 1 ms)</p></li>
+<li><p><strong>Massive connectivity</strong>: up to 1 million devices/km² (IoT, sensors, vehicles)</p></li>
+<li><p><strong>Ultra-reliable and real-time</strong> (for industry, healthcare, autonomous vehicles)</p></li>
+<li><p><strong>Network flexibility</strong>: “network slicing”—each use case can get its own dedicated “mini-network”</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="major-technical-innovations">
+<h2>2. Major Technical Innovations<a class="headerlink" href="#major-technical-innovations" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>New frequency bands</strong>: adds millimeter wave spectrum (&gt;24 GHz), bringing more capacity but shorter range</p></li>
+<li><p><strong>Massive MIMO</strong>: dozens or hundreds of antennas to boost throughput and coverage</p></li>
+<li><p><strong>Beamforming</strong>: dynamic signal steering towards each user</p></li>
+<li><p><strong>Fully cloud-native core</strong>: network functions virtualized (NFV) and software-driven (SDN)</p></li>
+<li><p><strong>Standalone (SA) architecture</strong>: pure 5G core, vs. Non-Standalone (NSA) where 5G relies on the 4G core</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="new-use-cases-enabled">
+<h2>3. New Use Cases Enabled<a class="headerlink" href="#new-use-cases-enabled" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Ultra-fast mobile internet</strong> (4K/8K streaming, AR/VR, cloud gaming)</p></li>
+<li><p><strong>Industry 4.0</strong>: automation, robotics, predictive maintenance, private factory networks</p></li>
+<li><p><strong>Connected &amp; autonomous vehicles</strong>: real-time V2X communications</p></li>
+<li><p><strong>Healthcare</strong>: real-time telemedicine, remote surgery</p></li>
+<li><p><strong>Smart Cities &amp; massive IoT</strong>: energy management, surveillance, smart transport, city-wide sensors</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="challenges-criticism-and-limits">
+<h2>4. Challenges, Criticism, and Limits<a class="headerlink" href="#challenges-criticism-and-limits" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Uneven coverage</strong> (especially mmWave: short range, requires many small cells)</p></li>
+<li><p><strong>Energy consumption</strong> (optimized by slicing but needs many more antennas)</p></li>
+<li><p><strong>New security risks</strong> (larger attack surface, cloud-native core)</p></li>
+<li><p><strong>High investment costs</strong> (infrastructure, device upgrades)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="quick-comparison-table">
+<h2>5. Quick Comparison Table<a class="headerlink" href="#quick-comparison-table" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Generation</p></th>
+<th class="head"><p>Max Data Rate</p></th>
+<th class="head"><p>Latency</p></th>
+<th class="head"><p>Connections/km²</p></th>
+<th class="head"><p>Architecture</p></th>
+<th class="head"><p>Key Use Cases</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>4G</p></td>
+<td><p>~100 Mbps – 1 Gbps</p></td>
+<td><p>~50 ms</p></td>
+<td><p>~100,000</p></td>
+<td><p>All-IP</p></td>
+<td><p>Video, web, mobile apps</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>5G</strong></p></td>
+<td><p>1–10 Gbps</p></td>
+<td><p>&lt; 1–10 ms</p></td>
+<td><p>1,000,000+</p></td>
+<td><p>Cloud, slicing</p></td>
+<td><p>Massive IoT, VR/AR, Industry 4.0</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="key-takeaways">
+<h2>6. Key Takeaways<a class="headerlink" href="#key-takeaways" title="Link to this heading"></a></h2>
+<blockquote>
+<div><p><strong>5G isn’t just “faster”</strong>—it transforms the network architecture, unlocks critical new applications (industry, healthcare, vehicles), and sets the stage for a real-time, hyper-connected world.</p>
+</div></blockquote>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="5G : NSA/SA" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tutorial.html" class="btn btn-neutral float-right" title="5G SA Lab: srsRAN Project + Open5GS (Ubuntu, 2024)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

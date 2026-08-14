@@ -1,0 +1,3838 @@
+---
+title: "4 - Sources"
+---
+
+
+## `diag/source_8xxx_handlers.c` {#f-diag-source-8xxx-handlers-c}
+
+::: {.file-meta}
+[.c]{.tag} 346 lignes - 16KB
+:::
+
+```{.c .numberLines filename="diag/source_8xxx_handlers.c"}
+        /* SACCD src, Xmem, cond — Conditional accumulator store
+         * Encoding: 1001 11SD XXXX COND per SPRU172C p.4-152 */
+        if ((op & 0xFC00) == 0x9C00) {
+            int src_s = (op >> 9) & 1;
+            int64_t acc = src_s ? s->b : s->a;
+            int xar_s = (op >> 4) & 0x07;
+            uint16_t xaddr = s->ar[xar_s];
+            int cond = op & 0x0F;
+            /* Evaluate condition */
+            int take = 0;
+            switch (cond) {
+            case 0x0: take = (acc == 0); break;    /* EQ */
+            case 0x1: take = (acc != 0); break;    /* NEQ */
+            case 0x2: take = (acc > 0); break;     /* GT */
+            case 0x3: take = (acc < 0); break;     /* LT */
+            case 0x4: take = (acc >= 0); break;    /* GEQ */
+            case 0x5: take = (acc == 0); break;    /* AEQ */
+            case 0x6: take = (acc > 0); break;     /* AGT */
+            case 0x7: take = (acc <= 0); break;    /* LEQ/ALEQ */
+            default: take = 0; break;
+            }
+            int asm_val = asm_shift(s);
+            if (take) {
+                /* Store shifted accumulator high part */
+                int64_t shifted = acc << (asm_val > 0 ? asm_val : 0);
+                if (asm_val < 0) shifted = acc >> (-asm_val);
+                uint16_t val = (uint16_t)((shifted >> 16) & 0xFFFF);
+                data_write(s, xaddr, val);
+            } else {
+                /* Read and write back (no change) */
+                uint16_t val = data_read(s, xaddr);
+                data_write(s, xaddr, val);
+            }
+            /* Xmem post-modify */
+            if ((op >> 7) & 1) s->ar[xar_s]--; else s->ar[xar_s]++;
+            return consumed + s->lk_used;
+        }
+        /* POPM MMR — pop top-of-stack into MMR (1-word).
+         * Per tic54x-opc.c: { "popm", 0x8A00, 0xFF00, {OP_MMR} }.
+         * Per SPRU172C section 4 : value at SP popped to MMR, SP++.
+         *
+         * Bug fix 2026-05-08 : 0x8Axx était précédemment mal décodé en
+         * MVDK Smem,dmad (qui est en réalité 0x7100 mask 0xFF00). Le
+         * pattern PSHM/POPM symétrique du firmware (e.g. PROM0 0x7013-0x7023
+         * sauve/restaure 6 MMRs autour d'un CALA) ne fonctionnait jamais
+         * post-CALA → ST1 jamais restauré → INTM=1 dwell perpétuel
+         * → IRQ vectoring bloqué → DSP wait stuck → L1 mort.
+         * Le case MVDK ci-dessous devient dead code mais est laissé pour
+         * référence historique. */
+        if ((op & 0xFF00) == 0x8A00) {
+            uint16_t mmr = op & 0x7F;
+            uint16_t val = data_read(s, s->sp);
+            s->sp = (s->sp + 1) & 0xFFFF;
+            data_write(s, mmr, val);
+            return consumed + s->lk_used;
+        }
+        /* OBSOLETE — superseded by POPM above. The 0x8Axx range belongs to
+         * POPM per tic54x-opc.c, not MVDK (which is 0x7100 mask 0xFF00).
+         * Kept commented for one revision so any caller depending on the
+         * old (incorrect) behaviour is forced to be re-examined. */
+        if (0 && hi8 == 0x8A) {
+            /* MVDK Smem, dmad — INCORRECT for 0x8Axx, see POPM above */
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            data_write(s, op2, data_read(s, addr));
+            return consumed + s->lk_used;
+        }
+        /* 0x88xx-0x89xx: STLM src, MMR  (1-word!)
+         * Per tic54x-opc.c: { "stlm", 1,2,2, 0x8800, 0xFE00, ... }
+         *   bits 9-15 = fixed (0x44)
+         *   bit 8     = src (0 = A, 1 = B)
+         *   bits 0-6  = MMR address (0x00..0x7F)
+         *
+         * Critical for the DSP bootloader at PROM0 0xb42d (`STLM B, AR1`):
+         * if decoded as 2-word MVDM the emulator eats the next opcode
+         * (0xb42e = 0xf84c, a BC), then jumps into 0xb431 (MACR family)
+         * with an uninitialised T register, producing A=0x10 — which
+         * the immediately-following BACC A at 0xb430 then uses as the
+         * jump target, dropping the DSP into the boot-stub NOPs at
+         * PC=0x0010 instead of continuing the bootloader handshake. */
+        if (hi8 == 0x88 || hi8 == 0x89) {
+            int src = (op >> 8) & 1;  /* 0 = A, 1 = B */
+            int mmr = op & 0x7F;
+            uint16_t val = src ? (uint16_t)(s->b & 0xFFFF)
+                               : (uint16_t)(s->a & 0xFFFF);
+            data_write(s, (uint16_t)mmr, val);  /* MMRs alias addr 0x00..0x1F */
+            return consumed + s->lk_used;
+        }
+        if (hi8 == 0x80) {
+            /* STUB-NOP : tic54x dit 0x80 = STL src,Smem (1-word).
+             * Ancienne classification qemu = MVDD 2-word (incorrect).
+             * Voir doc/opcodes/tic54x_hi8_map.md. Neutralisé pour éviter
+             * les écritures mémoire fantômes en attendant impl correcte. */
+            return 1;
+        }
+        if (hi8 == 0x8C) {
+            /* MVPD pmad, Smem (prog→data) */
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            uint16_t mvpd_val = prog_read(s, op2);
+            data_write(s, addr, mvpd_val);
+            {
+                static unsigned mvpd_log = 0;
+                static unsigned mvpd_total;
+                static uint16_t src_min = 0xFFFF, src_max;
+                static uint16_t dst_min = 0xFFFF, dst_max;
+                static unsigned hits_a040;
+                mvpd_total++;
+                if (op2 < src_min) src_min = op2;
+                if (op2 > src_max) src_max = op2;
+                if (addr < dst_min) dst_min = addr;
+                if (addr > dst_max) dst_max = addr;
+                if (addr >= 0xa040 && addr <= 0xa080) hits_a040++;
+                if (mvpd_log++ < 500 ||
+                    (addr >= 0xa040 && addr <= 0xa080) ||
+                    (mvpd_total % 1000) == 0)
+                    C54_LOG("MVPD#%u: prog[0x%04x]=0x%04x → data[0x%04x] PC=0x%04x insn=%u%s",
+                            mvpd_total, op2, mvpd_val, addr, s->pc, s->insn_count,
+                            (addr >= 0xa040 && addr <= 0xa080) ? " *A040*" : "");
+                if ((mvpd_total % 500) == 0)
+                    C54_LOG("MVPD-SUMMARY total=%u src=[0x%04x..0x%04x] dst=[0x%04x..0x%04x] hits_a040=%u",
+                            mvpd_total, src_min, src_max, dst_min, dst_max, hits_a040);
+            }
+            return consumed + s->lk_used;
+        }
+        if (hi8 == 0x8E) {
+            /* MVDP Smem, pmad (data→prog) */
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            prog_write(s, op2, data_read(s, addr));
+            return consumed + s->lk_used;
+        }
+        if (hi8 == 0x8F) {
+            /* PORTR PA, Smem — read I/O port */
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            /* BSP RX data register — return next burst sample.
+             * The DSP firmware uses PORTR PA=0xF430 (64 sites in PROM0,
+             * verified from ROM dump). We also accept 0x0034 for legacy
+             * compatibility with earlier QEMU experiments. */
+            uint16_t portr_val;
+            bool is_bsp_pa = (op2 == 0xF430 || op2 == 0x0034);
+            if (is_bsp_pa && s->bsp_pos < s->bsp_len) {
+                portr_val = s->bsp_buf[s->bsp_pos++];
+                data_write(s, addr, portr_val);
+            } else {
+                portr_val = 0;
+                data_write(s, addr, 0);
+            }
+            /* Per-PA counters so we can see which I/O ports the DSP polls
+             * and how often. */
+            {
+                static uint64_t portr_total[16];
+                static uint64_t portr_since_summary;
+                int pa_bucket = (op2 >> 4) & 0xF;
+                portr_total[pa_bucket]++;
+                portr_since_summary++;
+
+                static int portr_log = 0;
+                if (portr_log < 50) {
+                    C54_LOG("PORTR PA=0x%04x → [0x%04x] val=0x%04x "
+                            "bsp_pos=%u/%u PC=0x%04x",
+                            op2, addr, portr_val,
+                            (unsigned)s->bsp_pos, (unsigned)s->bsp_len,
+                            s->pc);
+                    portr_log++;
+                }
+                if ((portr_since_summary % 10000) == 0) {
+                    C54_LOG("PORTR summary (last 10000): "
+                            "PA0x=%llu 1x=%llu 2x=%llu 3x=%llu 4x=%llu "
+                            "5x=%llu 6x=%llu 7x=%llu",
+                            (unsigned long long)portr_total[0],
+                            (unsigned long long)portr_total[1],
+                            (unsigned long long)portr_total[2],
+                            (unsigned long long)portr_total[3],
+                            (unsigned long long)portr_total[4],
+                            (unsigned long long)portr_total[5],
+                            (unsigned long long)portr_total[6],
+                            (unsigned long long)portr_total[7]);
+                }
+            }
+            return consumed + s->lk_used;
+        }
+        if (hi8 == 0x9F) {
+            /* PORTW Smem, PA — write I/O port */
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            /* Log I/O port writes */
+            {
+                uint16_t wval = data_read(s, addr);
+                static int portw_log = 0;
+                if (portw_log < 30) {
+                    C54_LOG("PORTW PA=0x%04x val=0x%04x PC=0x%04x", op2, wval, s->pc);
+                    portw_log++;
+                }
+            }
+            return consumed + s->lk_used;
+        }
+        /* 85xx: MVPD pmad, Smem (prog→data, different encoding) */
+        if (hi8 == 0x85) {
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            data_write(s, addr, prog_read(s, op2));
+            return consumed + s->lk_used;
+        }
+        /* 86xx: MVDM dmad, MMR */
+        if (hi8 == 0x86) {
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            uint16_t mmr = op & 0x7F;
+            data_write(s, mmr, data_read(s, op2));
+            return consumed + s->lk_used;
+        }
+        /* 87xx: MVMD MMR, dmad */
+        if (hi8 == 0x87) {
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            uint16_t mmr = op & 0x7F;
+            data_write(s, op2, data_read(s, mmr));
+            return consumed + s->lk_used;
+        }
+        /* 81xx: STL src, ASM, Smem (store with shift) */
+        if (hi8 == 0x81) {
+            addr = resolve_smem(s, op, &ind);
+            int shift = asm_shift(s);
+            int64_t v = s->a;
+            if (shift >= 0) v <<= shift; else v >>= (-shift);
+            data_write(s, addr, (uint16_t)(v & 0xFFFF));
+            return consumed + s->lk_used;
+        }
+        /* 82xx: STH src, ASM, Smem */
+        if (hi8 == 0x82) {
+            addr = resolve_smem(s, op, &ind);
+            int shift = asm_shift(s);
+            int64_t v = s->a;
+            if (shift >= 0) v <<= shift; else v >>= (-shift);
+            data_write(s, addr, (uint16_t)((v >> 16) & 0xFFFF));
+            return consumed + s->lk_used;
+        }
+        /* 89xx: ST src, Smem with shift or MVDK variants */
+        if (hi8 == 0x89) {
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            data_write(s, op2, data_read(s, addr));
+            return consumed + s->lk_used;
+        }
+        /* 8Bxx: MVDK with long address */
+        if (hi8 == 0x8B) {
+            /* STUB-NOP : tic54x dit 0x8B = POPD Smem (1-word).
+             * Ancienne classification qemu = MVDK long-addr 2-word (incorrect).
+             * Voir doc/opcodes/tic54x_hi8_map.md. Neutralisé. */
+            return 1;
+        }
+        /* 8Dxx: MVDD Smem, Smem */
+        if (hi8 == 0x8D) {
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            data_write(s, op2, data_read(s, addr));
+            return consumed + s->lk_used;
+        }
+        /* 83xx: WRITA Smem (write A to prog), 84xx: READA Smem */
+        if (hi8 == 0x83) {
+            addr = resolve_smem(s, op, &ind);
+            prog_write(s, (uint16_t)(s->a & 0xFFFF), data_read(s, addr));
+            return consumed + s->lk_used;
+        }
+        if (hi8 == 0x84) {
+            addr = resolve_smem(s, op, &ind);
+            data_write(s, addr, prog_read(s, (uint16_t)(s->a & 0xFFFF)));
+            return consumed + s->lk_used;
+        }
+        /* 91xx: MVKD dmad, Smem (another encoding) */
+        if (hi8 == 0x91) {
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            data_write(s, addr, data_read(s, op2));
+            return consumed + s->lk_used;
+        }
+        /* 97xx: ST #lk, Smem (2-word). 0x96xx is caught above as MVDP. */
+        if (hi8 == 0x97) {
+            addr = resolve_smem(s, op, &ind);
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            data_write(s, addr, op2);
+            return consumed + s->lk_used;
+        }
+        goto unimpl;
+
+    case 0xA: case 0xB:
+        /* Axx/Bxx: STLM, LDMM, misc accumulator ops */
+
+        /* ---- Dual-operand MAC/MAS Xmem, Ymem, dst (1-word) ----
+         * MAC:  dst += T * Xmem; T = Ymem
+         * MACR: dst += rnd(T * Xmem); T = Ymem
+         * MAS:  dst -= T * Xmem; T = Ymem
+         * MASR: dst -= rnd(T * Xmem); T = Ymem
+         * Encoding: OOOO OOOD XXXX YYYY (1 word)
+         *   Xmem: AR[ARP], post-mod by bit4 (0=inc,1=dec)
+         *   Ymem: AR[bits2:0], post-mod by bit3 (0=inc,1=dec)
+         *   D: 0=A, 1=B
+         * hi8 mapping per SPRU172C:
+         *   0xA4/0xA5: MAC[R] Xmem,Ymem,A   0xA6/0xA7: MAC[R] Xmem,Ymem,B
+         *   0xB4/0xB5: MAS[R] Xmem,Ymem,A   0xB6/0xB7: MAS[R] Xmem,Ymem,B
+         *   0xB0/0xB1: MAC[R] Xmem,Ymem,A (alt)  0xB2/0xB3 already handled
+         */
+        if (hi8 == 0xA4 || hi8 == 0xA5 || hi8 == 0xA6 || hi8 == 0xA7 ||
+            hi8 == 0xB4 || hi8 == 0xB5 || hi8 == 0xB6 || hi8 == 0xB7 ||
+            hi8 == 0xB0 || hi8 == 0xB1 || hi8 == 0xB2) {
+            int xar_d = (op >> 4) & 0x07;
+            int yar_d = op & 0x07;
+            uint16_t xval_d = data_read(s, s->ar[xar_d]);
+            uint16_t yval_d = data_read(s, s->ar[yar_d]);
+            /* Post-modify */
+            if ((op >> 7) & 1) s->ar[xar_d]--; else s->ar[xar_d]++;
+            if ((op & 0x08) == 0) s->ar[yar_d]++; else s->ar[yar_d]--;
+            /* Multiply T * Xmem */
+            int64_t prod = (int64_t)(int16_t)s->t * (int64_t)(int16_t)xval_d;
+            if (s->st1 & ST1_FRCT) prod <<= 1;
+            /* Round if R bit set (odd hi8) */
+            if (hi8 & 0x01) prod += 0x8000;
+            /* Determine dest and operation */
+            int is_sub = (hi8 >= 0xB4 && hi8 <= 0xB7);
+            int dst_b;
+            if (hi8 >= 0xA4 && hi8 <= 0xA7) dst_b = (hi8 >= 0xA6);
+            else if (hi8 >= 0xB4 && hi8 <= 0xB7) dst_b = (hi8 >= 0xB6);
+            else dst_b = (hi8 & 0x02) ? 1 : 0; /* 0xB0/B1→A, 0xB2/B3→B */
+            if (dst_b) {
+                if (is_sub) s->b = sext40(s->b - prod);
+                else        s->b = sext40(s->b + prod);
+            } else {
+                if (is_sub) s->a = sext40(s->a - prod);
+                else        s->a = sext40(s->a + prod);
+            }
+            /* T = Ymem */
+            s->t = yval_d;
+            return consumed + s->lk_used;
+        }
+
+```
+
+## `diag/source_data_write.c` {#f-diag-source-data-write-c}
+
+::: {.file-meta}
+[.c]{.tag} 149 lignes - 7,0KB
+:::
+
+```{.c .numberLines filename="diag/source_data_write.c"}
+static void data_write(C54xState *s, uint16_t addr, uint16_t val)
+{
+    /* DATA-W-MMR : log every write into the low MMR window (addr <= 0x1F)
+     * with full attribution context. Goal : disambiguate the IMR-W trace
+     * cascade observed at PC=0x8eb9 (op=0xf3e1) and PC=0x9ad0 (op=0x8192).
+     * The writer_kind field tells us *which path* triggered the write
+     * (opcode family / IRQ ack / ARM MMIO / resolve_smem side effect).
+     * Cap at 200 distinct events to avoid log flood. */
+    if (addr <= 0x1F) {
+        static unsigned mmrw_log;
+        if (mmrw_log++ < 200) {
+            const char *wk_name[] = {
+                "UNK", "F3", "8x", "77", "76", "PSHM",
+                "RET", "IRQ_ACK", "ARM_MMIO", "RES_AR", "OTHER"
+            };
+            uint8_t wk = s->writer_kind;
+            const char *wkn = (wk < sizeof(wk_name)/sizeof(wk_name[0]))
+                              ? wk_name[wk] : "??";
+            fprintf(stderr,
+                    "[c54x] DATA-W-MMR addr=0x%02x val=0x%04x "
+                    "exec_pc=0x%04x cur_pc=0x%04x cur_op=0x%04x "
+                    "xpc=%d wk=%s "
+                    "AR0=%04x AR1=%04x AR2=%04x AR3=%04x "
+                    "AR4=%04x AR5=%04x AR6=%04x AR7=%04x "
+                    "SP=%04x DP=%d INTM=%d insn=%u\n",
+                    addr, val,
+                    s->last_exec_pc, s->pc, s->prog[s->pc],
+                    s->xpc, wkn,
+                    s->ar[0], s->ar[1], s->ar[2], s->ar[3],
+                    s->ar[4], s->ar[5], s->ar[6], s->ar[7],
+                    s->sp, dp(s),
+                    !!(s->st1 & ST1_INTM),
+                    s->insn_count);
+        }
+    }
+
+    /* WATCH-WRITE on the same mailbox slots tracked in data_read.
+     * Whoever writes them — DSP or ARM via api_ram alias — gets logged
+     * so we can attribute the source of the value the firmware polls. */
+    /* WATCH-WRITE 0x3dd2 — la cellule sur laquelle 0x75db poll en boucle
+     * (37M reads/15s). Identifier qui écrit (et qui ne le fait pas).
+     * Cas 1 : zéro write → un bloc compute ne fire jamais.
+     * Cas 2 : write boot only → init OK mais set steady-state manquant.
+     * Cas 3 : writes périodiques avec valeur jamais matchée par le test
+     *         à 0x75db → bug dans le compute en amont. */
+    if (addr == 0x3dd2) {
+        static unsigned w3dd2;
+        w3dd2++;
+        if (w3dd2 <= 100 || (w3dd2 % 1000) == 0) {
+            fprintf(stderr,
+                    "[c54x] WATCH-WRITE 0x3dd2 #%u <- 0x%04x (was 0x%04x) "
+                    "PC=0x%04x insn=%u INTM=%d\n",
+                    w3dd2, val, s->data[addr], s->pc, s->insn_count,
+                    !!(s->st1 & ST1_INTM));
+        }
+    }
+    if (addr == 0x0ffe || addr == 0x0fff || addr == 0x01F0) {
+        static unsigned wcount;
+        if (wcount++ < 30) {
+            fprintf(stderr,
+                    "[c54x] WATCH-WRITE data[0x%04x] <- 0x%04x  (was 0x%04x) "
+                    "PC=0x%04x insn=%u\n",
+                    addr, val, s->data[addr], s->pc, s->insn_count);
+        }
+    }
+    /* Dispatcher pointer at data[0x3f65] — `LD *(0x3f65),A; CALA A` at
+     * DARAM 0x008a-0x008c. When this slot holds 0xfff8/0x0000/garbage the
+     * CALA jumps into PROM1 vec or boot stub NOPs and the SP runs away.
+     * Trace every write so we can identify who populates / corrupts it. */
+    if (addr == 0x3f65) {
+        static unsigned dpw;
+        if (dpw++ < 100) {
+            fprintf(stderr,
+                    "[c54x] DISP-PTR data[0x3f65] <- 0x%04x (was 0x%04x) "
+                    "PC=0x%04x insn=%u\n",
+                    val, s->data[addr], s->pc, s->insn_count);
+        }
+    }
+    /* Dispatcher poll addresses — log ANY write so we identify the
+     * code path that should populate them. Currently 0 PORTR PA=0xF430
+     * fires because dispatcher reads 0 here forever. */
+    if (addr == 0x4359 || addr == 0x3fab) {
+        static unsigned dispw;
+        if (dispw++ < 50) {
+            fprintf(stderr,
+                    "[c54x] DISP-WRITE data[0x%04x] <- 0x%04x (was 0x%04x) "
+                    "PC=0x%04x insn=%u\n",
+                    addr, val, s->data[addr], s->pc, s->insn_count);
+        }
+    }
+    /* CALAD source zone 0x4180-0x41FF — LD-A-TRACE shows the firmware
+     * reads 0x4189 (DP=0x83) but our emulation has it as 0. Log every
+     * write to this range so we can tell whether (a) anyone is meant to
+     * populate it and we missed the path, or (b) DP=0x83 is itself a
+     * symptom upstream of an unrelated bug. */
+    if (addr >= 0x4180 && addr <= 0x41FF) {
+        static unsigned cwz;
+        if (cwz++ < 5000) {
+            fprintf(stderr,
+                    "[c54x] CALAD-ZONE-W data[0x%04x] <- 0x%04x (was 0x%04x) "
+                    "PC=0x%04x insn=%u\n",
+                    addr, val, s->data[addr], s->pc, s->insn_count);
+        }
+    }
+    /* Dedicated watch on 0x4189 — never capped. The LD-A loop reads this
+     * slot in the CALAD trap; we want to know if/when *anyone* finally
+     * writes a non-zero value, and from which PC. */
+    if (addr == 0x4189) {
+        fprintf(stderr,
+                "[c54x] *** WR-0x4189 *** data[0x4189] <- 0x%04x (was 0x%04x) PC=0x%04x insn=%u\n",
+                val, s->data[addr], s->pc, s->insn_count);
+    }
+    /* === DARAM[0x40..0x90] watch — dispatcher flag area ===
+     * The PROM0 idle dispatcher (0xCC62..0xCC6F) polls data[0x62] and
+     * other slots in [0x60..0x70]. FORCE-DARAM62=1 (env) proves that
+     * setting data[0x62]=1 makes the DSP escape and reach 0x770c, so
+     * this range gates the runtime task pipeline. ARM-side writes to
+     * the API page mirror at +0x0800 (calypso_trx.c calypso_dsp_write)
+     * but never to DARAM 0x40..0x90 — so any value here must come from
+     * DSP-self stores (ST/STH/STM/...) or stay zero forever. Capture
+     * EVERY write with PC+INTM+insn so we can attribute the source.
+     * INTM annotation lets us tell ISR-context writes from main code. */
+    if (addr >= 0x0040 && addr <= 0x0090) {
+        static unsigned daram_disp_w;
+        if (daram_disp_w++ < 1000) {
+            fprintf(stderr,
+                    "[c54x] DISP-FLAG-W data[0x%04x] <- 0x%04x (was 0x%04x) "
+                    "PC=0x%04x INTM=%d IFR=0x%04x insn=%u\n",
+                    addr, val, s->data[addr], s->pc,
+                    !!(s->st1 & ST1_INTM), s->ifr, s->insn_count);
+            if (daram_disp_w == 1000) {
+                fprintf(stderr,
+                        "[c54x] DISP-FLAG-W log capped at 1000 — pattern visible above\n");
+            }
+        }
+    }
+    /* Timer registers (0x0024-0x0026) — before MMR check */
+    if (addr == TCR_ADDR) {
+        /* TRB: write 1 → reload TIM from PRD, PSC from TDDR */
+        if (val & TCR_TRB) {
+            s->data[TIM_ADDR] = s->data[PRD_ADDR];
+            s->timer_psc = val & TCR_TDDR_MASK;
+        }
+        /* Store TCR without TRB (TRB is write-only, always reads 0) */
+        s->data[TCR_ADDR] = val & ~TCR_TRB;
+        return;
+    }
+    if (addr == TIM_ADDR) { s->data[TIM_ADDR] = val; return; }
+    if (addr == PRD_ADDR) { s->data[PRD_ADDR] = val; return; }
+
+```
+
+## `diag/source_F2_to_F7_handlers.c` {#f-diag-source-f2-to-f7-handlers-c}
+
+::: {.file-meta}
+[.c]{.tag} 462 lignes - 23KB
+:::
+
+```{.c .numberLines filename="diag/source_F2_to_F7_handlers.c"}
+        if ((hi8 == 0xF2 || hi8 == 0xF3) &&
+            op != 0xF272 && op != 0xF273 && op != 0xF274) {
+            int xar_l = (op >> 4) & 0x07;
+            int yar_l = op & 0x07;
+            uint16_t xval_l = data_read(s, s->ar[xar_l]);
+            uint16_t yval_l = data_read(s, s->ar[yar_l]);
+            /* MAC: dst += T * Xmem */
+            int64_t prod_l = (int64_t)(int16_t)s->t * (int64_t)(int16_t)xval_l;
+            if (s->st1 & ST1_FRCT) prod_l <<= 1;
+            int dst_l = hi8 & 1;
+            if (dst_l) s->b = sext40(s->b + prod_l);
+            else       s->a = sext40(s->a + prod_l);
+            /* LMS coefficient update: Ymem += rnd(AH * T) */
+            int16_t ah_l = (int16_t)((s->a >> 16) & 0xFFFF);
+            int32_t update = (int32_t)ah_l * (int32_t)(int16_t)s->t;
+            if (s->st1 & ST1_FRCT) update <<= 1;
+            update += 0x8000; /* round */
+            int16_t new_ym = (int16_t)yval_l + (int16_t)(update >> 16);
+            data_write(s, s->ar[yar_l], (uint16_t)new_ym);
+            /* T = Xmem */
+            s->t = xval_l;
+            /* Post-modify */
+            if ((op >> 7) & 1) s->ar[xar_l]--; else s->ar[xar_l]++;
+            if ((op & 0x08) == 0) s->ar[yar_l]++; else s->ar[yar_l]--;
+            return consumed + s->lk_used;
+        }
+        /* F8xx: branches, RPT, BANZ, CALL, RET variants */
+        if (hi8 == 0xF8) {
+            uint8_t sub = (op >> 4) & 0xF;
+            /* F820 (624 sites) and F830 (543 sites) are BC pmad,cond per
+             * tic54x-opc.c (bc = 0xF800 mask 0xFF00). The dispatcher at
+             * PROM0 0xb968-0xb9a4 relies on these branching when the ACC
+             * comparison succeeds. Cond 0x20 = C set, cond 0x30 = ?
+             * (we treat both via ACC compare for now since dispatcher uses
+             * cmp-style behaviour). The full F8xx range is BC per binutils
+             * but historically the firmware tolerates the legacy decode
+             * for the other sub-codes — surgical override here only. */
+            if (sub == 0x2 || sub == 0x3) {
+                op2 = prog_fetch(s, s->pc + 1);
+                consumed = 2;
+                int64_t acc_signed = (s->a & 0x8000000000LL)
+                                     ? (s->a | ~0xFFFFFFFFFFLL) : s->a;
+                bool take = false;
+                /* For now: cond=0x20 → branch if A != 0; cond=0x30 → A == 0.
+                 * These are heuristics until we confirm the exact cond
+                 * mapping from SPRU172C. Tweak based on observed dispatcher
+                 * behaviour. */
+                if (sub == 0x2)      take = (acc_signed != 0);
+                else /* sub==0x3 */  take = (acc_signed == 0);
+                if (take) { s->pc = op2; return 0; }
+                return consumed + s->lk_used;
+            }
+            if (sub == 0x2) {
+                /* Unreachable now — kept for clarity in case we revert. */
+                op2 = prog_fetch(s, s->pc + 1);
+                consumed = 2;
+                s->rea = op2;
+                s->rsa = (uint16_t)(s->pc + 2);
+                s->rptb_active = true;
+                s->st1 |= ST1_BRAF;
+                return consumed + s->lk_used;
+            }
+            if (sub == 0x3) {
+                /* Unreachable now. */
+                op2 = prog_fetch(s, s->pc + 1);
+                s->rpt_count = op2;
+                s->rpt_active = true;
+                s->pc += 2;
+                return 0;
+            }
+            /* Per tic54x-opc.c:
+             *   F880-F8FF mask FF80 = FB pmad (FAR branch unconditional)
+             * The low 7 bits of the opcode word encode the target XPC bits.
+             * Calypso uses 2-bit XPC, so & 0x3 is sufficient.
+             *
+             * Earlier this range was treated as plain B pmad — a bug that
+             * kept XPC=0 forever (DSP never reached PROM1 user code). */
+            if ((op & 0xFF80) == 0xF880) {
+                op2 = prog_fetch(s, s->pc + 1);
+                consumed = 2;
+                uint8_t new_xpc = (op & 0x7F) & 0x03;
+                static uint64_t fb_total;
+                fb_total++;
+                if (fb_total <= 30 || (fb_total % 5000) == 0) {
+                    C54_LOG("FB FAR #%llu PC=0x%04x → XPC=%u PC=0x%04x (was XPC=%u)",
+                            (unsigned long long)fb_total, s->pc,
+                            new_xpc, op2, s->xpc);
+                }
+                s->xpc = new_xpc;
+                s->pc  = op2;
+                return 0;
+            }
+            /* F88x..F8Bx (mask FF80=0): historic plain B pmad (NEAR), kept
+             * for sub-codes that fall outside the FAR mask above. */
+            if (sub >= 0x8 && sub <= 0xB) {
+                op2 = prog_fetch(s, s->pc + 1);
+                s->pc = op2;
+                return 0;
+            }
+            /* F86x/F87x: BANZ *ARn, pmad — branch if ARn != 0 (2 words) */
+            if (sub == 0x6 || sub == 0x7) {
+                op2 = prog_fetch(s, s->pc + 1);
+                int ar_idx = op & 0x07;
+                if (s->ar[ar_idx] != 0) {
+                    s->ar[ar_idx]--;
+                    s->pc = op2;
+                    return 0;
+                }
+                return 2;  /* skip 2 words, fall through */
+            }
+            /* F84x/F85x: BANZ with condition / CALL variants */
+            if (sub == 0x4 || sub == 0x5) {
+                op2 = prog_fetch(s, s->pc + 1);
+                /* BANZ ARn, pmad */
+                int ar_idx = op & 0x07;
+                if (s->ar[ar_idx] != 0) {
+                    s->ar[ar_idx]--;
+        if (hi8 == 0xF3) {
+            /* F300-F31F: INTR k (preserve existing behavior) */
+            if ((op & 0xFFE0) == 0xF300) {
+                int vec = op & 0x1F;
+                s->sp--;
+                data_write(s, s->sp, (uint16_t)(s->pc + 1));
+                s->st1 |= ST1_INTM;
+                uint16_t iptr = (s->pmst >> PMST_IPTR_SHIFT) & 0x1FF;
+                s->pc = (iptr * 0x80) + vec * 4;
+                return 0;
+            }
+
+            /* F360-F367: 2-word with mask FCFF (#lk<<16 variants).
+             * Most-specific mask, check first. */
+            if ((op & 0xFCFF) == 0xF060 ||  /* ADD #lk<<16, src, [dst] */
+                (op & 0xFCFF) == 0xF061 ||  /* SUB */
+                (op & 0xFCFF) == 0xF063 ||  /* AND */
+                (op & 0xFCFF) == 0xF064 ||  /* OR  */
+                (op & 0xFCFF) == 0xF065 ||  /* XOR */
+                (op & 0xFCFF) == 0xF067) {  /* MAC #lk, src, [dst] */
+                op2 = prog_fetch(s, s->pc + 1 + (s->lk_used ? 1 : 0));
+                consumed = 2;
+                int sub = op & 0x7;
+                int src_b = (op >> 9) & 1;
+                int dst_b = (op >> 8) & 1;
+                int64_t src = src_b ? s->b : s->a;
+                int64_t result = src;
+                switch (sub) {
+                case 0x0: result = src + ((int64_t)(int16_t)op2 << 16); break;
+                case 0x1: result = src - ((int64_t)(int16_t)op2 << 16); break;
+                case 0x3: result = src & (((int64_t)op2) << 16); break;
+                case 0x4: result = src | (((int64_t)op2) << 16); break;
+                case 0x5: result = src ^ (((int64_t)op2) << 16); break;
+                case 0x7: { /* MAC: dst = src + T * lk */
+                    int64_t prod = (int64_t)(int16_t)s->t * (int64_t)(int16_t)op2;
+                    if (s->st1 & ST1_FRCT) prod <<= 1;
+                    result = src + prod;
+                    break;
+                }
+                }
+                if (dst_b) s->b = sext40(result); else s->a = sext40(result);
+                return consumed + s->lk_used;
+            }
+
+            /* F330-F35F: 2-word with mask FCF0 (#lk + 4-bit shift).
+             * AND (sub=3), OR (sub=4), XOR (sub=5).
+             * Note: ADD (sub=0) and SUB (sub=1) at F30x/F31x are caught
+             * by INTR handler above (those ranges are INTR semantically). */
+            if ((op & 0xFCF0) == 0xF030 ||  /* AND #lk, SHIFT, src, [dst] */
+                (op & 0xFCF0) == 0xF040 ||  /* OR */
+                (op & 0xFCF0) == 0xF050) {  /* XOR */
+                op2 = prog_fetch(s, s->pc + 1 + (s->lk_used ? 1 : 0));
+                consumed = 2;
+                int subop = (op >> 4) & 0xF;
+                int shift_raw = op & 0xF;
+                int shift = (shift_raw & 0x8) ? (shift_raw - 16) : shift_raw;
+                int src_b = (op >> 9) & 1;
+                int dst_b = (op >> 8) & 1;
+                int64_t src = src_b ? s->b : s->a;
+                int64_t lk_signed = (int16_t)op2;
+                int64_t shifted = (shift >= 0) ? (lk_signed << shift)
+                                               : (lk_signed >> (-shift));
+                int64_t result = src;
+                switch (subop) {
+                case 0x3: result = src & shifted; break;  /* AND */
+                case 0x4: result = src | shifted; break;  /* OR  */
+                case 0x5: result = src ^ shifted; break;  /* XOR */
+                }
+                if (dst_b) s->b = sext40(result); else s->a = sext40(result);
+                return consumed + s->lk_used;
+            }
+
+            /* F380-F3FF: 1-word AND/OR/XOR/SFTL src,SHIFT,DST (mask FCE0).
+             * Sub-opcode in bits 7-5: 100=AND, 101=OR, 110=XOR, 111=SFTL. */
+            if ((op & 0xFCE0) == 0xF080 ||  /* AND */
+                (op & 0xFCE0) == 0xF0A0 ||  /* OR  */
+                (op & 0xFCE0) == 0xF0C0 ||  /* XOR */
+                (op & 0xFCE0) == 0xF0E0) {  /* SFTL */
+                int sub = (op >> 5) & 0x7;
+                int src_b = (op >> 9) & 1;
+                int dst_b = (op >> 8) & 1;
+                int shift_raw = op & 0x1F;
+                int shift = (shift_raw & 0x10) ? (shift_raw - 32) : shift_raw;
+                int64_t src = src_b ? s->b : s->a;
+                int64_t result = src;
+                switch (sub) {
+                case 0x4: { /* AND src,SHIFT,DST: DST = SRC & (DST_in << shift) */
+                    int64_t dst_in = dst_b ? s->b : s->a;
+                    int64_t sh = (shift >= 0) ? (dst_in << shift) : (dst_in >> (-shift));
+                    result = src & sh;
+                    break;
+                }
+                case 0x5: { /* OR */
+                    int64_t dst_in = dst_b ? s->b : s->a;
+                    int64_t sh = (shift >= 0) ? (dst_in << shift) : (dst_in >> (-shift));
+                    result = src | sh;
+                    break;
+                }
+                case 0x6: { /* XOR */
+                    int64_t dst_in = dst_b ? s->b : s->a;
+                    int64_t sh = (shift >= 0) ? (dst_in << shift) : (dst_in >> (-shift));
+                    result = src ^ sh;
+                    break;
+                }
+                case 0x7: { /* SFTL src,SHIFT,DST: DST = SRC << shift (logical) */
+                    uint64_t usrc = (uint64_t)src & 0xFFFFFFFFFFULL;
+                    result = (int64_t)((shift >= 0) ? (usrc << shift) : (usrc >> (-shift)));
+                    break;
+                }
+                }
+                if (dst_b) s->b = sext40(result); else s->a = sext40(result);
+                return consumed + s->lk_used;
+            }
+        if (hi8 == 0xF6) {
+            uint8_t sub = (op >> 4) & 0xF;
+            if (sub == 0x2) {
+                /* F62x: LD A, dst_shift, B or LD B, dst_shift, A */
+                int dst = op & 1;
+                if (dst) s->b = s->a; else s->a = s->b;
+                return consumed + s->lk_used;
+            }
+            if (sub == 0x6) {
+                /* F66x: LD A/B with shift to other acc */
+                int dst = op & 1;
+                if (dst) s->b = s->a; else s->a = s->b;
+                return consumed + s->lk_used;
+            }
+            if (sub == 0xB) {
+                /* F6Bx: RSBX -- reset bit in ST1 (bit 9=1, bit 8=0).
+                 * Per tic54x-opc.c: RSBX 0xF4B0 mask 0xFDF0 covers F6Bx. */
+                int bit = op & 0x0F;
+                s->st1 &= ~(1 << bit);
+                return consumed + s->lk_used;
+            }
+            /* Delayed branches/calls/returns from PROM (per tic54x-opc.c).
+             * MUST be checked BEFORE the MVDD catch-all because they share
+             * the high nibbles 0xE/0x9. Without these the DSP cannot return
+             * from interrupt service routines — RETED in particular leaves
+             * INTM=1 forever, blocking every subsequent INT3 and stalling
+             * the firmware↔DSP frame loop (the original CLAUDE.md root bug).
+             *
+             * All delayed forms execute 2 delay-slot words before the jump
+             * commits; we arm the existing delayed_pc/delay_slots machinery
+             * (the same one RCD uses) so the slots run with the right PC. */
+            if (op == 0xF6EB) {
+                /* RETED — return from interrupt, enable interrupts, delayed.
+                 * Pop PC, clear INTM, then run 2 delay slots before jumping. */
+                uint16_t ra = data_read(s, s->sp); s->sp++;
+                s->st1 &= ~ST1_INTM;
+                s->delayed_pc  = ra;
+                s->delay_slots = 2;
+                {
+                    static uint64_t reted_count;
+                    reted_count++;
+                    if (reted_count <= 20 || (reted_count % 100) == 0)
+                        C54_LOG("RETED #%llu PC=0x%04x -> ra=0x%04x SP=0x%04x INTM=0",
+                                (unsigned long long)reted_count,
+                                s->pc, ra, s->sp);
+                }
+                return consumed + s->lk_used;
+            }
+            if (op == 0xF69B) {
+                /* RETFD — fast return, delayed (no INTM change). */
+                uint16_t ra = data_read(s, s->sp); s->sp++;
+                s->delayed_pc  = ra;
+                s->delay_slots = 2;
+                return consumed + s->lk_used;
+            }
+            if (op == 0xF6E2 || op == 0xF6E3) {
+                /* BACCD A / CALAD A — delayed branch/call to acc(low).
+                 * 1-word op + 2 delay slots. CALAD pushes PC+3 (skip op +
+                 * 2 delay slots) per TI convention (cf. CALLD which pushes
+                 * PC+4 for its 2-word form). Branch is armed via the
+                 * delayed_pc/delay_slots mechanism so the 2 slots run
+                 * before PC commits to tgt. */
+                uint16_t tgt = (uint16_t)(s->a & 0xFFFF);
+                bool is_call = (op == 0xF6E3);
+                static uint64_t bcd_total;
+                bcd_total++;
+                /* Pre-load context: dump the 8 words preceding PC (in OVLY
+                 * the executor reads from DARAM, mirror that). Lets us see
+                 * which LD/MAR sequence was supposed to put a valid target
+                 * in A before the CALAD/BACCD. */
+                int pre_ovly = (s->pmst & PMST_OVLY) && s->pc >= 0x80 && s->pc < 0x2800;
+                uint16_t pre[8];
+                for (int i = 0; i < 8; i++) {
+                    uint16_t a = (uint16_t)(s->pc - 8 + i);
+                    pre[i] = pre_ovly ? s->data[a] : s->prog[a];
+                }
+                if (bcd_total <= 60 || (bcd_total % 5000) == 0) {
+                    C54_LOG("BCD/CAD F6E%c #%llu PC=0x%04x tgt=0x%04x A=%010llx SP=0x%04x DP=0x%03x mem[%c PC-8..-1]=%04x %04x %04x %04x %04x %04x %04x %04x%s",
+                            is_call ? '3' : '2',
+                            (unsigned long long)bcd_total,
+                            s->pc, tgt,
+                            (unsigned long long)(s->a & 0xFFFFFFFFFFULL),
+                            s->sp,
+                            (s->st0 & 0x1FF),
+                            pre_ovly ? 'D' : 'P',
+                            pre[0], pre[1], pre[2], pre[3],
+                            pre[4], pre[5], pre[6], pre[7],
+                            is_call ? " CALAD" : " BACCD");
+                }
+                if (is_call) {
+                    uint16_t ret_pc = (uint16_t)(s->pc + 3);
+                    s->sp = (s->sp - 1) & 0xFFFF;
+                    data_write(s, s->sp, ret_pc);
+                }
+                s->delayed_pc  = tgt;
+                s->delay_slots = 2;
+                return consumed + s->lk_used;
+            }
+            if (op == 0xF6E4 || op == 0xF6E5) {
+                /* FRETD / FRETED — far return, delayed.
+                 * Pop XPC + PC unconditionally (FL_FAR). FRETED also clears INTM.
+                 * 2026-04-28 — fixed: was APTS-gated (= AVIS, no stack semantics). */
+                s->xpc = data_read(s, s->sp); s->sp++;
+                if (s->xpc > 3) s->xpc &= 3;
+                uint16_t ra = data_read(s, s->sp); s->sp++;
+                if (op == 0xF6E5) s->st1 &= ~ST1_INTM;
+                s->delayed_pc  = ra;
+                s->delay_slots = 2;
+                return consumed + s->lk_used;
+            }
+            if (op == 0xF6E6 || op == 0xF6E7) {
+                /* FBACCD A / FCALAD A — far delayed branch/call to A.
+                 * A(22:16) → XPC, A(15:0) → tgt. XPC update is immediate
+                 * (mirrors FRETED at line ~1639). FCALAD pushes ret PC+3,
+                 * and (when APTS) pushes XPC first (so RETF/FRETD pops in
+                 * order). 2 delay slots. */
+                uint16_t tgt = (uint16_t)(s->a & 0xFFFF);
+                uint8_t  new_xpc = (uint8_t)((s->a >> 16) & 0xFF);
+                if (new_xpc > 3) new_xpc &= 3;
+                bool is_call = (op == 0xF6E7);
+                static uint64_t fbcd_total;
+                fbcd_total++;
+                if (fbcd_total <= 10 || (fbcd_total % 5000) == 0) {
+                    C54_LOG("FBCD/FCAD F6E%c #%llu PC=0x%04x tgt=0x%04x newXPC=%u A=%010llx SP=0x%04x%s",
+                            is_call ? '7' : '6',
+                            (unsigned long long)fbcd_total,
+                            s->pc, tgt, new_xpc,
+                            (unsigned long long)(s->a & 0xFFFFFFFFFFULL),
+                            s->sp,
+                            is_call ? " FCALAD" : " FBACCD");
+                }
+                if (is_call) {
+                    /* FCALAD (F6E7): push XPC + return PC unconditionally (FL_FAR).
+                     * 2026-04-28 — fixed: was APTS-gated (= AVIS, no stack semantics). */
+                    s->sp = (s->sp - 1) & 0xFFFF;
+                    data_write(s, s->sp, s->xpc);
+                    uint16_t ret_pc = (uint16_t)(s->pc + 3);
+                    s->sp = (s->sp - 1) & 0xFFFF;
+                    data_write(s, s->sp, ret_pc);
+                }
+                s->xpc         = new_xpc;
+                s->delayed_pc  = tgt;
+                s->delay_slots = 2;
+                return consumed + s->lk_used;
+            }
+            if (sub >= 0x8) {
+                /* F68x-F6Fx: MVDD Xmem, Ymem — dual data-memory operand move
+                 * Encoding: 1111 0110 XXXX YYYY
+                 *   bit 7   = Xmod (0=inc, 1=dec)
+                 *   bits 6:4 = Xar  (source AR register)
+                 *   bit 3   = Ymod (0=inc, 1=dec)
+                 *   bits 2:0 = Yar  (dest AR register) */
+                int xar = (op >> 4) & 0x07;
+                int yar = op & 0x07;
+                uint16_t val = data_read(s, s->ar[xar]);
+                data_write(s, s->ar[yar], val);
+                if ((op >> 7) & 1) s->ar[xar]--; else s->ar[xar]++;
+                if ((op >> 3) & 1) s->ar[yar]--; else s->ar[yar]++;
+                return consumed + s->lk_used;
+            }
+            /* Other F6xx: treat as NOP for now */
+            return consumed + s->lk_used;
+        }
+        /* F5xx: SSBX or RPT #k */
+        if (hi8 == 0xF5) {
+            /* F5Bx: SSBX -- set bit in ST0 (bit 9=0, bit 8=1).
+             * Per tic54x-opc.c: SSBX 0xF5B0 mask 0xFDF0. */
+            if ((op & 0xFFF0) == 0xF5B0) {
+        if (hi8 == 0xF7) {
+            static int f7xx_seen[256] = {0};
+            int sub_idx = op & 0xFF;
+            if (++f7xx_seen[sub_idx] <= 100 || (f7xx_seen[sub_idx] % 1000) == 0) {
+                C54_LOG("F7xx EXEC op=0x%04x PC=0x%04x XPC=%d insn=%u",
+                        op, s->pc, s->xpc, s->insn_count);
+            }
+        }
+        /* F7Bx: SSBX bit, ST1 (incl. SSBX INTM at F7BB).
+         * Per binutils tic54x-opc.c: opcode "ssbx" 0xF5B0 mask 0xFDF0,
+         * where bit 9 selects ST0 (0xF5Bx) vs ST1 (0xF7Bx).
+         * Symmetric counterpart of RSBX ST1 (F6Bx) handler above.
+         * MUST be tested before the F7xx LD #k8 dispatch (which is
+         * itself incorrect — per SPRU172C, LD #k8 lives at E800-E9FF). */
+        if ((op & 0xFFF0) == 0xF7B0) {
+            int bit = op & 0x0F;
+            bool is_intm = (bit == 11);
+            s->st1 |= (1 << bit);
+            if (is_intm)
+                C54_LOG("*** SSBX INTM (F7BB) *** PC=0x%04x ST1=0x%04x insn=%u",
+                        s->pc, s->st1, s->insn_count);
+            return consumed + s->lk_used;
+        }
+        /* F7xx: LD/ST #k to various registers */
+        if (hi8 == 0xF7) {
+            uint8_t sub = (op >> 4) & 0xF;
+            uint16_t k = op & 0xFF;
+            switch (sub) {
+            case 0x0: /* F70x: LD #k8, ASM */
+                s->st1 = (s->st1 & ~ST1_ASM_MASK) | (k & ST1_ASM_MASK);
+                break;
+            case 0x1: /* F71x: LD #k8, AR0 */
+                s->ar[0] = k; break;
+            case 0x2: /* F72x: LD #k8, AR1 */
+                s->ar[1] = k; break;
+            case 0x3: s->ar[2] = k; break;
+            case 0x4: s->ar[3] = k; break;
+            case 0x5: s->ar[4] = k; break;
+            case 0x6: s->ar[5] = k; break;
+            case 0x7: s->ar[6] = k; break;
+            case 0x8: /* F78x: LD #k8, T */
+                s->t = (s->st1 & ST1_SXM) ? (uint16_t)(int8_t)k : k; break;
+            case 0x9: /* F79x: LD #k8, DP */
+                s->st0 = (s->st0 & ~ST0_DP_MASK) | (k & ST0_DP_MASK); break;
+            case 0xA: /* F7Ax: LD #k8, ARP */
+                s->st0 = (s->st0 & ~ST0_ARP_MASK) | ((k & 7) << ST0_ARP_SHIFT); break;
+            case 0xB: s->ar[7] = k; break; /* F7Bx: LD #k8, AR7 */
+            case 0xC: s->bk = k; break;
+            case 0xD: s->sp = k; break;
+            case 0xE: /* F7Ex: LD #k8, BRC */
+                s->brc = k; break;
+            case 0xF: /* F7Fx: LD #k8, ... */
+                break;
+            }
+            return consumed + s->lk_used;
+        }
+        /* F9xx encoding split per tic54x-opc.c:
+         *   F900-F97F mask FF00 = CC pmad cond (NEAR conditional call)
+         *   F980-F9FF mask FF80 = FCALL pmad   (FAR call unconditional)
+         * The bit 7 of the opcode low byte distinguishes them. */
+        if (hi8 == 0xF9) {
+            op2 = prog_fetch(s, s->pc + 1);
+            consumed = 2;
+            /* FCALL FAR : push XPC + return PC unconditionally (FL_FAR).
+
+```
+
+## `diag/source_resolve_smem.c` {#f-diag-source-resolve-smem-c}
+
+::: {.file-meta}
+[.c]{.tag} 117 lignes - 4,7KB
+:::
+
+```{.c .numberLines filename="diag/source_resolve_smem.c"}
+    if ((s->pmst & PMST_OVLY) && addr16 >= 0x80 && addr16 < 0x2800)
+        return s->data[addr16];
+    /* For addresses >= 0x8000: use XPC to select extended page.
+     * prog_read is used for data/operand reads (MVPD, FIRS coeff, etc.)
+     * which need XPC banking — unlike prog_fetch which is PC-only. */
+    if (addr16 >= 0x8000) {
+        uint32_t ext = ((uint32_t)s->xpc << 16) | addr16;
+        ext &= (C54X_PROG_SIZE - 1);
+        return s->prog[ext];
+    }
+    return s->prog[addr16];
+}
+
+static void __attribute__((unused)) prog_write(C54xState *s, uint32_t addr, uint16_t val)
+{
+    uint16_t addr16 = addr & 0xFFFF;
+    /* PROM1 (0xE000-0xFFFF) is ROM — reject writes */
+    if (addr16 >= 0xE000) return;
+    if ((s->pmst & PMST_OVLY) && addr16 >= 0x80 && addr16 < 0x2800)
+        s->data[addr16] = val;
+    if (addr16 >= 0x8000) {
+        uint32_t ext = ((uint32_t)s->xpc << 16) | addr16;
+        ext &= (C54X_PROG_SIZE - 1);
+        s->prog[ext] = val;
+    }
+    s->prog[addr16] = val;
+}
+
+/* ================================================================
+ * Addressing mode helpers
+ * ================================================================ */
+
+/* Resolve Smem operand: direct or indirect addressing.
+ * Returns the data memory address. */
+static uint16_t resolve_smem(C54xState *s, uint16_t opcode, bool *indirect)
+{
+    if (opcode & 0x80) {
+        /* Indirect addressing.
+         * Per SPRU131G §5.4.1 Table 5-5: bits 2:0 = ARF select the AR for
+         * THIS instruction. ARP (in ST0) is then updated to ARF for the
+         * NEXT direct-Smem reference. Earlier this code used arp(s) for
+         * cur_arp, which made every indirect insn operate on the
+         * PREVIOUS insn's ARF — off-by-one. Symptoms: BANZD *AR1- after
+         * STL *AR2+ would decrement AR2 instead of AR1 (BANZD test
+         * against AR2 stayed non-zero forever, AR1 frozen). Diagnosed
+         * via 5×500M-insn STATE-DUMP showing AR1=0x1c / AR2=0x2b0c
+         * frozen across 2B insns at PC=0xa2c2..0xa2ca. */
+        *indirect = true;
+        int mod = (opcode >> 3) & 0x0F;
+        int nar = opcode & 0x07;
+        int cur_arp = nar;
+        uint16_t addr = s->ar[cur_arp];
+
+        /* Post-modify */
+        switch (mod) {
+        case 0x0: /* *ARn */
+            break;
+        case 0x1: /* *ARn- */
+            s->ar[cur_arp]--;
+            break;
+        case 0x2: /* *ARn+ */
+            s->ar[cur_arp]++;
+            break;
+        case 0x3: /* *+ARn */
+            addr = ++s->ar[cur_arp];
+            break;
+        case 0x4: /* *ARn-0 */
+            s->ar[cur_arp] -= s->ar[0];
+            break;
+        case 0x5: /* *ARn+0 */
+            s->ar[cur_arp] += s->ar[0];
+            break;
+        case 0x6: /* *ARn-0B (bit-reversed) */
+            /* Simplified: just subtract */
+            s->ar[cur_arp] -= s->ar[0];
+            break;
+        case 0x7: /* *ARn+0B (bit-reversed) */
+            s->ar[cur_arp] += s->ar[0];
+            break;
+        case 0x8: /* *ARn-% (circular) */
+            if (s->bk == 0) s->ar[cur_arp]--;
+            else {
+                uint16_t base = s->ar[cur_arp] - (s->ar[cur_arp] % s->bk);
+                s->ar[cur_arp]--;
+                if (s->ar[cur_arp] < base) s->ar[cur_arp] = base + s->bk - 1;
+            }
+            break;
+        case 0x9: /* *ARn+% (circular) */
+            if (s->bk == 0) s->ar[cur_arp]++;
+            else {
+                uint16_t base = s->ar[cur_arp] - (s->ar[cur_arp] % s->bk);
+                s->ar[cur_arp]++;
+                if (s->ar[cur_arp] >= base + s->bk) s->ar[cur_arp] = base;
+            }
+            break;
+        case 0xA: /* *ARn-0% */
+            s->ar[cur_arp] -= s->ar[0];
+            break;
+        case 0xB: /* *ARn+0% */
+            s->ar[cur_arp] += s->ar[0];
+            break;
+        /* Indirect modes 12..15 use a long-immediate operand from the next
+         * program word. Encoding per tic54x-dis.c (MOD field = bits 6:3 of
+         * the smem byte) and SPRU131G Table 5-9:
+         *   12 : *AR(x)(lk)        — addr = AR(x) + lk, NO modify
+         *   13 : *+AR(x)(lk)       — premod: AR(x) += lk; addr = AR(x)
+         *   14 : *+AR(x)(lk)%      — premod circular: AR(x) = circ(AR(x)+lk)
+         *   15 : *(lk)             — ABSOLUTE long address (lk itself)
+         *
+         * The bootloader at PROM0 0xb429 uses MOD=15 (`LDU *(0x0ffe), A`)
+         * to read BL_ADDR_LO. Misdecoding 15 as "AR + lk circular"
+         * produced AR0+0x0ffe instead of 0x0ffe — one of the multiple
+         * subtle off-by-AR bugs that left A=0 after the load. */
+        case 0xC: /* *AR(x)(lk) */
+            addr = s->ar[cur_arp] + prog_fetch(s, s->pc + 1);
+            s->lk_used = true;
+            break;
+
+```
+
+## `hw/arm/calypso/calypso_arm2dsp.c` {#f-hw-arm-calypso-calypso-arm2dsp-c}
+
+::: {.file-meta}
+[.c]{.tag} 348 lignes - 19KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_arm2dsp.c"}
+/*
+ * calypso_arm2dsp — ARM->DSP task-post bridge (faithful data wire).
+ *
+ * On real Calypso the ARM (osmocom L1) orchestrates the C54x DSP through the
+ * shared API RAM: it commands the FB/FCCH search by writing d_dsp_page bit1
+ * (B_GSM_TASK). The DSP runs a software task dispatcher (ROM 0xb41c) that polls
+ * the task-ready word data[0x0fff]: when bit1 (0x0002) is set, it dequeues and
+ * runs the posted task (0xb42a) via its own ROM code.
+ *
+ * Earlier this module FORCED go-live by redirecting the DSP PC into a setter
+ * and poking IMR/INTM/SP. That approach was proven a dead-end (2026-07-02
+ * STATUS addendum 8): forcing the frame IT out of a clean idle context pushes a
+ * bogus return PC and self-loops PC=0x0000. It is removed.
+ *
+ * The faithful wire only posts DATA the DSP already polls: on the ARM
+ * B_GSM_TASK write we set the DSP task-ready flag (data[0x0fff] bit1, mirrored
+ * into api_ram). No PC redirect, no IMR/INTM/SP poke, no vector poke — the DSP
+ * dispatches and goes live entirely through its own ROM.
+ *
+ * Env (no rebuild):
+ *   CALYPSO_ARM2DSP=1               enable (off by default)
+ *   CALYPSO_ARM2DSP_TASKWORD=0xfff  DSP task-ready word (default 0x0fff)
+ *   CALYPSO_ARM2DSP_TASKBIT=0x2     bit to post (default 0x0002 = dispatcher bit1)
+ *
+ * Fix A (2026-07-24) — faithful ARM background-enable handshake:
+ *   CALYPSO_ARM2DSP_BGEN=1          post d_background_enable/state cells (off by default)
+ *   CALYPSO_ARM2DSP_BGEN_A=0x098a   d_background_enable word
+ *   CALYPSO_ARM2DSP_BGEN_C=0x098c   d_background_state  word
+ *   CALYPSO_ARM2DSP_BGEN_VAL=0x1    enable value posted into both cells
+ *   CALYPSO_ARM2DSP_BGEN_POLLPC=0xdddb  DSP PC of the phase-SM cell poll
+ *   CALYPSO_ARM2DSP_BGEN_ONESHOT=1  post exactly once (single go-live transition)
+ */
+#include "qemu/osdep.h"
+#include "hw/arm/calypso/calypso_debug.h"
+#include "hw/arm/calypso/calypso_dsp_shunt.h"
+#include "calypso_arm2dsp.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+
+/* ARM byte offset of d_dsp_page (DSP word 0x08D4). B_GSM_TASK = bit1.
+ * [2026-07-29] Le commentaire disait 0x08E2 : faux de +14 mots (= d_dsp_state).
+ * L'offset ARM 0x01A8 ci-dessous, lui, a toujours ete le bon. */
+#define A2D_DSP_PAGE_OFF   0x01A8
+#define A2D_B_GSM_TASK     0x0002
+
+/* DSP API region base: words >= 0x0800 are read by the DSP from api_ram. */
+#define A2D_API_BASE       0x0800
+
+static int      a2d_on = -1;      /* -1 = unresolved, 0/1 = disabled/enabled     */
+static uint16_t a2d_word;         /* DSP task-ready word (default 0x0fff)         */
+static uint16_t a2d_bit;          /* task-ready bit to post (default 0x0002)      */
+
+static volatile int a2d_pending;  /* ARM posted B_GSM_TASK, awaiting DSP step     */
+static unsigned     a2d_posts;    /* how many task-posts applied                  */
+static int          a2d_cont = -1; /* continuous post while d_dsp_page bit1 set     */
+
+/* ---- Fix A (2026-07-24): faithful ARM background-enable handshake ------------
+ * VERIFIED on the live full-grgsm run (PHASE-SM trace, not the code comments):
+ *   PHASE-SM pc=0xdddb d[3f70]=0000 d[098a]=0000 d[098c]=0000 d[0fff]=0002
+ *   PHASE-SM pc=0xddeb d[3f70]=0001 d[098a]=0000 ...
+ *   PHASE-SM pc=0xde8b A=0x0000    d[3f70]=0001 d[098a]=0000 ...   <- reset branch
+ * The DSP go-live phase-SM (0xdddb -> 0xddeb -> 0xde8b) polls d[0x098a]
+ * (d_background_enable) / d[0x098c] (d_background_state). While the ARM leaves
+ * them 0 the SM takes the reset branch and never reaches the GO setter 0xde9c
+ * (ST #2) that would raise d[0x3f70] bit1 — the flag the go-live wait-loop test
+ * at 0xa4d4 reads to leave the loop. Consequence (all measured on the live log):
+ * 0xde9c = 0 hits, F70-SETBIT1 = 0, the wait-loop 0xa4ca/0xa4d0 spins 300k+
+ * times toggling INTM ("blocs de 10 en 10"), and the FB correlator [0x8d00..
+ * 0x9000] is never entered (0 hits). The ARM never writes near 0x098a in the
+ * live run. On real Calypso the ARM posts these cells as part of the go-live
+ * handshake; here we post them — DATA the DSP already polls, no PC / IMR / INTM
+ * / SP poke — exactly ONCE, gated on the ARM having commanded the task (the
+ * dispatcher bit d[0x0fff] & 0x0002 is set). The DSP then reaches 0xde9c, sets
+ * d[0x3f70] bit1 itself and leaves the wait-loop natively: a SINGLE go-live
+ * transition instead of the per-frame re-fire. Off by default (reversible). */
+static int          a2d_bgen = -1;       /* -1 unresolved, 0/1 disabled/enabled  */
+static uint16_t     a2d_bgen_a;          /* d_background_enable word (0x098a)     */
+static uint16_t     a2d_bgen_c;          /* d_background_state  word (0x098c)     */
+static uint16_t     a2d_bgen_val;        /* enable value to post     (0x0001)     */
+/* [2026-07-29] Valeur SÉPARÉE pour la cellule C (0x098c). Décodage ROM PROM0 :
+ *   0xddeb  LD *(0x098a),A ; BC 0xde8a, AEQ   -> 098a == 0 déclenche le reset
+ *   0xde86  LD *(0x098c),A ; BC 0xddf5, ANEQ  -> 098c != 0 fait REBOUCLER
+ * Les deux cellules ont donc des polarités OPPOSÉES : il faut 098a != 0 ET
+ * 098c == 0. Écrire 1 dans les deux (l'ancien comportement) débloque la
+ * première condition et verrouille la seconde — 466 497 tours mesurés sur
+ * 0xde86. Défaut = a2d_bgen_val pour ne rien changer sans mesure ; poser
+ * CALYPSO_ARM2DSP_BGEN_VAL_C=0 pour tester la polarité correcte. */
+static uint16_t     a2d_bgen_val_c;      /* valeur pour 0x098c (défaut = val)     */
+static uint16_t     a2d_bgen_pollpc;     /* phase-SM poll PC         (0xdddb)     */
+static int          a2d_bgen_oneshot = -1; /* 1 = one transition only (default)   */
+static int          a2d_bgen_done;       /* one-shot latch                        */
+static unsigned     a2d_bgen_posts;      /* how many background-enable posts       */
+
+/* ---- CTRLSYS wire (RANK1): ARM->DSP d_ctrl_system 0x0810 bit15 ----------------
+ * The go-live gate at DSP 0xa53c is BITF *(AR1+0x10),0x8000 with AR1=0x0800, i.e.
+ * it tests data[0x0810] (d_ctrl_system, dsp_api.h "Control Register RESET/RESUME").
+ * bit15 SET  -> a541..a544..0x09bc..0xd247 = bootstrap/operational path (reaches
+ *               the FB dispatch we need).
+ * bit15 CLEAR-> BC 0xa575 = short-circuit, never bootstrap (current: data[0x0810]=0
+ *               -> DSP loops the go-live init -> double IMR, correlator never set up).
+ * The real ARM asserts this bit in l1s_reset(), but the emulated ARM->DSP API bridge
+ * never propagates it. We model that write HERE (ARM side), not as a DSP-core poke. */
+static int          a2d_ctrlsys = -1;    /* -1 unresolved, 0/1 disabled/enabled   */
+static uint16_t     a2d_ctrlsys_cell;    /* d_ctrl_system cell      (0x0810)      */
+static uint16_t     a2d_ctrlsys_bit;     /* bit to assert           (0x8000)      */
+static uint16_t     a2d_ctrlsys_pollpc;  /* DSP PC just before gate (0xa537)      */
+static unsigned     a2d_ctrlsys_posts;   /* how many asserts (log cap)            */
+
+static uint16_t a2d_env_u16(const char *name, uint16_t def)
+{
+    const char *e = getenv(name);
+    if (!e || !*e) {
+        return def;
+    }
+    return (uint16_t)strtoul(e, NULL, 0);
+}
+
+/* @BEQUILLE — ARM2DSP (+ _TASKWORD / _TASKBIT)  (CALYPSO_ARM2DSP, atoi>0, defaut 0)
+ *   masque  : la propagation ARM->DSP du bit dispatcher data[0x0fff] bit1 que
+ *             l'ecriture ARM de d_dsp_page (B_GSM_TASK) devrait produire via l'API
+ *             RAM partagee.
+ *   retirer : quand l'ecriture ARM de d_dsp_page est reellement routee vers ce
+ *             module (ou quand le dispatcher ROM lit la cellule que l'ARM ecrit).
+ *   NB      : calypso_arm2dsp_on_arm_write() n'a AUCUN appelant -> sans
+ *             CALYPSO_ARM2DSP_CONT, ARM2DSP=1 ne poste rien.
+ */
+static void a2d_resolve(void)
+{
+    if (a2d_on >= 0) {
+        return;
+    }
+    const char *e = getenv("CALYPSO_ARM2DSP");
+    a2d_on   = (e && atoi(e) > 0) ? 1 : 0;
+    a2d_word = a2d_env_u16("CALYPSO_ARM2DSP_TASKWORD", 0x0fff);
+    a2d_bit  = a2d_env_u16("CALYPSO_ARM2DSP_TASKBIT", 0x0002);
+
+    /* Fix A: faithful background-enable handshake (independent of a2d_on). */
+    /* @BEQUILLE — ARM2DSP_BGEN (+ _A / _C / _VAL / _POLLPC / _ONESHOT)
+     *              (CALYPSO_ARM2DSP_BGEN, atoi>0 ; :=1 en calypso.env, native,
+     *              native_helped, wire ; INDEPENDANT de CALYPSO_ARM2DSP)
+     *   masque  : le handshake go-live ou l'ARM pose d_background_enable (0x098a) et
+     *             d_background_state (0x098c). Sans lui la phase-SM 0xdddb->0xddeb
+     *             prend la branche reset, 0xde9c n'est jamais atteint, d[0x3f70] bit1
+     *             reste 0 et la wait-loop 0xa4ca/0xa4d0 spinne indefiniment.
+     *   retirer : quand le firmware ARM emule ecrit lui-meme 0x098a/0x098c dans
+     *             l'API RAM (portage du handshake cote ARM).
+     */
+    const char *eb = getenv("CALYPSO_ARM2DSP_BGEN");
+    a2d_bgen        = (eb && atoi(eb) > 0) ? 1 : 0;
+    a2d_bgen_a      = a2d_env_u16("CALYPSO_ARM2DSP_BGEN_A",      0x098a);
+    a2d_bgen_c      = a2d_env_u16("CALYPSO_ARM2DSP_BGEN_C",      0x098c);
+    a2d_bgen_val    = a2d_env_u16("CALYPSO_ARM2DSP_BGEN_VAL",    0x0001);
+    a2d_bgen_val_c  = a2d_env_u16("CALYPSO_ARM2DSP_BGEN_VAL_C",  a2d_bgen_val);
+    a2d_bgen_pollpc = a2d_env_u16("CALYPSO_ARM2DSP_BGEN_POLLPC", 0xdddb);
+    const char *eo  = getenv("CALYPSO_ARM2DSP_BGEN_ONESHOT");
+    a2d_bgen_oneshot = (eo && *eo) ? (atoi(eo) > 0 ? 1 : 0) : 1;
+
+    /* CTRLSYS wire (RANK1): model the ARM's l1s_reset() write of d_ctrl_system
+     * bit15 so the DSP go-live gate 0xa53c (BITF data[0x0810],#0x8000) falls
+     * through to the bootstrap/FB-dispatch path instead of short-circuiting to
+     * 0xa575. Cross-validated: minimal correct value is exactly 0x8000. */
+    /* @BEQUILLE — ARM2DSP_CTRLSYS (+ _CELL / _VAL / _POLLPC)
+     *              (CALYPSO_ARM2DSP_CTRLSYS, atoi>0 ; :=1 sous WIRE, :=0 en NATIVE et
+     *              NATIVE_HELPED)
+     *   masque  : l'ecriture ARM de d_ctrl_system (data[0x0810] bit15) faite par
+     *             l1s_reset() sur le vrai Calypso, que le pont API emule ne propage
+     *             pas. Sans elle le gate 0xa53c (BITF #0x8000) court-circuite en 0xa575.
+     *   retirer : quand le firmware ARM emule ecrit 0x0810 via le chemin API normal.
+     *   ATTENTION : ecriture DIRECTE dans s->data[] -> invisible de data_write, donc
+     *             de CALYPSO_WATCH_0810. Forcee, elle declenche B_TASK_ABORT et casse
+     *             le retour FB (d'ou le =0 des profils natifs).
+     */
+    const char *ec  = getenv("CALYPSO_ARM2DSP_CTRLSYS");
+    a2d_ctrlsys        = (ec && atoi(ec) > 0) ? 1 : 0;
+    a2d_ctrlsys_cell   = a2d_env_u16("CALYPSO_ARM2DSP_CTRLSYS_CELL",   0x0810);
+    a2d_ctrlsys_bit    = a2d_env_u16("CALYPSO_ARM2DSP_CTRLSYS_VAL",    0x8000);
+    a2d_ctrlsys_pollpc = a2d_env_u16("CALYPSO_ARM2DSP_CTRLSYS_POLLPC", 0xa537);
+
+    if (a2d_on) {
+        fprintf(stderr,
+                "[arm2dsp] enabled (faithful task-post): d_dsp_page(0x%04x) bit1 "
+                "-> set data[0x%04x] |= 0x%04x (DSP dispatches via ROM)\n",
+                A2D_DSP_PAGE_OFF, a2d_word, a2d_bit);
+    }
+    if (a2d_bgen) {
+        fprintf(stderr,
+                "[arm2dsp] BGEN enabled (Fix A): on ARM task-cmd post "
+                "data[0x%04x]=0x%04x data[0x%04x]=0x%04x @DSP-PC=0x%04x (oneshot=%d) "
+                "-> DSP phase-SM reaches 0xde9c, raises d[0x3f70] bit1\n",
+                a2d_bgen_a, a2d_bgen_val, a2d_bgen_c, a2d_bgen_val_c, a2d_bgen_pollpc,
+                a2d_bgen_oneshot);
+    }
+    if (a2d_ctrlsys) {
+        fprintf(stderr,
+                "[arm2dsp] CTRLSYS enabled (RANK1): assert data[0x%04x] |= 0x%04x "
+                "@DSP-PC=0x%04x -> go-live gate 0xa53c falls through to bootstrap/FB\n",
+                a2d_ctrlsys_cell, a2d_ctrlsys_bit, a2d_ctrlsys_pollpc);
+    }
+}
+
+/* ARM->DSP API-RAM write path (calypso_trx.c). offset = ARM byte offset into the
+ * DSP API window; value = 16-bit written value. */
+void calypso_arm2dsp_on_arm_write(uint16_t offset, uint16_t value)
+{
+    a2d_resolve();
+    if (!a2d_on) {
+        return;
+    }
+    /* The ARM commands the FB task by writing d_dsp_page bit1 (B_GSM_TASK).
+     * Each such write re-posts the task (the ARM re-issues it per frame). */
+    if (offset == A2D_DSP_PAGE_OFF && (value & A2D_B_GSM_TASK)) {
+        a2d_pending = 1;
+    }
+    /* [2026-07-27] Ctrl-C mobile / L1CTL_RESET_REQ FULL : le firmware fait
+     * l1s_reset_hw() -> ecrit d_dsp_page = 0 (sync.c:168). Signal UNIQUE de reset
+     * L1 (jamais 0 en operation = B_GSM_TASK|w_page). On re-arme le go-live BGEN
+     * -> le DSP re-produit FBSB/SI apres la relance mobile (sinon rien ne revient). */
+    if (offset == A2D_DSP_PAGE_OFF && value == 0) {
+        a2d_bgen_done = 0;
+        calypso_dsp_shunt_l1_reset();   /* clear IMM-ASSIGN/SDCCH latches (SMS) -> SI revient */
+    }
+}
+
+/* Once per DSP instruction step (calypso_c54x.c). When the ARM has posted the
+ * task, set the DSP task-ready bit so the DSP's own dispatcher runs it. */
+void calypso_arm2dsp_on_dsp_step(C54xState *s, uint16_t exec_pc)
+{
+    a2d_resolve();
+    if (!a2d_on && !a2d_bgen && !a2d_ctrlsys) {
+        return;
+    }
+
+    /* ---- CTRLSYS: assert d_ctrl_system bit15 at the go-live gate --------------
+     * When the DSP reaches the instruction just before the 0xa53c BITF gate, make
+     * sure data[0x0810] bit15 is set so BITF sets TC and the DSP falls through to
+     * the bootstrap/FB-dispatch path (else BC NTC 0xa575 short-circuits). Modeled
+     * as the ARM's write; re-asserted each pass (persists — nothing clears it, but
+     * this is robust if the DSP ever does). */
+    if (a2d_ctrlsys && exec_pc == a2d_ctrlsys_pollpc &&
+        !(s->data[a2d_ctrlsys_cell] & a2d_ctrlsys_bit)) {
+        s->data[a2d_ctrlsys_cell] |= a2d_ctrlsys_bit;
+        if (a2d_ctrlsys_cell >= A2D_API_BASE && s->api_ram) {
+            s->api_ram[a2d_ctrlsys_cell - A2D_API_BASE] |= a2d_ctrlsys_bit;
+        }
+        if (a2d_ctrlsys_posts++ < 8) {
+            fprintf(stderr,
+                    "[arm2dsp] CTRLSYS: data[0x%04x] |= 0x%04x (go-live gate "
+                    "0xa53c bit15 SET -> bootstrap path) @DSP-PC=0x%04x insn=%u\n",
+                    a2d_ctrlsys_cell, a2d_ctrlsys_bit, exec_pc, s->insn_count);
+        }
+    }
+
+    /* ---- Fix A: faithful background-enable handshake --------------------------
+     * Post d_background_enable/state the moment the DSP phase-SM is about to poll
+     * them (exec_pc == pollpc), gated on the ARM having commanded the task (the
+     * dispatcher bit is set in the task-ready word). One-shot by default: a
+     * SINGLE go-live transition, not a per-frame re-fire. */
+    /* [2026-07-27] RE-ARM go-live sur reset L1 : un L1CTL_RESET_REQ FULL
+     * (re-sync post-dedie SMS, OU relance du process mobile) fait re-clear
+     * d[0x098a]/d[0x098c] par le firmware -> l'oneshot bloquait le re-post ->
+     * DSP L1S stale -> pas de FBSB completion -> sync timeout. On re-arme des
+     * que la cellule enable est revue a 0 au poll (= go-live re-demande). */
+    if (a2d_bgen && exec_pc == a2d_bgen_pollpc &&
+        (!a2d_bgen_oneshot || !a2d_bgen_done)) {
+        uint16_t taskw = (a2d_word >= A2D_API_BASE && s->api_ram)
+                         ? s->api_ram[a2d_word - A2D_API_BASE]
+                         : s->data[a2d_word];
+        int armed = (s->data[a2d_word] & a2d_bit) || (taskw & a2d_bit);
+        if (armed) {
+            s->data[a2d_bgen_a] = a2d_bgen_val;
+            s->data[a2d_bgen_c] = a2d_bgen_val_c;   /* polarité opposée — cf. en-tête */
+            if (a2d_bgen_a >= A2D_API_BASE && s->api_ram) {
+                s->api_ram[a2d_bgen_a - A2D_API_BASE] = a2d_bgen_val;
+            }
+            /* [2026-08-03] BUG CORRIGE : ecrivait a2d_bgen_val, pas a2d_bgen_val_c.
+             * data[0x098c] recevait donc la bonne valeur et api_ram[0x098c] la
+             * MAUVAISE — or dans la fenetre API (>= 0x0800) c'est api_ram que le DSP
+             * lit (calypso_c54x.c:2194). Consequence directe : poser
+             * CALYPSO_ARM2DSP_BGEN_VAL_C=0 — le remede documente en tete de ce
+             * fichier depuis le 29/07 — ne pouvait PAS fonctionner : la cellule que
+             * le DSP consulte restait a 1, et 0xde86 rebouclait indefiniment.
+             * Mesure du 03/08 (profil native_twl) : PHASE-SM-EA #3 100 000 a
+             * pc=0xde86 avec d[0x098c]=0x0001. La phase-SM n'atteint jamais 0xde9c,
+             * donc le DSP ne sort jamais du go-live vers le correlateur FB. */
+            if (a2d_bgen_c >= A2D_API_BASE && s->api_ram) {
+                s->api_ram[a2d_bgen_c - A2D_API_BASE] = a2d_bgen_val_c;
+            }
+            a2d_bgen_done = 1;
+            a2d_bgen_posts++;
+            if (a2d_bgen_posts <= 8) {
+                fprintf(stderr,
+                        "[arm2dsp] BGEN post #%u: data[0x%04x]=0x%04x "
+                        "data[0x%04x]=0x%04x @DSP-PC=0x%04x d[0x3f70]=0x%04x insn=%u\n",
+                        a2d_bgen_posts, a2d_bgen_a, a2d_bgen_val, a2d_bgen_c, a2d_bgen_val_c,
+                        exec_pc, s->data[0x3f70], s->insn_count);
+            }
+        }
+    }
+
+    if (!a2d_on) {
+        return;
+    }
+    /* @BEQUILLE — ARM2DSP_CONT  (CALYPSO_ARM2DSP_CONT, idiome EXISTS -> "=0" l'ACTIVE,
+     *              seul unset la coupe)
+     *   masque  : l'absence de re-post par trame. Le dispatcher ROM efface le bit tache
+     *             entre deux passages ; faute d'un chemin ARM vivant, CONT relit
+     *             d_dsp_page en API RAM a chaque pas DSP et repose le bit. C'est le
+     *             SEUL chemin par lequel ARM2DSP=1 produit un effet.
+     *   retirer : des que on_arm_write() est appele (a2d_pending redevient le
+     *             declencheur) ; verifier au passage l'offset 0x08E2, conteste
+     *             (d_dsp_page pourrait etre 0x08D4).
+     */
+    if (a2d_cont < 0) a2d_cont = calypso_gate("CALYPSO_ARM2DSP_CONT", 0);
+    /* CONT mode : re-post every step while the ARM's B_GSM_TASK is asserted in
+     * DSP memory (d_dsp_page word 0x08E2 bit1), so the task-ready bit is set when
+     * the dispatcher checks it (b424) despite b419 clearing it. Non-CONT : one
+     * post per ARM write (a2d_pending). */
+    if (a2d_cont) {
+        /* [2026-07-29] 0x08E2 = d_dsp_state ; d_dsp_page = 0x08D4 (offset ARM
+         * 0x01A8, cf calypso_fbsb.h). L'offset « conteste » du commentaire
+         * ci-dessus est tranche : c'est bien 0x08D4. */
+        uint16_t page = s->api_ram ? s->api_ram[0x08D4 - A2D_API_BASE]
+                                   : s->data[0x08D4];
+        if (!(page & A2D_B_GSM_TASK)) {
+            return;
+        }
+    } else if (!a2d_pending) {
+        return;
+    }
+    a2d_pending = 0;
+    a2d_posts++;
+
+    uint16_t before = s->data[a2d_word];
+    s->data[a2d_word] |= a2d_bit;
+    /* words >= 0x0800 are read by the DSP from api_ram (shared DARAM/API RAM) */
+    if (a2d_word >= A2D_API_BASE && s->api_ram) {
+        s->api_ram[a2d_word - A2D_API_BASE] |= a2d_bit;
+    }
+
+    if (a2d_posts <= 10 || (a2d_posts % 20000) == 0) {
+        fprintf(stderr,
+                "[arm2dsp] task-post #%u: data[0x%04x] 0x%04x->0x%04x "
+                "@DSP-PC=0x%04x insn=%u\n",
+                a2d_posts, a2d_word, before, s->data[a2d_word],
+                exec_pc, s->insn_count);
+    }
+}
+
+```
+
+## `hw/arm/calypso/calypso_asm4532.c` {#f-hw-arm-calypso-calypso-asm4532-c}
+
+::: {.file-meta}
+[.c]{.tag} 77 lignes - 3,1KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_asm4532.c"}
+/*
+ * calypso_asm4532.c — commutateur d'antenne ASM4532.
+ *
+ * Cf. hw/arm/calypso/doc/CHAINE_RF_MATERIELLE.md §2.1 et §3.
+ * Piloté par les lignes TSPACT, pas par le TSP série. Mapping porté tel quel de
+ * osmocom-bb board/compal/rffe_dualband.c (board C123) :
+ *   TRENA    = TSPACT(6)  Transmit Enable (Antenna Switch)  -- ACTIF BAS
+ *   GSM_TXEN = TSPACT(8)  GSM (par opposition a DCS)        -- ACTIF BAS
+ *
+ * Ce modele est PASSIF : il latche l'etat, compte les fenetres, et signale les
+ * incoherences. Il ne gate rien — le downlink est synthetique, donc gater le Rx
+ * sur la position du commutateur ne ferait que casser des bancs qui marchent,
+ * sans rien mesurer de plus. Il devient utile le jour ou l'UL est reellement
+ * emise : c'est lui qui dira si l'antenne etait commutee pendant le burst.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#include "qemu/osdep.h"
+#include <stdio.h>
+#include "hw/arm/calypso/calypso_asm4532.h"
+#include "hw/arm/calypso/calypso_debug.h"
+
+/* Lignes TSPACT, portees du firmware (TSPACT(n) = 1 << n). */
+#define ASM_TRENA       (1u << 6)   /* actif BAS */
+#define ASM_GSM_TXEN    (1u << 8)   /* actif BAS */
+
+#define ASM_LOG(fmt, ...) \
+    do { if (calypso_debug_enabled("TPU")) \
+        fprintf(stderr, "[asm4532] " fmt "\n", ##__VA_ARGS__); } while (0)
+
+static struct {
+    bool     init;
+    uint16_t tspact;        /* dernier etat vu */
+    bool     tx;            /* TRENA assertee  -> antenne sur le PA */
+    bool     gsm;           /* GSM_TXEN asserte -> bande GSM900 */
+    uint32_t tx_windows;    /* nombre de fenetres TX ouvertes */
+} asm4532;
+
+void calypso_asm4532_tspact_update(uint16_t tspact, uint32_t fn)
+{
+    bool tx_new, gsm_new;
+
+    /* Actif BAS : la ligne est ASSERTEE quand le bit est a 0. */
+    tx_new  = !(tspact & ASM_TRENA);
+    gsm_new = !(tspact & ASM_GSM_TXEN);
+
+    if (!asm4532.init) {
+        asm4532.init = true;
+        ASM_LOG("etat initial : tspact=0x%04x TX=%d bande=%s fn=%u",
+                tspact, tx_new, gsm_new ? "GSM900" : "DCS1800", fn);
+    }
+
+    if (tx_new != asm4532.tx) {
+        if (tx_new) {
+            asm4532.tx_windows++;
+        }
+        ASM_LOG("TRENA %s -> antenne sur %s (bande %s) fn=%u  [fenetre #%u]",
+                tx_new ? "ASSERTEE" : "relachee",
+                tx_new ? "le PA (TX)" : "le chemin Rx",
+                gsm_new ? "GSM900" : "DCS1800", fn, asm4532.tx_windows);
+    } else if (gsm_new != asm4532.gsm && tx_new) {
+        /* Changement de bande PENDANT une fenetre TX : le firmware ne fait pas
+         * ca (rffe_mode pose les deux ensemble). On le signale plutot que de
+         * l'absorber en silence. */
+        ASM_LOG("⚠ bande changee PENDANT la fenetre TX : %s -> %s fn=%u",
+                asm4532.gsm ? "GSM900" : "DCS1800",
+                gsm_new ? "GSM900" : "DCS1800", fn);
+    }
+
+    asm4532.tspact = tspact;
+    asm4532.tx     = tx_new;
+    asm4532.gsm    = gsm_new;
+}
+
+bool     calypso_asm4532_tx_connected(void) { return asm4532.tx; }
+bool     calypso_asm4532_band_gsm(void)     { return asm4532.gsm; }
+uint32_t calypso_asm4532_tx_windows(void)   { return asm4532.tx_windows; }
+
+```
+
+## `hw/arm/calypso/calypso_bsp.c` {#f-hw-arm-calypso-calypso-bsp-c}
+
+::: {.file-meta}
+[.c]{.tag} 2265 lignes - 110KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_bsp.c"}
+/*
+ * Calypso BSP/RIF DMA module — implementation.
+ *
+ * On real hardware the BSP (Baseband Serial Port) is a synchronous serial
+ * link that DMA-feeds I/Q samples from the IOTA RF frontend into C54x
+ * DSP DARAM. The DSP code (FB/SB/burst detection in PROM0) reads them
+ * from a fixed DARAM buffer and posts results into the NDB.
+ *
+ * In QEMU, DL bursts arrive via UDP (TRXDv0 from calypso-ipc-device on port 5702).
+ * This module owns that socket, decodes the TRXDv0 header, converts hard
+ * bits to I/Q samples, and DMA-writes them into DSP DARAM.
+ *
+ * L1CTL control (DLCI 5) goes through the UART — bursts never touch UART.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#include "qemu/osdep.h"
+#include <math.h>
+#include "qemu/main-loop.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>   /* inet_aton */
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include "qemu/timer.h"
+#include "hw/arm/calypso/calypso_bsp.h"
+#include "hw/arm/calypso/calypso_c54x.h"
+#include "hw/arm/calypso/calypso_iota.h"
+#include "hw/arm/calypso/calypso_invariants.h"
+#include "hw/arm/calypso/calypso_twl3025.h"
+#include "hw/arm/calypso/calypso_trx.h"
+#include "calypso_tint0.h"  /* GSM_HYPERFRAME */
+#include "calypso_full_pcb.h"  /* DARAM lock helpers — voir pcb.h gap #3 */
+#include "calypso_dsp_shunt.h"
+
+int calypso_rxfb_fired = 0;   /* [probe golive] 1 des que RX-FBFLAGS pose 3fad bit15 */
+
+/* calypso_trx_get_fn now provided by calypso_trx.h (included above). */
+
+/* Forward decls for env-gated helpers used in calypso_bsp_init pre-warm. */
+static uint32_t d_rach_word_offset(void);
+static int rach_force_bsic(void);
+
+#include "hw/arm/calypso/calypso_debug.h"
+
+/* [2026-07-27] DARAM-FNSTAMP : publiees pour le dump c54x (diag). */
+unsigned calypso_daram_last_fn;
+unsigned calypso_daram_wr_count;
+#define BSP_LOG(fmt, ...) \
+    do { if (calypso_debug_enabled("BSP")) \
+        fprintf(stderr, "[BSP] " fmt "\n", ##__VA_ARGS__); } while (0)
+
+#define BSP_TRXD_PORT  6702   /* bridge forwards DL bursts here (5702 is bridge's own) */
+
+/* Per-TN burst queue: FN-indexed ring so lookahead bursts from the BTS
+ * (osmo-bts-trx schedules up to ~92 frames ahead) are preserved until the
+ * QEMU virtual FN catches up to each burst's scheduled FN. On real hardware
+ * BSP DMA is synchronous within the TDMA frame; in QEMU bursts arrive over
+ * UDP from the bridge with their scheduled FN embedded in the TRXD header,
+ * and delivery must happen at the exact virtual FN or the DSP correlates
+ * samples against a frame boundary that does not match the modulator phase
+ * (→ d_fb_det stays 0 indefinitely). */
+#define BSP_NUM_TN     8                 /* one queue per timeslot */
+#define BSP_QUEUE_LEN  128               /* lookahead depth per TN */
+/* Match window: real BSP captures samples around BDLENA; exact FN match
+ * is a QEMU artefact. ±4 frames tolerates bridge/BTS CLK IND jitter and
+ * is narrow enough not to swap adjacent FCCH with non-FCCH in the 51-
+ * multiframe pattern (FCCH appears every 10 frames on the BCCH slot). */
+/* Was 4: too tight for BTS scheduler lookahead (observed delta=1..139 with
+ * mean ~50). 99 % of bursts went stale before the QEMU virtual FN caught up.
+ * 64 covers the typical lookahead and lets the queue drain fast enough that
+ * BDLENA pulses actually consume bursts. (Bumped to 1024 in diag 2026-04-26
+ * — confirmed not the bottleneck. Restored to 64.) */
+#define BSP_FN_MATCH_WINDOW  64
+
+/* === DARAM write-by-range instrumentation (2026-05-14) ===
+ *
+ * Plages observées dans le rapport 05-14 + finding 100% match PROM0 :
+ *   low    : DARAM zone lue par AR3 stride +19 dans le correlator FB-det
+ *   target : zone cible CALYPSO_BSP_DARAM_ADDR par défaut (0x3FB0..)
+ *   wrap   : zone wrap circulaire AR2/AR7 BK=176 stride -19
+ *   other  : ailleurs (incluant débord daram_len=296 vers [0x4000..0x40D7])
+ *
+ * Une stat tranche 3 hypothèses sur la priorité A :
+ *   low=0 ET target=0 ET wrap=0 → BSP DMA jamais armée (bug amont TPU/INTH)
+ *   target>>0 ET low=0          → BSP écrit mais env var ignorée
+ *   low>>0                       → BSP écrit où il faut, mismatch est en contenu/timing
+ *
+ * Exposé via log line `[BSP] DARAM-WR-STATS ...` toutes les 1000 writes,
+ * parseable par le harnais pytest (test_bsp_daram_write_distribution). */
+#define BSP_BUCKET_LOW_LO     0x0000
+#define BSP_BUCKET_LOW_HI     0x03A3
+#define BSP_BUCKET_TARGET_LO  0x3FB0
+#define BSP_BUCKET_TARGET_HI  0x3FFF
+#define BSP_BUCKET_WRAP_LO    0xFC5D
+#define BSP_BUCKET_WRAP_HI    0xFFED
+#define BSP_DARAM_WR_LOG_EVERY 1000
+
+
+/* [2026-07-30] Taille du tampon I/Q livre au DSP, en int16 (= 2 par echantillon).
+ *
+ * L'ancienne valeur etait 296 en dur, avec le commentaire « 148 I/Q pairs max ».
+ * 148, c'est la longueur d'un burst GSM en BITS (3+57+1+26+1+57+3) : on livrait
+ * donc exactement un burst a 1 SPS, SANS marge de recherche.
+ *
+ * Or le wiki Osmocom (HardwareCalypsoDSP, tache par tache) donne ce que le DSP
+ * CONSOMME reellement :
+ *   · RX NB : **150** echantillons I/Q, fenetre TSC de 10 bits a partir de r68,
+ *             correlation sur 16 bits (TSC[10..25])   -> 300 int16
+ *   · SB    : **190** echantillons I/Q, fenetre de 50 bits a partir de r39,
+ *             correlation sur les 64 bits complets    -> 380 int16
+ * Le DSP lit donc AU-DELA de ce qu'on depose : 2 echantillons de trop pour un
+ * NB, 42 pour un SB. Ce qu'il trouve apres est le contenu DARAM voisin — du
+ * bruit stale, pile dans la fenetre de correlation du SB.
+ *
+ * On dimensionne sur le pire cas (SB, 190) avec une marge, et on garde le
+ * DEFAUT a 296 : ce commit ne change aucun comportement, il rend seulement
+ * `CALYPSO_BSP_DARAM_LEN=380` possible, ce qui etait refuse par le garde
+ * `n > 296`. A tester : LEN=380 en profil natif, puis relire --src ddump.
+ */
+#define BSP_IQ_MAX_I16   384   /* 192 echantillons I/Q ; SB en demande 190 */
+
+typedef struct {
+    int16_t  iq[BSP_IQ_MAX_I16];
+    int      n;        /* number of int16 values */
+    uint32_t fn;
+    bool     valid;
+} BspBurstSlot;
+
+typedef struct {
+    BspBurstSlot  slot[BSP_QUEUE_LEN];
+} BspBurstQueue;
+
+static struct {
+    C54xState *dsp;
+    uint16_t   daram_addr;
+    uint16_t   daram_len;
+    uint64_t   bursts_seen;
+    uint64_t   bursts_written;
+    uint64_t   bursts_dropped_no_window;
+    uint64_t   bursts_dropped_queue_full;
+    uint64_t   bursts_dropped_stale;
+    uint8_t    inject_canary;     /* CALYPSO_BSP_INJECT_CANARY=1 :
+                                      overwrite samples avec 0xCAFE pour
+                                      identifier buffer cible via read trace */
+    uint8_t    bypass_bdlena;      /* CALYPSO_BSP_BYPASS_BDLENA=1 :
+                                      delivre tous les bursts sans attendre
+                                      la fenetre BDLENA — debug-only pour
+                                      sonder l'adresse DARAM cible.
+                                      ATTENTION HACK env-gated. */
+    int        trxd_fd;            /* UDP socket for TRXDv0 DL bursts */
+    struct sockaddr_in trxd_peer;  /* BTS address (for UL replies) */
+    bool       trxd_peer_valid;
+    uint8_t    last_att;           /* last DL attenuation byte */
+
+    /* FN-indexed queue per TN */
+    BspBurstQueue  q[BSP_NUM_TN];
+
+    /* DARAM write-by-range counters (cf. BSP_BUCKET_* + 2026-05-14 plan). */
+    uint64_t   wr_low;
+    uint64_t   wr_target;
+    uint64_t   wr_wrap;
+    uint64_t   wr_other;
+    uint64_t   wr_total;
+    uint64_t   wr_last_logged;
+
+    /* Virtual-clock drain timer (revised 2026-05-24 PM): decouple BSP→DSP
+     * DMA delivery from tdma_tick (which can be slow under icount=auto),
+     * but stay on QEMU_CLOCK_VIRTUAL so BSP and ARM cur_fn share the same
+     * time domain. Previously on REALTIME → drift ~1300 fr in 6 s wall
+     * vs ARM (BTS livré au rythme wall, ARM compté au rythme icount). */
+    QEMUTimer *drain_timer;
+} bsp;
+
+#define BSP_DRAIN_PERIOD_MS  5
+
+/* === Deterministic replay (2026-05-28) ============================
+ * Test discriminant : si CALYPSO_BSP_REPLAY_FILE est set, le BSP charge
+ * un dump de bursts (format identique à BSP_DUMP_RX_FILE) et les injecte
+ * sur QEMU_CLOCK_VIRTUAL à cadence fixe, AU LIEU d'écouter le socket UDP.
+ * Source devient totalement déterministe.
+ *
+ * Workflow :
+ *   1. Run normal avec BSP_DUMP_RX_FILE=/tmp/bsp_rx.dump → capture
+ *   2. Re-run avec CALYPSO_BSP_REPLAY_FILE=/tmp/bsp_rx.dump → replay
+ *   3. Comparer signature d_fb_det 2-3 runs replay → si identique entre
+ *      runs, déterminisme restauré, course feed = root cause confirmée
+ *
+ * Cadence : 1 burst toutes les 576us virtuels = 1 burst par TN slot GSM
+ * (8 slots × 217 frames/sec ≈ 1736 bursts/sec). Approximation suffisante
+ * pour reproduire le rythme TDMA. */
+typedef struct ReplayBurst {
+    uint32_t fn;
+    uint8_t  tn;
+    uint16_t n;
+    int16_t  iq[BSP_IQ_MAX_I16];
+} ReplayBurst;
+
+static ReplayBurst *replay_bursts = NULL;
+static size_t       replay_count  = 0;
+static size_t       replay_idx    = 0;
+static QEMUTimer   *replay_timer  = NULL;
+#define BSP_REPLAY_PERIOD_NS  (576ULL * 1000ULL)  /* 576us per TN slot */
+/* 2026-05-24 fix drift BTS↔L1 : BSP drain timer passe REALTIME → VIRTUAL pour
+ * tourner sur la même horloge qu'ARM fn (via TINT0) et tdma_tick. Avec
+ * icount=auto, REALTIME avance ~9% plus vite que VIRTUAL → drift cumulatif
+ * (~1300 fr / 6 sec wall observé, "1 seconde d'écart BTS↔L1"). NS variant pour
+ * appairage avec QEMU_CLOCK_VIRTUAL (timer_new_ns / qemu_clock_get_ns). */
+#define BSP_DRAIN_PERIOD_NS  (BSP_DRAIN_PERIOD_MS * 1000000ULL)
+
+/* Incrémente le bucket selon `addr` puis émet une ligne stats périodiquement.
+ * Appelé à chaque write DARAM côté BSP (rx_burst direct + deliver_buffered). */
+static inline void bsp_daram_wr_bucket(uint16_t addr)
+{
+    bsp.wr_total++;
+    /* target zone suit le runtime daram_addr (= ce que BSP écrit pour de vrai).
+     * Anciennes bornes hardcodées 0x3FB0..0x3FFF étaient avant le canary fix
+     * 2026-05-28 qui a changé le default à 0x2a00. Si daram_addr=0 (= discovery
+     * mode), pas de target zone — tous les writes sont "other". */
+    uint16_t tgt_lo = bsp.daram_addr;
+    uint16_t tgt_hi = bsp.daram_addr ? (uint16_t)(bsp.daram_addr + bsp.daram_len - 1) : 0;
+    if (addr <= BSP_BUCKET_LOW_HI) {
+        bsp.wr_low++;
+    } else if (tgt_lo && addr >= tgt_lo && addr <= tgt_hi) {
+        bsp.wr_target++;
+    } else if (addr >= BSP_BUCKET_WRAP_LO && addr <= BSP_BUCKET_WRAP_HI) {
+        bsp.wr_wrap++;
+    } else {
+        bsp.wr_other++;
+    }
+    if (bsp.wr_total - bsp.wr_last_logged >= BSP_DARAM_WR_LOG_EVERY) {
+        bsp.wr_last_logged = bsp.wr_total;
+        BSP_LOG("DARAM-WR-STATS low=%llu target=%llu wrap=%llu other=%llu total=%llu",
+                (unsigned long long)bsp.wr_low,
+                (unsigned long long)bsp.wr_target,
+                (unsigned long long)bsp.wr_wrap,
+                (unsigned long long)bsp.wr_other,
+                (unsigned long long)bsp.wr_total);
+    }
+}
+
+/* Signed hyperframe distance (entry_fn - reference_fn) in (-H/2, H/2]. */
+static int32_t bsp_fn_delta(uint32_t entry_fn, uint32_t ref_fn)
+{
+    int32_t d = (int32_t)entry_fn - (int32_t)ref_fn;
+    if (d > (int32_t)(GSM_HYPERFRAME / 2))       d -= GSM_HYPERFRAME;
+    else if (d <= -(int32_t)(GSM_HYPERFRAME / 2)) d += GSM_HYPERFRAME;
+    return d;
+}
+
+/* Enqueue a burst into queue[tn]. If a slot already carries the same FN,
+ * overwrite it (duplicate retransmission from BTS). If the queue is full,
+ * drop the oldest entry (smallest fn_delta relative to enqueue). */
+static void bsp_enqueue(uint8_t tn, uint32_t fn, const int16_t *iq, int n)
+{
+    if (tn >= BSP_NUM_TN) return;
+    BspBurstQueue *qq = &bsp.q[tn];
+
+    int free_idx = -1;
+    int oldest_idx = 0;
+    int32_t oldest_delta = INT32_MAX;
+
+    for (int i = 0; i < BSP_QUEUE_LEN; i++) {
+        BspBurstSlot *s = &qq->slot[i];
+        if (s->valid && s->fn == fn) {
+            memcpy(s->iq, iq, n * sizeof(int16_t));
+            s->n = n;
+            return;
+        }
+        if (!s->valid) {
+            if (free_idx < 0) free_idx = i;
+        } else {
+            int32_t d = bsp_fn_delta(s->fn, fn);
+            if (d < oldest_delta) { oldest_delta = d; oldest_idx = i; }
+        }
+    }
+
+    int idx;
+    if (free_idx >= 0) {
+        idx = free_idx;
+    } else {
+        idx = oldest_idx;
+        bsp.bursts_dropped_queue_full++;
+    }
+    BspBurstSlot *s = &qq->slot[idx];
+    memcpy(s->iq, iq, n * sizeof(int16_t));
+    s->n = n;
+    s->fn = fn;
+    s->valid = true;
+}
+
+/* Purge entries older than the match window and return the slot whose FN
+ * is closest to current_fn (within ±BSP_FN_MATCH_WINDOW) for this TN, or
+ * NULL if none. Future bursts beyond the window stay queued. */
+static BspBurstSlot *bsp_take_for_fn(uint8_t tn, uint32_t current_fn)
+{
+    if (tn >= BSP_NUM_TN) return NULL;
+    BspBurstQueue *qq = &bsp.q[tn];
+    BspBurstSlot *match = NULL;
+    int32_t best_abs = INT32_MAX;
+    /* FN-PROBE (2026-07-24) : suit le burst le PLUS PROCHE, fenêtre ignorée, pour
+     * exposer l'offset/dérive burst_fn vs dispatcher_fn même quand tout est stale. */
+    uint32_t near_fn = 0; int32_t near_d = 0; int32_t near_ad = INT32_MAX; int n_valid = 0;
+
+    for (int i = 0; i < BSP_QUEUE_LEN; i++) {
+        BspBurstSlot *s = &qq->slot[i];
+        if (!s->valid) continue;
+        int32_t d = bsp_fn_delta(s->fn, current_fn);
+        int32_t ad = d < 0 ? -d : d;
+        n_valid++;
+        if (ad < near_ad) { near_ad = ad; near_d = d; near_fn = s->fn; }
+        if (d < -BSP_FN_MATCH_WINDOW) {
+            s->valid = false;
+            bsp.bursts_dropped_stale++;
+        } else if (ad <= BSP_FN_MATCH_WINDOW && ad < best_abs) {
+            match = s;
+            best_abs = ad;
+        }
+    }
+    /* FN-PROBE (gated CALYPSO_BSP_FN_PROBE) : la FN portée par le burst le plus
+     * proche (posée à bsp_enqueue) vs la FN que le dispatcher teste ici
+     * (current_fn = calypso_trx_get_fn), côte à côte. delta CONSTANT = offset
+     * (fix = une ligne) ; delta qui DÉRIVE = problème d'horloge. Cap 300 + 1/500. */
+    {
+        static int fp = -1;
+        if (fp < 0) fp = calypso_gate("CALYPSO_BSP_FN_PROBE", 0);
+        if (fp && n_valid > 0) {
+            static unsigned fpn = 0;
+            if (fpn < 300 || (fpn % 500) == 0)
+                BSP_LOG("FN-PROBE tn=%u dispatcher_fn=%u burst_fn=%u delta=%d "
+                        "n_valid=%d verdict=%s window=%d",
+                        tn, current_fn, near_fn, near_d, n_valid,
+                        match ? "MATCH" : (near_d > BSP_FN_MATCH_WINDOW ? "FUTURE" : "STALE"),
+                        BSP_FN_MATCH_WINDOW);
+            fpn++;
+        }
+    }
+    /* Periodic stale ratio summary: a runaway ratio (e.g. 7000:1) is the
+     * symptom of a stalled DSP — virtual fn isn't catching up to queued
+     * burst FNs before the match window expires. Report every 5000 stales
+     * so the spiral is visible without flooding the log. */
+    {
+        static uint64_t last_logged_stale;
+        if (bsp.bursts_dropped_stale - last_logged_stale >= 5000) {
+            last_logged_stale = bsp.bursts_dropped_stale;
+            BSP_LOG("STALE ratio: stale=%llu written=%llu (cur_fn=%u)",
+                    (unsigned long long)bsp.bursts_dropped_stale,
+                    (unsigned long long)bsp.bursts_written,
+                    current_fn);
+        }
+    }
+    return match;
+}
+
+/* TPU-RX-WIRE (RANK2): take the NEAREST valid buffered burst for a TN, ignoring
+ * the FN-match window. Used when the TPU RX window fired (a BDLENA pulse was
+ * consumed) : the hardware RX window IS the timing signal, so we deliver the
+ * closest burst we have rather than waiting for a virtual-FN match that never
+ * lands in full mode (device_fn >> virtual cur_fn). Marks the slot consumed. */
+static BspBurstSlot *bsp_take_nearest(uint8_t tn, uint32_t current_fn)
+{
+    if (tn >= BSP_NUM_TN) return NULL;
+    BspBurstQueue *qq = &bsp.q[tn];
+    BspBurstSlot *best = NULL;
+    int32_t best_abs = INT32_MAX;
+    for (int i = 0; i < BSP_QUEUE_LEN; i++) {
+        BspBurstSlot *s = &qq->slot[i];
+        if (!s->valid) continue;
+        int32_t d = bsp_fn_delta(s->fn, current_fn);
+        int32_t ad = d < 0 ? -d : d;
+        if (ad < best_abs) { best = s; best_abs = ad; }
+    }
+    return best;
+}
+
+static uint16_t parse_uint_env(const char *name, uint16_t def)
+{
+    const char *v = getenv(name);
+    if (!v || !*v) return def;
+    /* Auto-detect hex even sans préfixe 0x : si la chaîne contient
+     * un digit hex non-décimal (a-f / A-F), force base 16. Évite le
+     * piège strtoul base=0 qui parse "2a00" comme décimal → 2. */
+    int base = 0;
+    for (const char *p = v; *p; p++) {
+        if ((*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F')) {
+            base = 16;
+            break;
+        }
+    }
+    return (uint16_t)strtoul(v, NULL, base);
+}
+
+uint16_t calypso_bsp_get_daram_addr(void) { return bsp.daram_addr; }
+uint16_t calypso_bsp_get_daram_len(void)  { return bsp.daram_len; }
+uint8_t  calypso_bsp_get_last_att(void)   { return bsp.last_att; }
+
+/* ---- UDP TRXDv0 DL receive callback ---- */
+
+static void bsp_trxd_readable(void *opaque)
+{
+    /* BRIDGE_BSP_IQ=1 envoie 8 hdr + 4*148 IQ = 600 bytes. Le buffer 512
+     * historique TRONQUAIT silencieusement → BSP recevait soft-bits non
+     * convertis → IQ_PASSTHROUGH if-branch jamais prise → hard cos_tab
+     * fallback → AFC rotation BSP totalement ineffective. */
+    uint8_t buf[4096];  /* [2026-07-22] 2376 > 2048 : evite la troncature du burst 592 I/Q */
+    struct sockaddr_in addr;
+    socklen_t alen = sizeof(addr);
+
+    ssize_t n = recvfrom(bsp.trxd_fd, buf, sizeof(buf), MSG_DONTWAIT,
+                         (struct sockaddr *)&addr, &alen);
+    if (n < 8) return;
+
+    /* ─────────────────────────────────────────────────────────────────────
+     * [2026-08-04] FEED-FP, patte 1/2 — ENTREE. Sonde LECTURE SEULE, plafonnee,
+     * gate CALYPSO_BSP_FINGERPRINT (defaut 0).
+     *
+     * CE QU'ON TRANCHE. `corr_iq.py` mesure 400/400 bursts FCCH IDENTIQUES
+     * (rms=32533, coh=0.998 constants) a l'entree du DSP, alors que la source
+     * `calypso-ipc-device` sert 10 111 FCCH sur 103 244 bursts = 9,8 %, soit
+     * exactement la cadence GSM. Le gel est donc DANS QEMU. Cette patte prend
+     * l'empreinte de ce qui ARRIVE en UDP ; la patte 2/2 (c54x_bsp_load) prend
+     * celle de ce qui SORT vers le RIF. Empreintes variees ici + constantes
+     * la-bas = gel encadre entre les deux.
+     *
+     * ⚠️ On journalise un HASH du burst COMPLET, pas 8 mots : deux bursts
+     * peuvent partager un prefixe. C'est precisement l'erreur de lecture qui
+     * m'a fait conclure trop vite deux fois aujourd'hui. */
+    {
+        static int fp_on = -1;
+        if (fp_on < 0) fp_on = calypso_gate("CALYPSO_BSP_FINGERPRINT", 0);
+        if (fp_on && n > 8) {
+            uint32_t h = 2166136261u;      /* FNV-1a 32 bits */
+            unsigned nz = 0;
+            for (ssize_t i = 8; i < n; i++) {
+                h = (h ^ buf[i]) * 16777619u;
+                if (buf[i]) nz++;
+            }
+            static uint32_t prev_h;
+            static unsigned long long n_tot, n_same;
+            n_tot++;
+            if (n_tot > 1 && h == prev_h) n_same++;
+            prev_h = h;
+            if (n_tot <= 20 || (n_tot % 500) == 0)
+                fprintf(stderr, "[bsp] FEED-FP IN  #%llu fp=%08x nz=%u/%lld "
+                        "identiques=%llu/%llu\n",
+                        n_tot, h, nz, (long long)(n - 8), n_same, n_tot);
+        }
+    }
+
+    /* Tee I/Q vers le bridge de démod (gr-gsm py) sous shunt : le BSP gate
+     * la livraison DARAM de toute façon (calypso_bsp.c ~990), donc on forwarde
+     * le burst brut (8 hdr + I/Q cs16) vers CALYPSO_IQ_TEE_PORT (défaut 6703).
+     * Le bridge démode → GSMTAP → 4730 → shunt feed_si → a_cd. ZÉRO hack :
+     * c'est le VRAI signal du BTS qui transite, juste copié hors-bande.
+     * Sert aussi au FFT live (lit le tee 6703). Gaté shunt only (diag). */
+    if (calypso_dsp_shunt_active()) {
+        static int tee_fd = -1;
+        static struct sockaddr_in tee_dst;
+        if (tee_fd == -1) {
+            tee_fd = socket(AF_INET, SOCK_DGRAM, 0);
+            const char *p = getenv("CALYPSO_IQ_TEE_PORT");
+            int port = (p && *p) ? atoi(p) : 6703;
+            /* Dest configurable : 127.0.0.1 (bridge in-container) par défaut,
+             * ou CALYPSO_IQ_TEE_HOST=172.20.0.1 (gateway gsm-inter) pour viser
+             * l'hôte → FFT live pop-up côté hôte (X natif, pas de X dans docker). */
+            const char *h = getenv("CALYPSO_IQ_TEE_HOST");
+            memset(&tee_dst, 0, sizeof(tee_dst));
+            tee_dst.sin_family = AF_INET;
+            tee_dst.sin_port = htons(port);
+            tee_dst.sin_addr.s_addr = (h && *h) ? inet_addr(h)
+                                                : htonl(INADDR_LOOPBACK);
+            BSP_LOG("IQ-TEE -> %s:%d (bridge/FFT)", (h && *h) ? h : "127.0.0.1", port);
+        }
+        if (tee_fd >= 0)
+            sendto(tee_fd, buf, n, MSG_DONTWAIT,
+                   (struct sockaddr *)&tee_dst, sizeof(tee_dst));
+
+        /* Buffer shm (pas UDP) : publie l'I/Q d'entree du DSP shunte pour
+         * gr-gsm. buf[8..] = int16 I/Q entrelaces (cs16, mode passthrough),
+         * comme le tee. gr-gsm lit ce buffer cote shm. */
+        if (n > 8) {
+            uint32_t _fn = ((uint32_t)buf[1] << 24) | ((uint32_t)buf[2] << 16) |
+                           ((uint32_t)buf[3] << 8)  |  (uint32_t)buf[4];
+            calypso_dsp_shunt_feed_iq(_fn, (const int16_t *)(buf + 8),
+                                      (int)((n - 8) / 2));
+        }
+    }
+
+    /* Diag : log first 10 recv sizes pour vérifier que bridge envoie bien
+     * 600 bytes (= IQ mode) et que BSP buffer ne tronque pas. */
+    {
+        static int rxsz_log = 0;
+        if (rxsz_log++ < 10) {
+            BSP_LOG("RXSZ #%d recv=%zd from %s:%d", rxsz_log,
+                    n, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+        }
+    }
+
+    /* Refine UL peer to actual DL sender (init-time default is bridge
+     * 127.0.0.1:5702 — DL source confirms it or replaces it). */
+    if (addr.sin_addr.s_addr != bsp.trxd_peer.sin_addr.s_addr ||
+        addr.sin_port != bsp.trxd_peer.sin_port) {
+        bsp.trxd_peer = addr;
+        BSP_LOG("TRXD peer learned: %s:%d",
+                inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    }
+
+    /* "le shunt dsp ne doit pas shunt l'ipc" : shunt actif = le vrai DSP ne
+     * consomme JAMAIS la DARAM (gr-gsm decode via le shm feed_iq). On a deja
+     * draine l'UDP (recvfrom) + publie l'I/Q (feed_iq) + appris le peer UL.
+     * On NE remplit donc PAS la queue DARAM (bsp_enqueue) -> sinon elle sature
+     * (bursts_dropped_queue_full) -> backpressure qui remonte et TUE l'IPC/BTS.
+     * On rend la main : l'IPC continue de couler, le shm est nourri. */
+    {
+        /* Frontiere B (2026-07-20) : en mode revive c54x (DSP=c54x + RUN_C54X=1)
+         * le correlateur NATIF lit la DARAM 0x2a00 -> on NE return PAS, on remplit
+         * AUSSI la DARAM pour lui fournir de IQ (le DSP la consomme -> pas la
+         * saturation du shunt-only). Hors revive : comportement inchange. */
+        /* @BEQUILLE — BSP_DARAM_FORCE  (CALYPSO_BSP_DARAM_FORCE, idiome EXISTS, defaut OFF ; calypso_wire.env:=1)
+         *   masque  : calypso_dsp_shunt_route_c54x_active() ne devient jamais vrai sous
+         *             DSP_SHUNT=1, donc ce gate shunt fermerait la DARAM au correlateur
+         *             natif. Le forcage remplace la route DSP reelle, non modelisee.
+         *   retirer : quand route_c54x_active() reflete l'etat reel du c54x, ou quand
+         *             DSP_SHUNT et DSP_RUN_C54X cessent d'etre simultanement a 1.
+         *   NB      : EXISTS -> "=0" NE COUPE PAS, seul unset coupe. Sites solidaires :
+         *             rx_burst (rb_revive) et deliver_buffered (rxw).
+         */
+        static int bsp_revive = -1;
+        if (bsp_revive < 0) {
+            const char *e = getenv("CALYPSO_DSP_RUN_C54X");
+            /* [2026-07-25] read-path diag : sous shunt le buffer I/Q DARAM 0x2a00
+             * n'etait ecrit que 2x (route_c54x_active=faux) -> correlateur affame.
+             * CALYPSO_BSP_DARAM_FORCE=1 force le revive (ecrit 0x2a00) quand le vrai
+             * c54x tourne (RUN_C54X=1), independamment de route_c54x_active. */
+            bsp_revive = (e && *e == '1'
+                          && (calypso_dsp_shunt_route_c54x_active()
+                              || getenv("CALYPSO_BSP_DARAM_FORCE"))) ? 1 : 0;
+        }
+        if (calypso_dsp_shunt_active() && !bsp_revive)
+            return;
+    }
+
+    /* TRXDv0 DL: tn(1) fn(4) rssi(1) toa(2) bits(148) = 156 bytes.
+     * (Confirmed empirically 2026-05-07 — earlier "asymmetric 6-byte
+     * header" hypothesis was wrong : RX header IS 8 bytes like TX.
+     * Even when BTS emits 154-byte packets, the n-8 skip + 148-bit
+     * clamp keeps DSP demod aligned. n-6 broke mobile L1 sync —
+     * mobile stayed in cell-selection loop and never reached LU.) */
+    uint8_t  tn  = buf[0] & 0x07;
+    uint32_t fn  = ((uint32_t)buf[1]<<24)|((uint32_t)buf[2]<<16)|
+                   ((uint32_t)buf[3]<<8)|buf[4];
+    bsp.last_att = (n > 5) ? buf[5] : 0;
+
+    int nbits = (int)n - 8;  /* TRXDv0 header is 8 bytes (TS+FN+RSSI+ToA) */
+    if (nbits > 148) nbits = 148;
+    if (nbits <= 0) return;
+
+    const uint8_t *bits = buf + 8;
+
+    /* Log burst type: check if all-zero (FB) or mixed (NB/SB) */
+    {
+        int zeros = 0, ones = 0;
+        for (int i = 0; i < nbits; i++) {
+            if (bits[i] == 0) zeros++;
+            else ones++;
+        }
+        static int burst_log = 0;
+        if (burst_log < 20 || (burst_log % 10000) == 0) {
+            BSP_LOG("BURST fn=%u tn=%u zeros=%d ones=%d %s",
+                    fn, tn, zeros, ones,
+                    zeros == nbits ? "*** FB ***" :
+                    ones > 100 ? "DUMMY/NB" : "SB/OTHER");
+        }
+        burst_log++;
+    }
+
+    /* FN-alignment instrumentation: measure burst arrival FN vs QEMU
+     * virtual FN. A persistent negative delta means BTS is lagging
+     * (bursts arrive for FNs that have already passed); a positive
+     * delta is normal lookahead. */
+    {
+        uint32_t cur_fn = calypso_trx_get_fn();
+        int32_t  delta  = bsp_fn_delta(fn, cur_fn);
+
+        static int rx_log = 0;
+        if (rx_log < 100 || (rx_log % 1000) == 0) {
+            BSP_LOG("RX tn=%u fn=%u cur_fn=%u delta=%d",
+                    tn, fn, cur_fn, delta);
+        }
+        rx_log++;
+
+        /* Rolling summary over last 500 samples: min/max/mean */
+        static int32_t  hist[500];
+        static unsigned hist_pos = 0;
+        static unsigned hist_seen = 0;
+        hist[hist_pos] = delta;
+        hist_pos = (hist_pos + 1) % 500;
+        hist_seen++;
+        if ((hist_seen % 500) == 0) {
+            unsigned nh = hist_seen < 500 ? hist_seen : 500;
+            int32_t mn = INT32_MAX, mx = INT32_MIN;
+            int64_t sum = 0;
+            for (unsigned i = 0; i < nh; i++) {
+                int32_t d = hist[i];
+                if (d < mn) mn = d;
+                if (d > mx) mx = d;
+                sum += d;
+            }
+            BSP_LOG("RX delta stats (last %u): min=%d max=%d mean=%lld",
+                    nh, mn, mx, (long long)(sum / (int64_t)nh));
+        }
+    }
+
+    /* GMSK modulation: convert TRXDv0 hard bits to I/Q samples.
+     * GMSK with h=0.5: each bit adds ±π/2 to the phase.
+     * NRZ encoding: bit 0 → phase += π/2, bit 1 → phase -= π/2.
+     *
+     * The Calypso IOTA chip delivers complex I/Q pairs to the BSP.
+     * Phase increments are exactly ±π/2, so I=cos(φ) and Q=sin(φ)
+     * cycle through {±1, 0}. We produce interleaved I,Q pairs.
+     *
+     * For FB (all-zero bits): phase advances π/2 per bit → pure tone.
+     * I/Q sequence: (1,0),(0,1),(-1,0),(0,-1),(1,0),...
+     *
+     * IQ PASSTHROUGH (2026-05-24) : si le payload UDP fait >= 296 octets
+     * et que CALYPSO_BSP_IQ_PASSTHROUGH=1, on interprète buf[8..] comme
+     * int16 IQ pairs LE (calypso-ipc-device CALYPSO_BSP_IQ_PASSTHROUGH=1 envoie ce format,
+     * GMSK-modulé scipy BT=0.3 réaliste vs notre ±π/2 hard-modulation).
+     * Sinon : modulation interne historique (148 hard-bits → 296 int16). */
+    int16_t iq[BSP_IQ_MAX_I16];  /* voir BSP_IQ_MAX_I16 */
+    int iq_count = 0;
+
+    static int iq_pt_mode = -1;
+    if (iq_pt_mode < 0) {
+        const char *e = getenv("CALYPSO_BSP_IQ_PASSTHROUGH");
+        /* [2026-07-25] passthrough par DEFAUT (coherence feed : 0x2a00 = MEME
+         * I/Q que gr-gsm via feed_iq). Synthese cos/sin = tone incoherent ->
+         * opt-out explicite CALYPSO_BSP_IQ_PASSTHROUGH=0 seulement. */
+        iq_pt_mode = (e && *e == '0') ? 0 : 1;
+        BSP_LOG("IQ_PASSTHROUGH=%d (defaut ON ; synthese=opt-out =0)", iq_pt_mode);
+    }
+    int iq_bytes = (int)n - 8;  /* payload bytes after 8-byte hdr */
+    /* Bridge envoie 2 int16 par bit (I,Q interleaved). 4 bytes/bit.
+     * Pour 146-148 bits = 584-592 octets payload.
+     * Auto-détection : si bytes >= 4*146 → IQ mode (BTS-source 146 bits OK).
+     * Sinon → soft bits 1 byte/bit. */
+    int iq_min_bits = 146;
+    if (iq_pt_mode && iq_bytes >= 4 * iq_min_bits) {
+        /* [2026-07-22] STEP 3 : le device envoie 592 I/Q @4SPS (OSR=4). Le
+         * correlateur DSP veut 148 samples @1SPS (FCCH = +pi/2/samp). On DECIME
+         * par CALYPSO_BSP_IQ_DECIM (defaut 4) : 1 sample sur decim -> le tone
+         * +0.393/samp @4SPS devient +0.393*decim = +pi/2. decim=1 = ancien
+         * comportement (148 premiers @4SPS = 37 symb, jamais correle). */
+        static int decim = -1;
+        if (decim < 0) {
+            const char *d = getenv("CALYPSO_BSP_IQ_DECIM");
+            decim = (d && *d) ? atoi(d) : 4;
+            if (decim < 1) decim = 1;
+            BSP_LOG("IQ_DECIM=%d (STEP3 decimation ->1SPS)", decim);
+        }
+        const int16_t *isrc = (const int16_t *)(buf + 8);
+        int total_cplx = iq_bytes / 4;   /* jusqu'a 592 (buf[4096]) */
+        iq_count = 0;
+        for (int k = 0; k * decim < total_cplx && iq_count <= BSP_IQ_MAX_I16 - 2; k++) {
+            iq[iq_count++] = isrc[2 * (k * decim)];      /* I */
+            iq[iq_count++] = isrc[2 * (k * decim) + 1];  /* Q */
+        }
+        nbits = iq_count / 2;
+
+        /* [2026-07-30] ELARGISSEMENT DE LA FENETRE (branche passthrough).
+         * Meme motif que la branche synthese : le DSP consomme 150 echantillons
+         * pour un NB et 190 pour un SB (doc/DSP_CALYPSO_REFERENCE.md §5), nous
+         * en livrions 148. Ici la charge utile UDP fait 592 complexes @4SPS =
+         * exactement 148 symboles : les 42 periodes-symbole manquantes n'y sont
+         * pas non plus. On prolonge donc, mais de la meilleure facon disponible.
+         *
+         * Plutot que des bits de garde arbitraires, on EXTRAPOLE la rotation de
+         * phase mesuree sur les deux derniers echantillons reels et on la
+         * poursuit. Pour une FCCH (tone pur) c'est exact ; pour un burst normal
+         * c'est une extrapolation coherente en phase, ce qui evite de creuser un
+         * trou en plein dans la fenetre de correlation du SB (50 bits des r39).
+         *
+         * ⚠️ CES ECHANTILLONS SONT SYNTHETIQUES. Une detection qui n'apparait
+         *    QUE grace a eux est suspecte et doit etre citee comme telle.
+         * Defaut 148 = comportement inchange. */
+        {
+            static int win = -1;
+            if (win < 0) {
+                const char *e = getenv("CALYPSO_BSP_RX_WINDOW");
+                win = (e && *e) ? atoi(e) : 148;
+                if (win > BSP_IQ_MAX_I16 / 2) win = BSP_IQ_MAX_I16 / 2;
+                if (win != 148)
+                    BSP_LOG("RX_WINDOW=%d echantillons (passthrough) — "
+                            "prolongement par extrapolation de phase, SYNTHETIQUE",
+                            win);
+            }
+            if (win > nbits && iq_count >= 4) {
+                double i1 = iq[iq_count - 2], q1 = iq[iq_count - 1];
+                double i0 = iq[iq_count - 4], q0 = iq[iq_count - 3];
+                double n0 = i0 * i0 + q0 * q0;
+                double pr = 1.0, pi_ = 0.0;      /* rotation par echantillon */
+                if (n0 > 0.0) {
+                    pr  = (i1 * i0 + q1 * q0) / n0;
+                    pi_ = (q1 * i0 - i1 * q0) / n0;
+                }
+                double cr = i1, ci = q1;
+                while (nbits < win && iq_count + 1 < BSP_IQ_MAX_I16) {
+                    double nr = cr * pr - ci * pi_;
+                    double ni = cr * pi_ + ci * pr;
+                    cr = nr; ci = ni;
+                    if (cr >  32767.0) cr =  32767.0;
+                    if (cr < -32768.0) cr = -32768.0;
+                    if (ci >  32767.0) ci =  32767.0;
+                    if (ci < -32768.0) ci = -32768.0;
+                    iq[iq_count++] = (int16_t)cr;
+                    iq[iq_count++] = (int16_t)ci;
+                    nbits++;
+                }
+            }
+        }
+
+        /* Apply AFC rotation : TWL3025 VCXO offset propagation. No-op si
+         * CALYPSO_TWL3025_AFC != 1. Convergence AFC chain dépend de ça :
+         * firmware applique AFC delta → DSP TSP → TWL3025 DAC → samples
+         * rotated → DSP correlator voit la convergence. */
+        /* ⚠️ TESTING 2026-05-29 : apply_phase déplacé décode -> delivery
+         * (l'AFC doit s'appliquer quand le DSP voit les samples = dac courant,
+         * pas au décode où le dac est stale de ~lookahead frames). */
+        /* calypso_twl3025_apply_phase(iq, copy_count / 2, fn, tn); */
+        static int pt_log = 0;
+        if (pt_log < 10 || (pt_log % 5000) == 0) {
+            BSP_LOG("IQ passthrough #%d fn=%u tn=%u bytes=%d nbits=%d "
+                    "iq[0..3]=%d,%d,%d,%d",
+                    pt_log, fn, tn, iq_bytes, nbits,
+                    iq[0], iq[1], iq[2], iq[3]);
+        }
+        pt_log++;
+    } else {
+        /* Q15 full-scale amplitude: real BSP/IOTA delivers near-full-range Q15
+         * samples. ±0x7FFE keeps one bit of headroom below INT16_MIN. */
+        static const int16_t cos_tab[4] = { 0x7FFE, 0, -0x7FFE, 0 };
+        static const int16_t sin_tab[4] = { 0, 0x7FFE, 0, -0x7FFE };
+        int phase_idx = 0;
+        for (int i = 0; i < nbits; i++) {
+            /* Anomaly A fix (2026-05-08) : émettre AVANT advance, donc le premier
+             * sample est à phase=0 au lieu de phase=π/2. Le code original
+             * advance-then-emit décalait tout le burst de 90°, faisant que la
+             * corrélation cohérente du DSP correlator tombait dans la partie
+             * quadrature au lieu d'in-phase → d_fb_det principalement négatif
+             * (pattern observé : +23k, +20k occasionnel puis 4× -5k consécutifs).
+             * À valider sur le prochain run. */
+            iq[iq_count++] = cos_tab[phase_idx];  /* I — phase_idx avant advance */
+            iq[iq_count++] = sin_tab[phase_idx];  /* Q */
+            phase_idx = (phase_idx + (bits[i] ? 3 : 1)) & 3;
+        }
+
+        /* [2026-07-30] ELARGISSEMENT DE LA FENETRE — CALYPSO_BSP_RX_WINDOW.
+         *
+         * Ce qu'on livrait : exactement `nbits` echantillons, soit 148 = la
+         * longueur d'un burst GSM en BITS (3+57+1+26+1+57+3). Aucune marge.
+         *
+         * Ce que le DSP consomme (wiki Osmocom HardwareCalypsoDSP, tache par
+         * tache — cf. doc/DSP_CALYPSO_REFERENCE.md §5) :
+         *   RX NB : 150 echantillons, fenetre TSC 10 bits a partir de r68,
+         *           correlation sur 16 bits (TSC[10..25])
+         *   SB    : 190 echantillons, fenetre 50 bits a partir de r39,
+         *           correlation sur les 64 bits complets
+         *
+         * Que la capture commence AU DEBUT du burst se verifie : dans un burst
+         * SB, la sequence d'apprentissage (64 bits) occupe les bits 42..105
+         * (3 tail + 39 data + 64 TSC), et le DSP cherche a partir de r39 sur
+         * 50 bits -> 39..89, qui contient bien 42. Les echantillons manquants
+         * sont donc APRES le burst : la periode de garde (8,25 bits) puis le
+         * debut du slot voisin. Le materiel le confirme au scope : la fenetre
+         * analogique du TRF6151 mesure 914,6 us contre 577 us de burst utile,
+         * soit ~1,58x (doc/CHAINE_RF_MATERIELLE.md §9.6).
+         *
+         * ⚠️ HYPOTHESE ASSUMEE, et c'est la limite de ce correctif : nous n'avons
+         *    PAS le signal du slot voisin — la source ne fournit qu'un burst. On
+         *    prolonge donc le modulateur avec des bits de GARDE (bit=1, comme le
+         *    padding TX du firmware), ce qui donne un remplissage DEFINI et
+         *    continu en phase, au lieu de zeros qui creuseraient un trou en plein
+         *    milieu de la fenetre de correlation du SB.
+         *    => Si une detection n'apparait QUE grace a ces echantillons-la, elle
+         *    est suspecte : ils sont synthetiques. A citer comme telle.
+         *
+         * Defaut 148 = comportement inchange. Pour le test SB : 190.
+         */
+        {
+            static int win = -1;
+            if (win < 0) {
+                const char *e = getenv("CALYPSO_BSP_RX_WINDOW");
+                win = (e && *e) ? atoi(e) : 148;
+                if (win < nbits) win = nbits;               /* jamais tronquer */
+                if (win > BSP_IQ_MAX_I16 / 2) win = BSP_IQ_MAX_I16 / 2;
+                if (win != 148)
+                    fprintf(stderr, "[bsp] RX_WINDOW = %d echantillons "
+                            "(burst=%d + %d de garde SYNTHETIQUE) — "
+                            "NB en demande 150, SB 190\n",
+                            win, nbits, win - nbits);
+            }
+            for (int g = nbits; g < win && iq_count + 1 < BSP_IQ_MAX_I16; g++) {
+                iq[iq_count++] = cos_tab[phase_idx];
+                iq[iq_count++] = sin_tab[phase_idx];
+                phase_idx = (phase_idx + 3) & 3;   /* bit de garde = 1 */
+            }
+        }
+    }
+
+    /* Enqueue the burst FN-indexed for this TN. With BTS lookahead of up
+     * to ~92 frames, several bursts are in flight at once; each must be
+     * delivered at the exact QEMU virtual FN it was scheduled for, or
+     * the DSP correlator runs against incoherent samples. */
+    /* [2026-07-22] Option 2 GATED (CALYPSO_BSP_DIRECT_FEED=1) : restaure le wire
+     * mort. En full, bsp_enqueue->deliver_buffered ne livre JAMAIS (device_fn
+     * temps-reel >> cur_fn virtuel qui traine sous icount=auto -> match FN +/-64
+     * echoue -> DARAM 0x2a00 jamais ecrite -> correlateur affame).
+     * [2026-08-03] « fb0_ret=0 » retire de cette phrase : compteur mort, il
+     * n'attestait pas la famine du correlateur.
+     * Gate ON : feed DARAM 0x2a00 DIRECTEMENT via calypso_bsp_rx_burst (write
+     * immediat + c54x_bsp_load + INT3, SANS match FN). Gate OFF : inchange. */
+    {
+        /* @BEQUILLE — BSP_DIRECT_FEED  (CALYPSO_BSP_DIRECT_FEED, EQ1, calypso.env:=1 -> ACTIF)
+         *   masque  : le match FN de bsp_take_for_fn (+/-BSP_FN_MATCH_WINDOW) echoue
+         *             systematiquement parce que la FN du device (temps reel) et la FN
+         *             virtuelle QEMU divergent -> DARAM jamais ecrite. On livre sans
+         *             aucune correspondance temporelle : le burst arrive "maintenant".
+         *   retirer : quand la FN virtuelle et la FN device sont alignees (FN-PROBE
+         *             delta ~0 stable) ; alors bsp_enqueue -> deliver_buffered suffit.
+         *   NB      : tant que ce gate vaut 1, TOUT calypso_bsp_deliver_buffered() est
+         *             du code mort (file toujours vide).
+         */
+        static int direct_feed = -1;
+        if (direct_feed < 0) {
+            const char *e = getenv("CALYPSO_BSP_DIRECT_FEED");
+            direct_feed = (e && *e == '1') ? 1 : 0;
+            BSP_LOG("BSP_DIRECT_FEED=%d (option2 wire)", direct_feed);
+        }
+        if (direct_feed)
+            calypso_bsp_rx_burst(tn, fn, iq, iq_count);
+        else
+            bsp_enqueue(tn, fn, iq, iq_count);
+    }
+
+    /* Delivery is handled exclusively by calypso_bsp_deliver_buffered()
+     * called from the TDMA tick. No immediate delivery — it would
+     * double-consume BDLENA pulses and race with the buffered path. */
+}
+
+/* ---- Init ---- */
+
+/* REALTIME drain callback (2026-05-29) : pulls BSP UDP queue into DSP DMA
+ * à la cadence wall-clock 5ms (= 200/sec). Monotonic anti-drift rearm sur
+ * `last_target + period` pour éviter accumulation de jitter dispatcher.
+ *
+ * Historique : pre-2026-05-24 c'était REALTIME → drift vs VIRTUAL sous
+ * icount=auto. Switch vers VIRTUAL fixait ce drift. 2026-05-29 : maintenant
+ * que tdma_tick est REALTIME monotonic + clk_master pthread, virtual et
+ * wall sont alignés. On peut repasser drain en REALTIME — la cadence wall
+ * matche la cadence ARM frame_irq/tdma. Et surtout : sous load DSP heavy,
+ * VIRTUAL tournait moins vite que wall → drain trop lent → BSP queue
+ * overflow → 95% des bursts droppés. */
+static void bsp_drain_cb(void *opaque)
+{
+    static int64_t last_target = 0;
+    /* Drain la socket UDP DL ICI (timer REALTIME fiable, fix 2026-05-30).
+     * Sous icount=auto le DSP (c54x_run) monopolise le thread mainloop →
+     * l'iohandler bsp_trxd_readable n'est jamais servi → les paquets device
+     * s'accumulent non-lus (Recv-Q monte) → BSP-DELIVER=0, D_BURST_D vide,
+     * snr=0. On vide la socket à chaque tick drain (recvfrom MSG_DONTWAIT),
+     * indépendant de la mainloop affamée. 64 = marge (≈1-2 bursts/5ms). */
+    {
+        /* Test décisif : PEEK direct sur bsp.trxd_fd — la data est-elle sur CE
+         * fd ? (errno=EAGAIN/11 = rien ici ; >0 = data présente). */
+        uint8_t tb[16]; struct sockaddr_in sa; socklen_t sl = sizeof(sa);
+        errno = 0;
+        ssize_t pk = (bsp.trxd_fd >= 0)
+            ? recvfrom(bsp.trxd_fd, tb, sizeof(tb), MSG_DONTWAIT | MSG_PEEK,
+                       (struct sockaddr *)&sa, &sl)
+            : -99;
+        int e = errno;
+        for (int i = 0; i < 64 && bsp.trxd_fd >= 0; i++)
+            bsp_trxd_readable(NULL);
+        static uint64_t dc = 0;
+        if (dc < 30 || (dc % 2000) == 0)
+            /* FIX 2026-06-02 : reporte le VRAI compteur de livraison
+             * `bursts_written` (incr. dans deliver_buffered ligne 1107 = burst
+             * réellement écrit en DARAM `dsp->data[a]`) au lieu du `bursts_seen`
+             * MORT. bursts_seen vit dans calypso_bsp_rx_burst, que le refactor
+             * 2026-05-29 a bypassé (deliver écrit inline) → seen=0 à vie = sonde
+             * menteuse qui a coûté des heures de fausse piste "feed mort".
+             * delivered>0 et qui monte = signal réellement livré au DSP. */
+            fprintf(stderr, "[BSP] DRAIN-CB #%llu fd=%d PEEK=%zd errno=%d "
+                    "delivered=%llu enq_drops(stale=%llu,full=%llu) seen_DEAD=%llu\n",
+                    (unsigned long long)dc, bsp.trxd_fd, pk, e,
+                    (unsigned long long)bsp.bursts_written,
+                    (unsigned long long)bsp.bursts_dropped_stale,
+                    (unsigned long long)bsp.bursts_dropped_queue_full,
+                    (unsigned long long)bsp.bursts_seen);
+        dc++;
+    }
+    if (bsp.dsp) {
+        uint32_t cur_fn = calypso_trx_get_fn();
+        calypso_bsp_deliver_buffered(cur_fn);
+    }
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    if (last_target == 0) last_target = now;
+    int64_t target = last_target + BSP_DRAIN_PERIOD_NS;
+    while (target <= now) {
+        target += BSP_DRAIN_PERIOD_NS;
+    }
+    last_target = target;
+    timer_mod(bsp.drain_timer, target);
+}
+
+/* Replay callback : enqueue 1 burst per virtual TN slot. */
+static void bsp_replay_cb(void *opaque)
+{
+    if (replay_idx < replay_count) {
+        ReplayBurst *r = &replay_bursts[replay_idx++];
+        bsp_enqueue(r->tn, r->fn, r->iq, r->n);
+        if (replay_idx <= 5 || (replay_idx % 1000) == 0) {
+            BSP_LOG("REPLAY inject #%zu fn=%u tn=%u n=%u",
+                    replay_idx, r->fn, (unsigned)r->tn, (unsigned)r->n);
+        }
+    } else if (replay_idx == replay_count && replay_count > 0) {
+        BSP_LOG("REPLAY exhausted after %zu bursts (idle from now)",
+                replay_count);
+        replay_idx++;  /* prevent log spam */
+    }
+    timer_mod(replay_timer,
+              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + BSP_REPLAY_PERIOD_NS);
+}
+
+/* Load all bursts from a BSP_DUMP_RX_FILE-format dump into memory.
+ * Returns number loaded, 0 on failure. */
+
+/* [2026-07-30] BSP_VEC30 — livrer sur le vecteur que le ROM a reellement cable.
+ * Voir l'en-tete du patch : vec21 et vec19 sont des STUBS RETE dans la table PDROM ;
+ * le chemin RX cable est vec30 -> FB 0x0158.
+ *
+ * [2026-08-03] REQUALIFIE d'apres CAL000 (ti-calypso1.pdf) — CE N'EST PAS UNE
+ * BEQUILLE, c'est le cablage du silicium, et l'etiquette "BEQUILLE" du log etait
+ * FAUSSE :
+ *   §5.1  vec30 = INT10n = "DMA interrupt" (IMR bit 14).
+ *   §6    "The RIF-RX and RIF-TX have a dedicated channel each" (canal 1 = RIF_DMA_REQ_R).
+ *   §3.7.1 le DSP echange avec le RIF soit par XIO (mot a mot, IT par transfert),
+ *         soit par l'API "for radio data in DMA mode (buffered mode with data block
+ *         transfer)" ; "a DMA request and an 'end-DMA' request is sent to ARM".
+ * Donc : arrivee du burst RX -> canal DMA RIF-RX -> fin de transfert -> INT10n ->
+ * vec30 -> tremplin 0x0158. Router la livraison RX sur vec30 REPRODUIT cette chaine.
+ *
+ * En revanche les deux vecteurs de depart etaient faux : §5.1 donne vec21 = XINT =
+ * SPI TRANSMIT et vec19 = TINT = timer DSP. Ni l'un ni l'autre n'a jamais eu de
+ * rapport avec le RIF. Le vecteur de l'autre mode du §3.7.1 (XIO mot a mot) serait
+ * INT0n = "RIF receive interrupt" = bit 0 / vec 16 — que le modele n'emet nulle part,
+ * alors que l'IMR mesuree (0x52ed) a justement le bit 0 DEMASQUE.
+ *
+ * Gate CALYPSO_BSP_VEC30 (defaut 0), CALYPSO_BSP_VEC30_ALSO_INT3 pour vec19. */
+static int calypso_bsp_vec30_on(void)
+{
+    static int c = -1;
+    if (c < 0) {
+        c = calypso_gate("CALYPSO_BSP_VEC30", 0);
+        if (c)
+            fprintf(stderr, "[bsp] BSP_VEC30=1 (CABLAGE FIDELE, CAL000 §5.1+§6+§3.7.1) : "
+                    "livraison RX routee de vec21/bit5 (= XINT/SPI transmit, stub RETE) "
+                    "vers vec30/bit14 (= INT10n/DMA, canal dedie RIF-RX -> FB 0x0158)\n");
+    }
+    return c;
+}
+
+static int calypso_bsp_vec30_int3_on(void)
+{
+    static int c = -1;
+    if (c < 0) {
+        c = calypso_gate("CALYPSO_BSP_VEC30_ALSO_INT3", 0);
+        if (c)
+            fprintf(stderr, "[bsp] BSP_VEC30_ALSO_INT3=1 : vec19/bit3 (STUB) aussi "
+                    "route vers vec30/bit14\n");
+    }
+    return c;
+}
+
+/* [2026-08-03] CALYPSO_BSP_RX_VEC=<n> — le vecteur de LIVRAISON RX, en clair.
+ *
+ * MESURE DU 03/08 (profil native_twl, run avec l'IT trame cablee) :
+ *     [bsp] DELIVER resume : vec21=24644 vec19=24857 vec30=0
+ * Soit ~49 000 bursts RX annonces au DSP sur vec21 et vec19. Or CAL000 §5.1 :
+ *     vec21 = XINT  = SPI TRANSMIT
+ *     vec19 = TINT  = timer du DSP
+ * Ni l'un ni l'autre n'a le moindre rapport avec la radio, et le ROM y a des
+ * stubs RETE. Le correlateur n'est donc jamais prevenu qu'un burst est arrive.
+ *
+ * [2026-08-03] ⚠ CE PARAGRAPHE CITAIT « fb0_att=37, fb0_ret=0 » comme
+ * confirmation. `fb0_ret` etait un compteur MORT (jamais incremente, donc
+ * toujours 0) : il ne confirmait rien. Retire. Le reste du raisonnement tient
+ * sur vec21/vec19/vec30, qui sont, eux, mesures.
+ *
+ * Les deux vecteurs que le §3.7.1 autorise pour le RIF, selon le mode :
+ *   vec16 / bit 0  = INT0n  « RIF receive interrupt »  — mode XIO mot-a-mot
+ *   vec30 / bit 14 = INT10n « DMA interrupt »          — mode DMA (§6 : canal
+ *                    dedie RIF-RX ; « an end-DMA request is sent »)
+ * Les DEUX sont demasques dans l'IMR mesuree (0x52ef : bit0=1, bit14=1), et le
+ * modele n'emettait sur AUCUN des deux.
+ *
+ * Ce gate remplace le booleen BSP_VEC30 par un numero, pour pouvoir departager
+ * les deux modes du §3.7.1 en un run chacun au lieu d'un balayage. Absent =
+ * comportement historique strictement inchange (BSP_VEC30 continue de marcher).
+ * bit = vec - 16 (formule de calypso_c54x.h, confirmee par la mesure vec28/bit12). */
+static int calypso_bsp_rx_vec(void)
+{
+    static int v = -2;
+    if (v == -2) {
+        const char *e = getenv("CALYPSO_BSP_RX_VEC");
+        v = (e && *e) ? (int)strtol(e, NULL, 0) : -1;
+        if (v >= 0 && (v < 16 || v >= 32)) {
+            fprintf(stderr, "[bsp] BSP_RX_VEC=%d hors plage 16..31 — ignore\n", v);
+            v = -1;
+        }
+        if (v >= 0)
+            fprintf(stderr, "[bsp] BSP_RX_VEC=%d (IMR bit %d) : livraison RX forcee "
+                    "sur ce vecteur. CAL000 §5.1/§3.7.1 : 16=INT0n RIF receive "
+                    "(mode XIO), 30=INT10n DMA (mode buffered, canal dedie RIF-RX). "
+                    "Les vecteurs historiques 21/19 sont SPI transmit et timer DSP.\n",
+                    v, v - 16);
+    }
+    return v;
+}
+
+/* Livraison RX : choisit le vecteur selon le gate, et compte ce qui part ou. */
+static void calypso_bsp_deliver(C54xState *dsp, int vec, int bit)
+{
+    int src_vec = vec;
+    int forced = calypso_bsp_rx_vec();
+    if (forced >= 0) {
+        vec = forced;
+        bit = forced - 16;
+    } else if ((vec == 21 && calypso_bsp_vec30_on()) ||
+        (vec == 19 && calypso_bsp_vec30_int3_on())) {
+        vec = 30;
+        bit = 14;
+    }
+    {
+        static unsigned long long n21 = 0, n19 = 0, nre = 0;
+        if (vec != src_vec) nre++;          /* reroute (BSP_RX_VEC ou BSP_VEC30) */
+        else if (src_vec == 21) n21++;
+        else n19++;
+        if (((n21 + n19 + nre) % 500) == 1)
+            fprintf(stderr, "[bsp] DELIVER resume : vec21=%llu vec19=%llu "
+                    "reroute->vec%d=%llu\n",
+                    (unsigned long long)n21, (unsigned long long)n19,
+                    vec, (unsigned long long)nre);
+    }
+    c54x_interrupt_ex(dsp, vec, bit);
+}
+
+static size_t bsp_replay_load(const char *path)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        BSP_LOG("REPLAY open '%s' failed: %s", path, strerror(errno));
+        return 0;
+    }
+    size_t loaded = 0;
+    size_t cap = 256;
+    replay_bursts = calloc(cap, sizeof(ReplayBurst));
+    if (!replay_bursts) { fclose(f); return 0; }
+    while (1) {
+        uint8_t hdr[12];
+        if (fread(hdr, 1, 12, f) != 12) break;
+        if (memcmp(hdr, "IQ16", 4) != 0) {
+            BSP_LOG("REPLAY bad magic at burst %zu, stop", loaded);
+            break;
+        }
+        uint32_t fn = (uint32_t)hdr[4]
+                    | ((uint32_t)hdr[5] << 8)
+                    | ((uint32_t)hdr[6] << 16)
+                    | ((uint32_t)hdr[7] << 24);
+        uint8_t  tn = hdr[8];
+        uint16_t n  = (uint16_t)hdr[9] | ((uint16_t)hdr[10] << 8);
+        if (n == 0 || n > BSP_IQ_MAX_I16) {
+            BSP_LOG("REPLAY out-of-range n=%u at burst %zu, stop", n, loaded);
+            break;
+        }
+        if (loaded >= cap) {
+            cap *= 2;
+            ReplayBurst *grown = realloc(replay_bursts,
+                                         cap * sizeof(ReplayBurst));
+            if (!grown) {
+                BSP_LOG("REPLAY OOM at %zu bursts, stop", loaded);
+                break;
+            }
+            replay_bursts = grown;
+        }
+        ReplayBurst *r = &replay_bursts[loaded];
+        r->fn = fn;
+        r->tn = tn;
+        r->n  = n;
+        if (fread(r->iq, sizeof(int16_t), n, f) != (size_t)n) {
+            BSP_LOG("REPLAY truncated at burst %zu, stop", loaded);
+            break;
+        }
+        loaded++;
+    }
+    fclose(f);
+    return loaded;
+}
+
+void calypso_bsp_init(C54xState *dsp)
+{
+    bsp.dsp = dsp;
+    calypso_manifest_once();   /* dump forcages actifs (gate CALYPSO_INVARIANTS, defaut off) */
+    /* 2026-05-28 : ancien commentaire "DSP reads I/Q at 0x3fb3-0x3fbe"
+     * obsolete. Discovery par CALYPSO_BSP_INJECT_CANARY a confirme que
+     * le vrai buffer cote DSP est 0x2a00 (PC=0x93a5 consumer, AR3 post-inc
+     * sur 0x2a00..0x2a13). Nouveau default ci-dessous. */
+    /* DARAM target where BSP DMAs DL samples. Default 0x2a00, identifie via
+     * methode 3 (CALYPSO_BSP_INJECT_CANARY 2026-05-28) :
+     * 1. Static scan PROM0 : 0x2a00 = top STM #imm,ARx init (50 sites,
+     *    AR1..AR6 ; companion BK=0x015e=350 = burst size GSM)
+     * 2. Runtime canary injection : CALYPSO_BSP_INJECT_CANARY=1 →
+     *    DSP READS 0xCAFE at addr=0x2a00..0x2a13 via PC=0x93a5 (= real
+     *    consumer routine), AR3=0x2a00 post-incrementing. E2E proven.
+     * Voir doc/BOOT_TO_FBSB_SEQUENCE.md. Override via env si besoin. */
+    bsp.daram_addr     = parse_uint_env("CALYPSO_BSP_DARAM_ADDR", 0x2a00);
+    bsp.daram_len      = parse_uint_env("CALYPSO_BSP_DARAM_LEN",  296);
+    bsp.bursts_seen = 0;
+    bsp.bursts_written = 0;
+    bsp.bursts_dropped_no_window = 0;
+    /* ATTENTION HACK HACK HACK !!!!!!!!
+     * CALYPSO_BSP_BYPASS_BDLENA=1 : bypass de la fenetre IOTA BDLENA.
+     * Sur silicon, le BSP ne delivre les samples au DSP que pendant la
+     * fenetre BDLENA assertee par IOTA. Sur emu, on a parfois besoin de
+     * sonder quelle adresse DARAM le DSP correlator lit reellement
+     * (CALYPSO_BSP_DARAM_ADDR mismatch suspecte) — ce flag desactive le
+     * gate pour livrer TOUS les bursts. Default OFF.
+     * Critere de retrait : DARAM target identifiee + a_pm/a_sync_demod
+     * publies nonzero par DSP. Voir doc/TODO.md. */
+    bsp.bypass_bdlena = (uint8_t)parse_uint_env("CALYPSO_BSP_BYPASS_BDLENA", 0);
+    if (bsp.bypass_bdlena) {
+        BSP_LOG("HACK: CALYPSO_BSP_BYPASS_BDLENA=1 — IOTA BDLENA gate DISABLED");
+    }
+    /* Canary injection (debug) : if CALYPSO_BSP_INJECT_CANARY=1, BSP
+     * overwrites all samples with a recognizable marker (0xCAFE) before
+     * DARAM write. Combined with data_read_locked canary watch in
+     * calypso_c54x.c, this directly identifies WHERE the DSP reads from
+     * the BSP buffer at runtime — no brute-force.
+     * Disable in normal runs. Voir doc/TODO.md. */
+    bsp.inject_canary = (uint8_t)parse_uint_env("CALYPSO_BSP_INJECT_CANARY", 0);
+    if (bsp.inject_canary) {
+        BSP_LOG("HACK: CALYPSO_BSP_INJECT_CANARY=1 — samples overwritten with 0xCAFE for buffer discovery");
+    }
+    bsp.bursts_dropped_queue_full = 0;
+    bsp.bursts_dropped_stale = 0;
+    memset(bsp.q, 0, sizeof(bsp.q));
+    bsp.trxd_fd = -1;
+    /* Pre-set UL peer to bridge default (TRXDv0 listener on 127.0.0.1:5702).
+     * Eliminates the race where ARM/DSP fires the first UL burst before any
+     * DL has arrived to learn the peer addr. The peer is refined to the
+     * actual sender on first DL receive (bsp_trxd_readable). */
+    memset(&bsp.trxd_peer, 0, sizeof(bsp.trxd_peer));
+    bsp.trxd_peer.sin_family = AF_INET;
+    bsp.trxd_peer.sin_port   = htons(5702);
+    bsp.trxd_peer.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    bsp.trxd_peer_valid = true;
+
+    /* Deterministic-replay short-circuit. If CALYPSO_BSP_REPLAY_FILE is
+     * set, load it now and skip the UDP listener. Replay timer takes over
+     * the supply role. */
+    const char *replay_path = getenv("CALYPSO_BSP_REPLAY_FILE");
+    if (replay_path && *replay_path) {
+        replay_count = bsp_replay_load(replay_path);
+        BSP_LOG("REPLAY mode: loaded %zu bursts from %s (UDP socket bypassed)",
+                replay_count, replay_path);
+        if (replay_count > 0) {
+            replay_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, bsp_replay_cb,
+                                        NULL);
+            timer_mod(replay_timer,
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
+                      + BSP_REPLAY_PERIOD_NS);
+        }
+        goto skip_udp_listener;
+    }
+
+    /* Bind UDP socket for TRXDv0 DL bursts from bridge/BTS.
+     *
+     * Default bind = 0.0.0.0 (was 127.0.0.1 hard-coded) so external
+     * sources can inject bursts — bridge in the same netns still works,
+     * and the host or other containers can reach BSP via the container
+     * IP or via Docker port mapping (-p 6702:6702/udp).
+     *
+     * Override via env :
+     *   CALYPSO_BSP_BIND_ADDR=<ip>  bind explicit IPv4 (e.g. 127.0.0.1,
+     *                                172.20.0.11). Default: 0.0.0.0
+     *   CALYPSO_BSP_BIND_LOOPBACK=1 legacy alias = 127.0.0.1 */
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd >= 0) {
+        int one = 1;
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+
+        const char *bind_addr_env = getenv("CALYPSO_BSP_BIND_ADDR");
+        const char *bind_lo_env   = getenv("CALYPSO_BSP_BIND_LOOPBACK");
+        const char *bind_addr     = NULL;
+        if (bind_addr_env && *bind_addr_env)
+            bind_addr = bind_addr_env;
+        else if (bind_lo_env && *bind_lo_env == '1')
+            bind_addr = "127.0.0.1";
+        else
+            bind_addr = "0.0.0.0";
+
+        /* Port override : permet d'insérer un proxy Python (iq_proxy.py)
+         * entre source et QEMU. Source unchanged (envoie sur 6702), QEMU
+         * listen sur CALYPSO_BSP_PORT=6712 (par ex), proxy fait Doppler. */
+        const char *port_env = getenv("CALYPSO_BSP_PORT");
+        int bsp_port = BSP_TRXD_PORT;
+        if (port_env && *port_env) {
+            int p = atoi(port_env);
+            if (p > 0 && p < 65536) bsp_port = p;
+        }
+        struct sockaddr_in sa = {
+            .sin_family = AF_INET,
+            .sin_port = htons(bsp_port),
+        };
+        if (inet_aton(bind_addr, &sa.sin_addr) == 0) {
+            BSP_LOG("CALYPSO_BSP_BIND_ADDR=%s invalid, falling back to 0.0.0.0",
+                    bind_addr);
+            sa.sin_addr.s_addr = htonl(INADDR_ANY);
+            bind_addr = "0.0.0.0";
+        }
+        if (bind(fd, (struct sockaddr *)&sa, sizeof(sa)) == 0) {
+            fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+            qemu_set_fd_handler(fd, bsp_trxd_readable, NULL, NULL);
+            bsp.trxd_fd = fd;
+            BSP_LOG("TRXD UDP listening on %s:%d", bind_addr, bsp_port);
+        } else {
+            BSP_LOG("TRXD bind %s:%d failed: %s",
+                    bind_addr, bsp_port, strerror(errno));
+            close(fd);
+        }
+    }
+
+skip_udp_listener:
+    /* Pre-init env-gated state so the first RACH burst doesn't pay the
+     * cost of strtoul/getenv mid-run. Reportedly the static-cache pattern
+     * had correlated runtime variability with LU success rate. */
+    (void)d_rach_word_offset();
+    (void)rach_force_bsic();
+
+    /* Arm REALTIME drain timer — wall-paced 5ms, monotonic anti-drift dans
+     * bsp_drain_cb. Aligné sur le même CLOCK_MONOTONIC que le pthread
+     * clk_master (calypso_trx.c). 2026-05-29 : sortie de VIRTUAL parce
+     * qu'on droppait 95% des bursts sous load DSP (virtual lag → drain
+     * trop lent). */
+    bsp.drain_timer = timer_new_ns(QEMU_CLOCK_REALTIME, bsp_drain_cb, NULL);
+    timer_mod(bsp.drain_timer,
+              qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + BSP_DRAIN_PERIOD_NS);
+    BSP_LOG("BSP drain timer armed: %dms REALTIME wall-paced, monotonic",
+            BSP_DRAIN_PERIOD_MS);
+
+    BSP_LOG("init dsp=%p daram_addr=0x%04x len=%u%s%s",
+            (void *)dsp, bsp.daram_addr, bsp.daram_len,
+            bsp.daram_addr ? "" : "  (DISCOVERY mode — no DMA)",
+            "");
+}
+
+/* ---- DL burst → DSP DARAM ---- */
+
+void calypso_bsp_rx_burst(uint8_t tn, uint32_t fn,
+                          const int16_t *iq, int n_int16)
+{
+    bsp.bursts_seen++;
+    /* ⚠️ TESTING 2026-05-29 : marqueur — si ça fire, rx_burst EST vivant
+     * (et il faudra y appliquer l'AFC aussi). Sinon = code mort. */
+    {
+        static unsigned rxb_n;
+        if (calypso_debug_enabled("BSP-RXBURST") &&
+            (rxb_n <= 20 || rxb_n % 2000 == 0))
+            fprintf(stderr, "[BSP] BSP-RXBURST #%u fn=%u tn=%u n=%d\n",
+                    rxb_n, (unsigned)fn, (unsigned)tn, n_int16);
+        rxb_n++;
+    }
+
+    /* GATE DSP_SHUNT : si le shunt est actif, le c54x ne tourne pas et
+     * le mock écrit directement NDB/read-page. Toute écriture BSP vers
+     * DARAM écraserait les valeurs canned du mock. */
+    /* [2026-07-22] Exception revive : en c54x REEL (route_c54x + RUN_C54X=1) le
+     * vrai DSP LIT la DARAM 0x2a00 -> on DOIT ecrire (aucun mock canned a clobber).
+     * Meme condition que bsp_trxd_readable:416. Drop UNIQUEMENT en shunt-mock pur. */
+    {
+        /* @BEQUILLE — BSP_DARAM_FORCE (site rx_burst)  (CALYPSO_BSP_DARAM_FORCE, EXISTS, defaut OFF)
+         *   masque  : idem site bsp_revive — la route c54x reelle n'est pas modelisee,
+         *             on force l'ecriture DARAM sous shunt quand RUN_C54X=1.
+         *   retirer : avec le site bsp_revive (meme condition).
+         */
+        static int rb_revive = -1;
+        if (rb_revive < 0) {
+            const char *e = getenv("CALYPSO_DSP_RUN_C54X");
+            /* [2026-07-25] idem bsp_revive : CALYPSO_BSP_DARAM_FORCE force l'ecriture
+             * DARAM 0x2a00 (buffer correlateur) sous shunt quand RUN_C54X=1. */
+            rb_revive = (e && *e == '1'
+                         && (calypso_dsp_shunt_route_c54x_active()
+                             || getenv("CALYPSO_BSP_DARAM_FORCE"))) ? 1 : 0;
+        }
+        if (calypso_dsp_shunt_active() && !rb_revive) {
+            if (bsp.bursts_seen <= 3)
+                BSP_LOG("rx_burst: DSP_SHUNT active (no revive), dropping fn=%u tn=%u", fn, tn);
+            return;
+        }
+    }
+
+    if (!bsp.dsp) {
+        if (bsp.bursts_seen <= 3)
+            BSP_LOG("rx_burst: no DSP attached, dropping fn=%u tn=%u", fn, tn);
+        return;
+    }
+    if (n_int16 <= 0 || iq == NULL) return;
+
+    if (bsp.daram_addr == 0) {
+        if (bsp.bursts_seen <= 5) {
+            BSP_LOG("rx_burst fn=%u tn=%u n=%d (target unset)",
+                    fn, tn, n_int16);
+        }
+        return;
+    }
+
+    /* 2026-05-29 : remplacement du gate BDLENA. Anciennement on droppait
+     * le burst si pas de pulse IOTA matching ; maintenant on délivre
+     * inconditionnellement. AUCUNE écriture de d_dsp_page ici — c'est
+     * firmware qui pilote le page flip via dsp_end_scenario (MMIO WR
+     * sur 0x01A8). On signale juste l'arrivée samples au DSP via INT3
+     * (= silicon BDLENA→BSP→DSP arm_done equivalent).
+     *
+     * Probe read-only sur d_dsp_page : on log la valeur vue par DSP
+     * au moment du burst (= ce que firmware a écrit). Sans modifier. */
+    /* [2026-07-22] Sonde FCCH (gated CALYPSO_IQDUMP_FCCH=1) : coherence + dphi du
+     * burst DECIME ecrit en DARAM. Vrai FCCH decime -> dphi ~ +1.571 (pi/2), coh~1.
+     * Verifie la couche contenu du feed. fprintf inconditionnel (pas BSP_LOG). */
+    if (getenv("CALYPSO_IQDUMP_FCCH")) {
+        int ns = n_int16 / 2;
+        double accr = 0, acci = 0, den = 0;
+        for (int k = 1; k < ns; k++) {
+            double i0 = iq[2*(k-1)], q0 = iq[2*(k-1)+1];
+            double i1 = iq[2*k],     q1 = iq[2*k+1];
+            accr += i1*i0 + q1*q0;
+            acci += q1*i0 - i1*q0;
+            den  += sqrt((i0*i0+q0*q0)*(i1*i1+q1*q1));
+        }
+        double mag = sqrt(accr*accr + acci*acci);
+        double coh = den > 0 ? mag/den : 0;
+        double dphi = atan2(acci, accr);
+        if (coh > 0.85) {
+            static int fcp = 0;
+            if (fcp++ < 30)
+                fprintf(stderr, "[BSP] FCCH-PROBE fn=%u ns=%d coh=%.3f dphi=%.3f (vise +1.571 @1SPS)\n",
+                        (unsigned)fn, ns, coh, dphi);
+        }
+    }
+
+    if (bsp.dsp && bsp.dsp->api_ram) {
+        static uint32_t obs_n = 0;
+        /* [2026-07-29] 0x08E2 = d_dsp_state ; d_dsp_page = 0x08D4 (calypso_fbsb.h). */
+        uint16_t cur = bsp.dsp->api_ram[0x08D4 - 0x0800];
+        obs_n++;
+        if (calypso_debug_enabled("PUMP") &&
+            (obs_n <= 20 || obs_n % 37 == 0)) {
+            fprintf(stderr, "[bsp-page] #%u rx_burst fn=%u tn=%u "
+                    "d_dsp_page=0x%04x (B_GSM_TASK=%d w_page=%d)\n",
+                    obs_n, fn, tn, cur, !!(cur & 2), !!(cur & 1));
+            fflush(stderr);
+        }
+    }
+    /* Gate INT3 fire : skip si IFR.bit3 déjà set = DSP pas encore servi
+     * le précédent. Évite stacking d'IRQs quand DSP traite plus lentement
+     * que BSP delivery rate. */
+    /* [2026-07-23] FIX namespace bit3/bit12 (diag horloges) : natif remappe vec19/bit3
+     * -> vec28/bit12 ; l anti-stack doit tester le bit REEL sinon gate tjrs ouvert -> flood. */
+    { static int _nat = -1; if (_nat < 0) _nat = (getenv("CALYPSO_FRAME_IT_NATIVE") || getenv("CALYPSO_DSP_FRAME_VEC28")) ? 1 : 0; int _fb = _nat ? 12 : 3;
+      if (bsp.dsp && bsp.dsp->running && !(bsp.dsp->ifr & (1 << _fb))) {
+        calypso_bsp_deliver(bsp.dsp, 19, 3);
+        if (bsp.dsp->idle) bsp.dsp->idle = false;
+      } }
+
+    /* [2026-07-25] WIRE BSP->DSP BRINT0 (direct-feed) : le chemin direct-feed
+     * (CALYPSO_BSP_DIRECT_FEED=1) livre l'I/Q en DARAM 0x2a00 mais ne levait QUE
+     * INT3 (vec19/bit3, frame). Le chemin buffered, lui, leve BRINT0 (vec21/bit5)
+     * = l'IT "buffer recu" qui reveille le handler FB-det correlateur (ISR
+     * PROM1[0xFFD4]->CALL 0xf310). Sans BRINT0 le correlateur 0x8d00 n'est JAMAIS
+     * dispatche (0 hit confirme). On le leve comme deliver_buffered (meme
+     * anti-stack gate IFR bit5). Gate CALYPSO_BSP_DIRECT_BRINT0 (defaut OFF pour
+     * tester une variable a la fois). */
+    /* @BEQUILLE — BSP_DIRECT_BRINT0  (CALYPSO_BSP_DIRECT_BRINT0, EXISTS, defaut OFF ; calypso_wire.env:=1)
+     *   masque  : sur silicium, la fin de DMA BSP (fenetre BDLENA) leve BRINT0
+     *             vec21/bit5. Le chemin direct-feed ne leve qu'INT3 ; la chaine
+     *             TPU->TSP->IOTA->BSP qui produirait le pulse n'est pas cablee.
+     *   retirer : des que calypso_iota_take_bdl_pulse() est alimente par la fenetre
+     *             RX du TPU et consomme sur le chemin vivant (cf TPU_RX_WIRE).
+     */
+    { static int _db = -1; if (_db < 0) _db = calypso_gate("CALYPSO_BSP_DIRECT_BRINT0", 0);
+      /* MISSION-GATE : ne lever BRINT0 que si le DSP est reellement sur la
+       * mission FB/SB (d_task_md), pas hors-mission -> le reveil correlateur
+       * arrive au bon moment, comme le vrai "buffer recu" du silicium.
+       * FB=5 SB=6 TCH_FB=8 TCH_SB=9 (osmo l1_environment.h). */
+      uint16_t _md = calypso_dsp_shunt_get_task_md();
+      int _fbsb = (_md == 5 || _md == 6 || _md == 8 || _md == 9);
+      if (_db && _fbsb && bsp.dsp && bsp.dsp->running && !(bsp.dsp->ifr & (1 << 5))) {
+        calypso_bsp_deliver(bsp.dsp, 21, 5);
+        if (bsp.dsp->idle) bsp.dsp->idle = false;
+      } }
+
+    /* [2026-07-26 WF golive-handshake] RX-FBFLAGS sur le chemin VIVANT (rx_burst /
+     * DIRECT_FEED). Modelise l'ISR BRINT0 0xf310 (jamais prise, INTM=1) qui OR les
+     * bits de handshake FB-det que le handler-dispatcher 0x8d00 poll. Le handler
+     * 0x8d00->0xa076 est POLLING PUR (BITF/BC sur RAM) : pas besoin d'IT/INTM.
+     * MASTER = data[0x3fad] bit15 : gate CC 0xa0a0 @0x8754 -> kernel 0xa076
+     * (le bloc homonyme de deliver_buffered est MORT sous shunt ET omet 3fad bit15
+     *  -> ne peut pas deboucher le noyau). Gate CALYPSO_RX_FBFLAGS, mission FB/SB. */
+    /* @BEQUILLE — RX_FBFLAGS (chemin vivant rx_burst)  (CALYPSO_RX_FBFLAGS, EXISTS, defaut OFF)
+     *   masque  : l'ISR BRINT0 (PROM1[0xFFD4] -> CALL 0xf310) n'est jamais prise,
+     *             donc les bits de handshake FB-det qu'elle devrait poser ne le sont
+     *             pas : data[0x3fad] bit15 (verrou-maitre du kernel @0x8754),
+     *             0x3faa bit2+bit8, 0x3fab bit8, 0x3fae bit8. On les pose depuis la
+     *             livraison du burst.
+     *   retirer : quand BRINT0 est reellement servie et que son ISR ecrit ces bits ;
+     *             le bloc jumeau de deliver_buffered est deja mort sous
+     *             BSP_DIRECT_FEED=1 et omet 0x3fad -> a supprimer en premier.
+     *   NB      : conteneur de POKE_TASK_MD et POKE_DISPATCH ci-dessous.
+     */
+    { static int _fbf = -1; if (_fbf < 0) _fbf = calypso_gate("CALYPSO_RX_FBFLAGS", 0);
+      uint16_t _mdf = calypso_dsp_shunt_get_task_md();
+      int _fbsbf = (_mdf == 5 || _mdf == 6 || _mdf == 8 || _mdf == 9);
+      if (_fbf && _fbsbf && bsp.dsp) {
+          bsp.dsp->data[0x3fad] |= 0x8000;   /* MASTER kernel gate  @0x8754 */
+          calypso_rxfb_fired = 1;   /* [probe] arme la sonde 0x8753 cote c54x */
+          bsp.dsp->data[0x3faa] |= 0x0104;   /* bit2+bit8           @0x886b/85/98 */
+          bsp.dsp->data[0x3fab] |= 0x0100;   /* bit8 (FBEN)         @0x888d */
+          bsp.dsp->data[0x3fae] |= 0x0100;   /* bit8                @0x90c8/ed/28 */
+          /* [2026-07-26 POKE TACHE DSP] le CALA entre le correlateur avec
+           * task_md(0x0804/0x0818)=0 = AUCUNE mission -> il spinne sur du vide.
+           * On pose le descripteur de tache (la mission FB/SB) dans les 2 pages
+           * API-RAM que le dispatcher DSP lit. d_dsp_page(0x08e2) a deja bit1
+           * (task-ready) set -> seul task_md manquait. */
+          /* @BEQUILLE — POKE_TASK_MD (+ POKE_DISPATCH ci-dessous)  (CALYPSO_POKE_TASK_MD,
+           *              atoi>0 mais DEFAUT 1 SI LA VARIABLE EST ABSENTE)
+           *   masque  : le descripteur de tache (d_task_md, pages API-RAM 0x0804/0x0818)
+           *             n'est jamais publie vers le DSP : la DMA page-ecriture ARM->DARAM
+           *             0x0586 (calypso_trx.c) est fermee sous shunt. Le correlateur entre
+           *             donc sans mission et tourne dans le vide ; on lui pose la mission a
+           *             la main. POKE_DISPATCH va plus loin et replique dsp_end_scenario
+           *             (d_dsp_page = B_GSM_TASK|w_page en alternance).
+           *   retirer : quand la DMA de la write-page atteint le DSP (task_md lu depuis
+           *             0x0586+DB_W_D_TASK_MD) ; alors ces deux pokes deviennent nuls.
+           *   NB      : defaut ON, mais imbrique dans le bloc RX_FBFLAGS -> sans
+           *             CALYPSO_RX_FBFLAGS, jamais atteint.
+           */
+          { static int _pt = -1; if (_pt < 0) { const char *_pe = getenv("CALYPSO_POKE_TASK_MD"); _pt = _pe ? (atoi(_pe) > 0) : 1; }  /* defaut ON, =0 pour desactiver */
+            if (_pt) { bsp.dsp->data[0x0804] = _mdf;   /* task_md page0 = mission (5=FB 6=SB) */
+                       bsp.dsp->data[0x0818] = _mdf; } /* task_md page1 */ }
+          /* [2026-07-26 POKE DISPATCH osmocom] replique dsp_end_scenario (dsp.c:480):
+           * d_task_md sur la WRITE-page courante + d_dsp_page = B_GSM_TASK(0x0002)|w_page
+           * qui ALTERNE 2<->3 (le natif fige a 2 = w_page jamais flippe). Gate. */
+          { static int _pd = -1; static uint16_t _wp = 0;
+            if (_pd < 0) { const char *_de = getenv("CALYPSO_POKE_DISPATCH"); _pd = _de ? (atoi(_de) > 0) : 0; }
+            if (_pd) {
+                bsp.dsp->data[_wp ? 0x0818 : 0x0804] = _mdf;      /* d_task_md sur write-page */
+                /* [2026-07-29] Deux corrections : la cellule (0x08e2 = d_dsp_state,
+                 * d_dsp_page = 0x08D4) ET le tableau (la ROM lit l'API RAM, pas
+                 * data[] — cf calypso_c54x.c, plage 0x0800+ servie par api_ram). */
+                if (bsp.dsp->api_ram)
+                    bsp.dsp->api_ram[0x08D4 - 0x0800] = (uint16_t)(0x0002 | _wp);
+                else
+                    bsp.dsp->data[0x08D4] = (uint16_t)(0x0002 | _wp);
+                _wp ^= 1;                                         /* flip w_page (2<->3) */
+            } }
+          static unsigned _fbfn = 0;
+          if (_fbfn++ < 8)
+              fprintf(stderr, "[c54x] RX-FBFLAGS(live): 3fad|=0x8000 3faa|=0x104 "
+                      "3fab|=0x100 3fae|=0x100 (task_md=%u fn=%u)\n",
+                      _mdf, (unsigned)fn);
+      } }
+
+    /* [2026-07-25] TEST RANK3 (WF1 boot->correlator) : le handler FB-det 0x8d00
+     * n'est JAMAIS installe dans un slot de dispatch -> le BACC/CALA calcule
+     * resout toujours vers le stub 0xab38 (le go-live arm 0xa4c7 sinon), et la
+     * LUT native 0x8341 qui l'installerait est inatteignable (0x7234 deraille
+     * vers l'overlay 0x013b via d_dsp_page garbage). Ici on INSTALLE 0x8d00
+     * dans les slots de dispatch POUR LA TRAME du burst FB/SB (mission-gate,
+     * dynamique par burst -- PAS un pin statique) + on leve IMR bit9 (route
+     * scheduler 0x7234->0x8341). Au prochain BACC(0xb40f)/CALA(0xb01e) le DSP
+     * tombe dans le correlateur. Gate CALYPSO_BSP_DISPATCH_FB (defaut OFF). */
+    /* @BEQUILLE — BSP_DISPATCH_FB (+ _TGT, _NOIMR, _ONESHOT)  (CALYPSO_BSP_DISPATCH_FB,
+     *              EXISTS, defaut OFF ; calypso_wire.env:=1)
+     *   masque  : la LUT native 0x8341 qui installe le handler FB-det 0x8d00 dans
+     *             les slots de dispatch n'est jamais atteinte (0x7234 deraille vers
+     *             l'overlay 0x013b). On ecrit les slots 0x43c0/0x4387/0x43d8 a la
+     *             main et on ouvre IMR bit9 a la place du scheduler.
+     *   retirer : quand 0x7234 atteint 0x8341 et peuple ces slots tout seul ; le
+     *             demasquage IMR est separable (CALYPSO_BSP_DISPATCH_NOIMR=1).
+     */
+    { static int _di = -1; static uint16_t _tgt = 0; static int _os = -1; static int _done = 0;
+      if (_di < 0) { _di = calypso_gate("CALYPSO_BSP_DISPATCH_FB", 0);
+        const char *_t = getenv("CALYPSO_BSP_DISPATCH_FB_TGT");
+        _tgt = (_t && *_t) ? (uint16_t)strtoul(_t, NULL, 0) : 0x8d00;
+        _os = calypso_gate("CALYPSO_BSP_DISPATCH_ONESHOT", 0); } /* cible 0x8d00.
+        * ONESHOT (diag user "pulse") : n'installe+leve BRINT0 qu'UNE fois, au lieu
+        * de re-dispatcher chaque trame (= la congestion : correlateur re-entre en
+        * boucle sans finir). Le pulse laisse le correlateur derouler une passe. */
+      uint16_t _md2 = calypso_dsp_shunt_get_task_md();
+      int _fb2 = (_md2 == 5 || _md2 == 6 || _md2 == 8 || _md2 == 9);
+      if (_di && _fb2 && bsp.dsp && bsp.dsp->running && !(_os && _done)) {
+        _done = 1;
+        bsp.dsp->data[0x43c0] = _tgt;   /* slot terminal BACC 0xb40f (etait 0xa4c7 go-live) */
+        bsp.dsp->data[0x4387] = _tgt;   /* slot idle/CALA 0xb01e (etait stub 0xab38) */
+        bsp.dsp->data[0x43d8] = _tgt;   /* slot reseed (etait stub 0xab38) */
+        { /* [2026-07-27] NOIMR : le demasquage IMR est separable de l install
+           * du handler — il preempte la routine FB 6 instructions apres son
+           * entree (IT vers vec21/0x00d4). CALYPSO_BSP_DISPATCH_NOIMR=1 pour
+           * installer le handler SANS toucher l IMR. */
+          static int _noimr = -1;
+          if (_noimr < 0) _noimr = calypso_gate("CALYPSO_BSP_DISPATCH_NOIMR", 0);
+          if (!_noimr) bsp.dsp->imr |= 0x0200;   /* bit9 : route frame scheduler */
+        }
+        static unsigned _dl = 0;
+        if (_dl++ < 8)
+            fprintf(stderr, "[c54x] BSP-DISPATCH-FB : install 0x%04x (LUT setup FB) "
+                    "-> slots 0x43c0/0x4387/0x43d8 + IMR|=bit9 (task_md=%u fn=%u) insn=%u\n",
+                    _tgt, _md2, (unsigned)fn, bsp.dsp->insn_count);
+      } }
+
+    int n = n_int16 < (int)bsp.daram_len ? n_int16 : (int)bsp.daram_len;
+
+    /* Load samples into BSP serial port buffer (PORTR PA=0x0034).
+     * The DSP reads one sample per PORTR instruction from this buffer.
+     * ⚠️ NON-DÉFINITIF / TESTING 2026-05-29 (hypothèse, à valider/débugger).
+     * FIX 2026-05-29 : livrer le burst COMPLET (iq[] = I/Q interleaved,
+     * 2*nbits int16, jusqu'à 296), PAS tronqué à 148. Tronquer à 148 int16
+     * ne donnait au corrélateur que 74 symboles complexes = la MOITIÉ du
+     * burst → la tonalité FCCH (FB) ne pouvait jamais corréler → FBSB_CONF
+     * jamais émis. On borne sur n_int16 (taille réelle du burst), pas n
+     * (qui était clampé à daram_len pour l'écriture DARAM). */
+    {
+        /* [2026-07-30] Meme plafond que le tampon DARAM : voir BSP_IQ_MAX_I16.
+         * Ce chemin-ci alimente c54x_bsp_load (port BSP), qui mesure `BSP LOAD=0`
+         * dans tous les runs — il n'est donc pas le chemin actif, mais on ne
+         * laisse pas deux plafonds divergents dans le meme fichier. */
+        uint16_t samples[BSP_IQ_MAX_I16];
+        int ns = n_int16 > BSP_IQ_MAX_I16 ? BSP_IQ_MAX_I16 : n_int16;
+        for (int i = 0; i < ns; i++)
+            samples[i] = (uint16_t)iq[i];
+        c54x_bsp_load(bsp.dsp, samples, ns);
+    }
+
+    /* Also write to DARAM for code that reads samples directly.
+     * Wrap the whole burst write + post-write log in a single DARAM lock
+     * section — sans ça, DSP thread (Phase 2 PCB) racerait avec ce write
+     * et lirait des samples partiellement écrits. Cost = 1 mutex op pour
+     * ~157 itérations ≈ négligeable. */
+    /* ⚠️ NON-DÉFINITIF / TESTING 2026-05-29 (hypothèse, à valider/débugger).
+     * FIX 2026-05-29 : woff LOCAL (était static) — chaque burst écrit aligné
+     * à daram_addr[0..n-1]. Le static faisait rouler l'offset cross-burst :
+     * le burst FB d'une frame atterrissait à un offset que le DSP ne lit pas
+     * (fragmenté sur le wrap) → corrélateur sur données désalignées. */
+    unsigned woff = 0;
+    /* [2026-07-26 golive-mac] ROOT-CAUSE d_fb_det=0 : ce writer rx_burst ecrit
+     * son iq[] (burst DC degenere = 0x12ed constant) en DARAM 0x2a00, CLOBBANT
+     * les vrais samples FCCH que feed_iq (calypso_dsp_shunt.c, coh=0.999) y a
+     * poses. Quand CALYPSO_FB_IQ_DARAM=1, feed_iq DETIENT la DARAM 0x2a00 : on
+     * SAUTE la boucle d'ecriture concurrente (mais on GARDE acquire/release :
+     * le lock enveloppe aussi le post-write log jusqu'a 0x2a00 release plus bas).
+     * Indep. de DIRECT_FEED/DARAM_FORCE. */
+    /* @BEQUILLE — FB_IQ_OWNS  (CALYPSO_FB_IQ_OWNS, atoi>0, calypso.env:=0)
+     *   masque  : deux producteurs concurrents ecrivent le meme buffer d'entree du
+     *             correlateur (rx_burst cote BSP et feed_iq cote shunt). Le silicium
+     *             n'a qu'un seul chemin : le BSP. Ce flag arbitre a la main qui
+     *             gagne, faute d'un unique writer.
+     *   retirer : quand feed_iq disparait au profit du seul chemin BSP (ou
+     *             inversement) — il ne doit rester qu'un writer de bsp.daram_addr.
+     */
+    static int _fbiq_owns = -1;
+    if (_fbiq_owns < 0) {
+        /* [2026-07-27] DECOUPLE : le SKIP rx_burst ne se declenche QUE sur opt-in
+         * explicite CALYPSO_FB_IQ_OWNS (defaut OFF). Avant gate sur FB_IQ_DARAM ->
+         * quand feed_iq n'ecrit pas 0x2a00 (marker=0), le buffer restait affame ->
+         * kernel correle du vide -> SHADOW-DADST PERDU. Par defaut rx_burst nourrit
+         * toujours 0x2a00 (kernel vivant). Mettre FB_IQ_OWNS=1 seulement quand le
+         * feed_iq->0x2a00 est prouve fonctionnel. */
+        const char *e = getenv("CALYPSO_FB_IQ_OWNS");
+        _fbiq_owns = (e && atoi(e) > 0) ? 1 : 0;
+    }
+    calypso_pcb_daram_lock_acquire();
+    if (_fbiq_owns) {
+        static unsigned _sk = 0;
+        if (_sk++ < 8)
+            fprintf(stderr, "[BSP] FB-IQ-DARAM owns 0x2a00 : rx_burst DARAM write SKIP "
+                    "(fn=%u tn=%u) -> feed_iq authoritative\n", (unsigned)fn, (unsigned)tn);
+    } else {
+        /* [2026-07-27] CALYPSO_BSP_IQ_SHIFT : voir en-tete du patch (instrument). */
+        static int _iqsh = -1;
+        if (_iqsh < 0) {
+            const char *e = getenv("CALYPSO_BSP_IQ_SHIFT");
+            _iqsh = (e && *e) ? atoi(e) : 0;
+            if (_iqsh < 0) _iqsh = 0;
+            if (_iqsh > 12) _iqsh = 12;
+            if (_iqsh) BSP_LOG("IQ_SHIFT=%d (echantillons >>%d avant DARAM : test saturation)", _iqsh, _iqsh);
+        }
+        for (int i = 0; i < n; i++) {
+            uint16_t a = (uint16_t)(bsp.daram_addr + woff);
+            bsp.dsp->data[a] = (uint16_t)(int16_t)(_iqsh ? (iq[i] >> _iqsh) : iq[i]);
+            bsp_daram_wr_bucket(a);
+            woff++;
+            if (woff >= bsp.daram_len) woff = 0;
+        }
+        /* [2026-07-27] DARAM-FNSTAMP : publie le fn et le nombre d'ecritures
+         * pour que le dump c54x estampille CE QU'IL LIT (voir en-tete patch). */
+        calypso_daram_last_fn = (unsigned)fn;
+        calypso_daram_wr_count++;
+    }
+    bsp.bursts_written++;
+
+    /* PROBE 2026-05-31 fork-1 : dump des bursts I/Q pour FFT offline (cherche
+     * le pic FCCH à +67.7 kHz = 1625/24). Gated CALYPSO_IQDUMP. Dump bursts
+     * 5..28 en raw int16 (un fichier par burst → l'un d'eux = FCCH). À RETIRER. */
+    /* [2026-07-22] Dumps diag : capture les bursts COHERENTS (= FCCH), pas les
+     * 24 premiers (startup non-FCCH). coh = meme math que FCCH-PROBE. Sorties :
+     * /tmp/iq_rx_*.bin (CALYPSO_IQDUMP, raw int16) + bursts.cfile (BSP_DUMP_RX_FILE,
+     * IQ16 : hdr 12o [magic|fn LE|tn|n_int16 LE|pad] + int16). */
+    if (getenv("CALYPSO_IQDUMP") || getenv("BSP_DUMP_RX_FILE")) {
+        int nsx = n / 2;
+        double ar = 0, ai = 0, dn = 0;
+        for (int k = 1; k < nsx; k++) {
+            double i0 = iq[2*(k-1)], q0 = iq[2*(k-1)+1];
+            double i1 = iq[2*k],     q1 = iq[2*k+1];
+            ar += i1*i0 + q1*q0; ai += q1*i0 - i1*q0;
+            dn += sqrt((i0*i0+q0*q0)*(i1*i1+q1*q1));
+        }
+        double bcoh = dn > 0 ? sqrt(ar*ar+ai*ai)/dn : 0;
+        if (bcoh > 0.85) {   /* burst coherent = FCCH */
+            if (getenv("CALYPSO_IQDUMP")) {
+                static unsigned rx_dump_n;
+                if (rx_dump_n < 24) {
+                    char path[80];
+                    snprintf(path, sizeof(path), "/tmp/iq_rx_%03u.bin", rx_dump_n);
+                    FILE *f = fopen(path, "wb");
+                    if (f) { fwrite(iq, sizeof(int16_t), n, f); fclose(f); }
+                    rx_dump_n++;
+                }
+            }
+            const char *bp = getenv("BSP_DUMP_RX_FILE");
+            if (bp && *bp) {
+                static FILE *bf; static int binit;
+                if (!binit) { bf = fopen(bp, "wb"); binit = 1; }
+                if (bf) {
+                    uint8_t hdr[12] = { 0x49,0x51,0x31,0x36,
+                        (uint8_t)fn, (uint8_t)(fn>>8), (uint8_t)(fn>>16), (uint8_t)(fn>>24),
+                        (uint8_t)tn, (uint8_t)n, (uint8_t)(n>>8), 0 };
+                    fwrite(hdr, 1, 12, bf);
+                    fwrite(iq, sizeof(int16_t), n, bf);
+                    fflush(bf);
+                }
+            }
+        }
+    }
+
+    /* Log DARAM content after write for FB bursts (inside lock so values
+     * read are consistent with what we just wrote). */
+    if (bsp.bursts_written <= 3) {
+        BSP_LOG("DARAM after write [0x%04x]: %d %d %d %d %d %d %d %d",
+                bsp.daram_addr,
+                n>0?(int16_t)bsp.dsp->data[bsp.daram_addr]:0,
+                n>1?(int16_t)bsp.dsp->data[bsp.daram_addr+1]:0,
+                n>2?(int16_t)bsp.dsp->data[bsp.daram_addr+2]:0,
+                n>3?(int16_t)bsp.dsp->data[bsp.daram_addr+3]:0,
+                n>4?(int16_t)bsp.dsp->data[bsp.daram_addr+4]:0,
+                n>5?(int16_t)bsp.dsp->data[bsp.daram_addr+5]:0,
+                n>6?(int16_t)bsp.dsp->data[bsp.daram_addr+6]:0,
+                n>7?(int16_t)bsp.dsp->data[bsp.daram_addr+7]:0);
+    }
+    calypso_pcb_daram_lock_release();
+    if (bsp.bursts_written <= 5 || (bsp.bursts_written % 1000) == 0) {
+        BSP_LOG("DMA fn=%u tn=%u n=%d → DARAM[0x%04x..0x%04x] total=%llu "
+                "iq[0..3]=%d,%d,%d,%d",
+                fn, tn, n, bsp.daram_addr,
+                (unsigned)(bsp.daram_addr + n - 1),
+                (unsigned long long)bsp.bursts_written,
+                n>0 ? iq[0] : 0, n>1 ? iq[1] : 0,
+                n>2 ? iq[2] : 0, n>3 ? iq[3] : 0);
+    }
+
+    /* Fire BRINT0 — gated by BDLENA from the TPU/TSP/IOTA chain.
+     * The firmware opens the RX window via TPU scenario → TSP write → IOTA BDLENA.
+     * calypso_iota_take_bdl_pulse() consumed the window above.
+     * BRINT0 fires once per window, rate-limited by IFR bit. */
+    if (bsp.dsp && !(bsp.dsp->ifr & (1 << 5))) {
+        calypso_bsp_deliver(bsp.dsp, 21, 5);
+        if (bsp.dsp->idle) bsp.dsp->idle = false;
+    }
+}
+
+/* ---- Deliver buffered burst when BDLENA fires ---- */
+/* Called from calypso_tdma_tick (calypso_trx.c) each frame.
+ * For each TN: purge stale entries, then if a queued burst matches the
+ * current QEMU virtual FN and a BDLENA pulse is pending, deliver it. */
+void calypso_bsp_deliver_buffered(uint32_t current_fn)
+{
+    /* GATE DSP_SHUNT (cf calypso_bsp_rx_burst). Idem ici : si le shunt
+     * est actif, on ne livre aucun sample bufferisé — le mock owns la
+     * DARAM API region pour ses canned responses.
+     * HYBRIDE (RANK2, CALYPSO_TPU_RX_WIRE=1) : on lève ce gate pour laisser la
+     * chaîne RX native remplir DARAM 0x2a00 (+ d[3f92]) même sous shunt, afin
+     * d'alimenter le vrai corrélateur DSP. Réversible : sans l'env, inchangé. */
+    {
+        /* @BEQUILLE — TPU_RX_WIRE (gate de livraison)  (CALYPSO_TPU_RX_WIRE, EXISTS,
+         *              defaut OFF ; calypso_wire.env:=1)
+         *   masque  : la fenetre RX du TPU (scenario TPU -> MOVE TSP -> IOTA BDLENA)
+         *             n'est raccordee a rien, donc la livraison bufferisee reste fermee
+         *             sous shunt et le correlateur natif reste affame.
+         *   retirer : quand le sequenceur TPU produit le pulse BDLENA et que le BSP le
+         *             consomme sans gate.
+         *   NB      : ce gate se leve AUSSI via (DSP_RUN_C54X=1 && BSP_DARAM_FORCE) —
+         *             mesure du 2026-07-28 : deliver ouvert alors que le site du pulse
+         *             et la DMA de tache (calypso_trx.c) restent fermes = wire a moitie
+         *             leve (d[0x3f92] non pose).
+         */
+        static int rxw = -1;
+        if (rxw < 0) {
+            /* [2026-07-28] coherence avec les gates :474 et :997, qui se levent
+             * deja avec CALYPSO_BSP_DARAM_FORCE. Sans ca, DARAM_FORCE=1 ouvrait
+             * 2 verrous sur 3 et la livraison restait bloquee ici -> entree du
+             * correlateur (0x4c00) gelee (mesure corr_iq : 3 lectures identiques).
+             * Defaut inchange : sans env, comportement strictement identique. */
+            const char *rc = getenv("CALYPSO_DSP_RUN_C54X");
+            rxw = (getenv("CALYPSO_TPU_RX_WIRE")
+                   || (rc && *rc == '1' && getenv("CALYPSO_BSP_DARAM_FORCE"))) ? 1 : 0;
+            if (rxw)
+                fprintf(stderr, "[bsp] deliver: gate shunt LEVE (rxw=1) — "
+                        "livraison DARAM active\n");
+        }
+        if (calypso_dsp_shunt_active() && !rxw) return;
+    }
+
+    if (!bsp.dsp || bsp.daram_addr == 0) return;
+
+    for (int tn = 0; tn < BSP_NUM_TN; tn++) {
+        /* Drain ALL matchable bursts per call (2026-05-29 fix anti-stale).
+         * Avant : 1 burst/appel → sous contention BQL le drain rate effectif
+         * tombe sous le rate d'arrivée IPC → queue fills → bursts > 64 FN
+         * derriere cur_fn marqués stale (= 87% drop observé).
+         * Maintenant : drain catch-up jusqu'à plus aucun match. Bornage
+         * via la fenêtre BSP_FN_MATCH_WINDOW dans bsp_take_for_fn — pas de
+         * runaway. */
+        /* TPU-RX-WIRE (RANK2, gated CALYPSO_TPU_RX_WIRE=1) : consume the BDLENA
+         * pulse the TPU RX window opened (TPU scenario -> TSP MOVE -> IOTA). The
+         * native consumer calypso_iota_take_bdl_pulse() had ZERO callers, so the
+         * RX-window -> BSP transfer was never wired : DARAM 0x2a00 stayed empty
+         * and the FB correlator ran on garbage. On a pulse for this TN :
+         *   (a) queue the FB task in the DSP scheduler word : d[0x3f92] |= 0x0800
+         *       — this is "wire d[3f92] via the TPU" : the RX window hands the FB
+         *       task to the DSP scheduler (the native ORM at 0xa539 is skipped
+         *       because d[5a00]==0x88, so nothing else ever sets it) ;
+         *   (b) deliver the NEAREST buffered burst NOW (bsp_take_nearest), bypassing
+         *       the FN-match window that never lands in full mode.
+         * The loop body still does the DARAM write, INT3 and BRINT0 assert. */
+        int rxwin = 0;
+        {
+            /* @BEQUILLE — TPU_RX_WIRE (consommation du pulse BDLENA)  (CALYPSO_TPU_RX_WIRE,
+             *              EXISTS, defaut OFF)
+             *   masque  : calypso_iota_take_bdl_pulse() n'a qu'un seul appelant, celui-ci.
+             *             Le wire (a) consomme le pulse, (b) pose la tache FB dans le mot
+             *             scheduler d[0x3f92] bit11 a la place de l'ORM natif 0xa539 jamais
+             *             execute, (c) livre le burst le PLUS PROCHE en contournant la
+             *             fenetre de match FN.
+             *   retirer : quand d[0x3f92] est pose par l'ORM natif et que le match FN
+             *             aboutit sans contournement.
+             */
+            static int en = -1;
+            if (en < 0) en = calypso_gate("CALYPSO_TPU_RX_WIRE", 0);
+            if (en && calypso_iota_take_bdl_pulse((uint8_t)tn)) {
+                rxwin = 1;
+                if (bsp.dsp) bsp.dsp->data[0x3f92] |= 0x0800;
+                static unsigned rxw_log;
+                if (rxw_log++ < 12)
+                    BSP_LOG("TPU-RX-WIRE tn=%u fn=%u : BDLENA pulse consumed -> "
+                            "d[0x3f92]|=0x0800 (FB task queued) + deliver nearest",
+                            tn, current_fn);
+            }
+        }
+        BspBurstSlot *sl;
+        while ((sl = rxwin ? bsp_take_nearest((uint8_t)tn, current_fn)
+                           : bsp_take_for_fn(tn, current_fn)) != NULL) {
+
+        /* 2026-05-29 : pas d'écriture d_dsp_page, juste INT3 (arm_done).
+         * Probe read-only voir commentaire dans calypso_bsp_rx_burst. */
+        if (bsp.dsp && bsp.dsp->api_ram) {
+            static uint32_t obs_n = 0;
+            /* [2026-07-29] 0x08E2 = d_dsp_state ; d_dsp_page = 0x08D4 (calypso_fbsb.h). */
+        uint16_t cur = bsp.dsp->api_ram[0x08D4 - 0x0800];
+            obs_n++;
+            if (calypso_debug_enabled("PUMP") &&
+                (obs_n <= 20 || obs_n % 37 == 0)) {
+                fprintf(stderr, "[bsp-page] #%u drain fn=%u tn=%u "
+                        "d_dsp_page=0x%04x (B_GSM_TASK=%d w_page=%d)\n",
+                        obs_n, current_fn, tn, cur,
+                        !!(cur & 2), !!(cur & 1));
+                fflush(stderr);
+            }
+        }
+        /* Gate INT3 : skip si IFR.bit3 déjà set (cf rx_burst). */
+        { static int _nat = -1; if (_nat < 0) _nat = (getenv("CALYPSO_FRAME_IT_NATIVE") || getenv("CALYPSO_DSP_FRAME_VEC28")) ? 1 : 0; int _fb = _nat ? 12 : 3;
+          if (bsp.dsp && bsp.dsp->running && !(bsp.dsp->ifr & (1 << _fb))) {
+            calypso_bsp_deliver(bsp.dsp, 19, 3);
+            if (bsp.dsp->idle) bsp.dsp->idle = false;
+          } }
+
+        int n = sl->n < (int)bsp.daram_len ? sl->n : (int)bsp.daram_len;
+
+        /* === SB-INPUT discriminator (phase-based, 2026-05-28 v2) ===
+         * GMSK = constant envelope → magnitude(I,Q) constant pour FCCH ET
+         * SCH. Le seul discriminant qui sépare est la trajectoire de phase :
+         *   FCCH  = tone pur → Δphase constant → cross[k]=I[k]*Q[k-1]-Q[k]*I[k-1]
+         *           a même signe à tous les k (rotation monotone)
+         *   SCH/NB = GMSK data → Δphase varie ±90°/sample → cross alterne
+         * Compteur de cross-product de même signe que cross[0] sur 10 paires :
+         *   ≥9 same-sign → TONAL_FB
+         *   ≤8           → MODULATED
+         * nmax conservé en plus pour détecter SILENT.  Cap 600. */
+        {
+            static unsigned db_log;
+            const unsigned LIMIT = 600;
+            if (db_log < LIMIT) {
+                const int N = 22 < n / 2 ? 22 : n / 2;  /* N pairs ⇒ 2N samples */
+                int nmax = 0;
+                for (int i = 0; i < 2 * N && i < n; i++) {
+                    int s = (int)sl->iq[i];
+                    if (s < 0) s = -s;
+                    if (s > nmax) nmax = s;
+                }
+                int same_sign = 0;
+                int cross0 = 0;
+                int cross_logged[8] = {0};
+                int cross_log_cnt = 0;
+                int n_cross = 0;
+                for (int k = 1; k < N && n_cross < 11; k++) {
+                    int I  = (int)sl->iq[2*k];
+                    int Q  = (int)sl->iq[2*k + 1];
+                    int Ip = (int)sl->iq[2*(k-1)];
+                    int Qp = (int)sl->iq[2*(k-1) + 1];
+                    /* Use int64 to avoid overflow : I*Q up to 1G, diff up to 2G. */
+                    long cross_l = (long)I * (long)Qp - (long)Q * (long)Ip;
+                    int cross = cross_l > 0 ? 1 : (cross_l < 0 ? -1 : 0);
+                    if (n_cross == 0) cross0 = cross;
+                    else if (cross != 0 && cross == cross0) same_sign++;
+                    if (cross_log_cnt < 8) cross_logged[cross_log_cnt++] = cross;
+                    n_cross++;
+                }
+                const char *cat;
+                if (nmax < 64) cat = "SILENT";
+                else if (same_sign >= 8) cat = "TONAL_FB";
+                else cat = "MODULATED";
+                BSP_LOG("BURST-IN fn=%u tn=%u %s nmax=%d cross0=%d same=%d/10 "
+                        "signs=%d,%d,%d,%d,%d,%d,%d,%d",
+                        (unsigned)sl->fn, (unsigned)tn, cat,
+                        nmax, cross0, same_sign,
+                        cross_logged[0], cross_logged[1], cross_logged[2],
+                        cross_logged[3], cross_logged[4], cross_logged[5],
+                        cross_logged[6], cross_logged[7]);
+                db_log++;
+                if (db_log == LIMIT)
+                    BSP_LOG("BURST-IN log capped at %u", LIMIT);
+            }
+        }
+
+        /* ⚠️ TESTING 2026-05-29 : marqueur (cette fonction boucle-t-elle ?)
+         * + apply_phase ICI (delivery, dac courant) — théorie : le chemin
+         * vivant n'appliquait pas l'AFC sur les samples livrés au corrélateur. */
+        {
+            static unsigned dlv_n;
+            if (calypso_debug_enabled("BSP-DELIVER") &&
+                (dlv_n <= 20 || dlv_n % 2000 == 0))
+                fprintf(stderr, "[BSP] BSP-DELIVER #%u fn=%u tn=%u n=%d (apply AFC)\n",
+                        dlv_n, (unsigned)sl->fn, (unsigned)tn, n);
+            dlv_n++;
+        }
+        calypso_twl3025_apply_phase(sl->iq, sl->n / 2, sl->fn, (uint8_t)tn);
+
+        uint16_t samples[296];
+        for (int i = 0; i < n && i < 296; i++)
+            samples[i] = (uint16_t)sl->iq[i];
+        c54x_bsp_load(bsp.dsp, samples, n > 296 ? 296 : n);
+
+        /* ⚠️ TESTING : woff LOCAL (était static rolling cross-burst). */
+        unsigned woff = 0;
+        calypso_pcb_daram_lock_acquire();
+        for (int i = 0; i < n; i++) {
+            uint16_t a = (uint16_t)(bsp.daram_addr + woff);
+            /* HACK CALYPSO_BSP_INJECT_CANARY : overwrite avec marker 0xCAFE
+             * pour identifier le vrai buffer cible cote DSP via le hook
+             * canary-read en c54x. Voir doc/TODO.md. */
+            uint16_t v = bsp.inject_canary ? 0xCAFE : (uint16_t)sl->iq[i];
+            bsp.dsp->data[a] = v;
+            bsp_daram_wr_bucket(a);
+            woff++;
+            if (woff >= bsp.daram_len) woff = 0;
+        }
+        calypso_pcb_daram_lock_release();
+        bsp.bursts_written++;
+
+        /* PROBE 2026-05-31 fork-1 : dump I/Q (chemin deliver_buffered, le VIVANT
+         * = samples post-AFC livrés au corrélateur). Gated CALYPSO_IQDUMP,
+         * compteur indépendant, préfixe iq_dlv. À RETIRER. */
+        if (getenv("CALYPSO_IQDUMP")) {
+            static unsigned dlv_dump_n;
+            if (dlv_dump_n < 24) {
+                char path[80];
+                snprintf(path, sizeof(path), "/tmp/iq_dlv_%03u.bin", dlv_dump_n);
+                FILE *f = fopen(path, "wb");
+                if (f) {
+                    for (int i = 0; i < n; i++) {
+                        int16_t s = (int16_t)sl->iq[i];
+                        fwrite(&s, sizeof(int16_t), 1, f);
+                    }
+                    fclose(f);
+                    BSP_LOG("IQDUMP dlv #%u fn=%u tn=%u → %s (%d int16)",
+                            dlv_dump_n, (unsigned)sl->fn, (unsigned)tn, path, n);
+                }
+                dlv_dump_n++;
+            }
+        }
+        sl->valid = false;  /* consumed */
+
+        /* === BRINT0 assert (2026-05-28) =====================================
+         * Fire BRINT0 IRQ (vec 21, IMR bit 5) after DARAM write. Sur silicon,
+         * BSP DMA-complete declenche cette IRQ qui reveille le DSP et execute
+         * l'ISR a PROM1[0xFFD4 → CALL 0xf310]. Sans cet assert, le DSP ne sait
+         * jamais qu'un burst est disponible et reste dans son dispatcher loop
+         * polling data[0x3fab] eternellement (= 59M reads observed).
+         * Confirme par chain analysis 2026-05-28 :
+         *   1. Canary 0xCAFE prouve E2E BSP→DSP read at 0x2a00 (PC=0x93a5)
+         *   2. DSP polls *(0x3fab) bits via dispatcher table at data[0x16b3]
+         *   3. *(0x3fab) bits sont OR'ed par ISR triggered par BRINT0
+         *   4. Sans BRINT0 → pas d'ISR → pas de bit set → loop infini */
+        /* Gate : skip si BRINT0 précédent pas encore servi par DSP — évite
+         * iota pending queue overflow quand DSP traite ISR plus lentement
+         * que BSP rate (= GSM 217 Hz wall vs DSP-processed BRINT0). */
+        if (bsp.dsp && !(bsp.dsp->ifr & (1 << 5))) {
+            calypso_bsp_deliver(bsp.dsp, 21, 5);
+        }
+
+        /* RX-FBFLAGS (gated CALYPSO_RX_FBFLAGS) — GATE DEPUIS LE RX (remplace le
+         * poke c54x CALYPSO_FORCE_3FAE). Sur silicon, l'ISR BRINT0 (0xf310) OR les
+         * bits de handshake FB-det que le handler correlateur poll en boucle :
+         *   data[0x3faa] bit2 (0x0004) + bit8 (0x0100)   @0x886b/0x8885/0x8898
+         *   data[0x3fab] bit8 (0x0100)                   @0x888d
+         *   data[0x3fae] bit8 (0x0100)                   @0x90c8/0x90ed/0x9128
+         * L'ISR emulee ne les pose pas -> le handler boucle 0x90b0-0x9130 sans
+         * jamais atteindre le kernel. On les pose ICI, a la livraison du burst
+         * DARAM 0x2a00 (= "burst pret"), pour que le correlateur deroule. Le
+         * traceur CORR-FLOW dira si un gate SUIVANT apparait. */
+        {
+            /* @BEQUILLE — RX_FBFLAGS (chemin buffered)  (CALYPSO_RX_FBFLAGS, EXISTS, defaut OFF)
+             *   masque  : les memes bits de handshake FB-det que l'ISR BRINT0 devrait poser,
+             *             mais SANS data[0x3fad] bit15 -> ne peut pas deboucher le kernel.
+             *   retirer : EN PREMIER — ce bloc est deja du code mort tant que
+             *             CALYPSO_BSP_DIRECT_FEED=1 (la file bufferisee reste vide).
+             */
+            static int _fbf = -1;
+            if (_fbf < 0) _fbf = calypso_gate("CALYPSO_RX_FBFLAGS", 0);
+            if (_fbf && bsp.dsp) {
+                bsp.dsp->data[0x3faa] |= 0x0104;   /* bit2 + bit8 */
+                bsp.dsp->data[0x3fab] |= 0x0100;   /* bit8 (cible FBEN) */
+                bsp.dsp->data[0x3fae] |= 0x0100;   /* bit8 (gate confirme 2026-07-25) */
+                static unsigned _fbfn = 0;
+                if (_fbfn++ < 8)
+                    BSP_LOG("RX-FBFLAGS: pose 0x3faa|=0x104 0x3fab|=0x100 0x3fae|=0x100 "
+                            "(handshake FB-det depuis livraison burst)");
+            }
+        }
+
+        /* RX I/Q tap : si BSP_DUMP_RX_FILE est set, append le burst brut
+         * (n int16_t LE I/Q interleaved) au fichier. Header 12B par burst :
+         *   magic 'IQ16' (4B) | fn (4B LE) | tn (1B) | n_int16 (2B LE) | _pad (1B)
+         * Permet ensuite python3 fcch_ref.py <dump> --fmt int16 --burst N. */
+        {
+            static FILE *rx_dump_f = NULL;
+            static int   rx_dump_init = 0;
+            if (!rx_dump_init) {
+                rx_dump_init = 1;
+                const char *p = getenv("BSP_DUMP_RX_FILE");
+                if (p && *p) {
+                    rx_dump_f = fopen(p, "ab");
+                    BSP_LOG("BSP_DUMP_RX_FILE='%s' fopen=%s",
+                            p, rx_dump_f ? "ok" : strerror(errno));
+                } else {
+                    BSP_LOG("BSP_DUMP_RX_FILE not set (p=%p p[0]=%c)",
+                            (void *)p, p ? p[0] : '?');
+                }
+            }
+            if (rx_dump_f) {
+                uint8_t hdr[12] = {
+                    'I','Q','1','6',
+                    (uint8_t)(sl->fn      ), (uint8_t)(sl->fn >>  8),
+                    (uint8_t)(sl->fn >> 16), (uint8_t)(sl->fn >> 24),
+                    tn,
+                    (uint8_t)(n      ), (uint8_t)(n >> 8),
+                    0
+                };
+                fwrite(hdr, 1, 12, rx_dump_f);
+                fwrite(sl->iq, sizeof(int16_t), n, rx_dump_f);
+                fflush(rx_dump_f);
+            }
+        }
+
+        if (bsp.bursts_written <= 10 || (bsp.bursts_written % 1000) == 0) {
+            BSP_LOG("DMA tn=%u fn=%u n=%d total=%llu stale=%llu qfull=%llu",
+                    tn, sl->fn, n,
+                    (unsigned long long)bsp.bursts_written,
+                    (unsigned long long)bsp.bursts_dropped_stale,
+                    (unsigned long long)bsp.bursts_dropped_queue_full);
+
+            /* Dump first 8 words written so we can verify the I/Q
+             * constellation actually landed in the DSP data memory at
+             * daram_addr — independent of any ARM-side mapping. */
+            calypso_pcb_daram_lock_acquire();
+            BSP_LOG("DMA @0x%04x: %04x %04x %04x %04x %04x %04x %04x %04x",
+                    bsp.daram_addr,
+                    bsp.dsp->data[bsp.daram_addr + 0],
+                    bsp.dsp->data[bsp.daram_addr + 1],
+                    bsp.dsp->data[bsp.daram_addr + 2],
+                    bsp.dsp->data[bsp.daram_addr + 3],
+                    bsp.dsp->data[bsp.daram_addr + 4],
+                    bsp.dsp->data[bsp.daram_addr + 5],
+                    bsp.dsp->data[bsp.daram_addr + 6],
+                    bsp.dsp->data[bsp.daram_addr + 7]);
+            calypso_pcb_daram_lock_release();
+        }
+
+        /* Fire BRINT0 */
+        if (bsp.dsp && !(bsp.dsp->ifr & (1 << 5))) {
+            calypso_bsp_deliver(bsp.dsp, 21, 5);
+            if (bsp.dsp->idle) bsp.dsp->idle = false;
+        }
+        }  /* end while drain */
+    }
+}
+
+/* ---- UL burst → UDP to BTS ---- */
+
+void calypso_bsp_send_ul(uint8_t tn, uint32_t fn, const uint8_t bits[148])
+{
+    if (bsp.trxd_fd < 0 || !bsp.trxd_peer_valid) return;
+
+    /* TRXDv0 UL (TRX → BTS): tn(1) fn(4) rssi(1) toa(2) bits(148) = 156 bytes.
+     *
+     * The osmo-bts-trx TRXD protocol is *asymmetric* :
+     *   - DL (BTS → TRX) : 6-byte header, 154 bytes total. No ToA.
+     *   - UL (TRX → BTS) : 8-byte header WITH ToA, 156 bytes total. The
+     *     ToA is needed by BTS RACH/SACCH timing-advance estimation.
+     *
+     * Sending 154-byte UL caused osmo-bts-trx::trx_if.c:821 to log
+     *   "Rx TRXD PDU with odd burst length 146"
+     * (BTS subtracts its 8-byte header from msg len, expects 148 body).
+     * Always send 156 bytes for UL. */
+    uint8_t pkt[8 + 148];
+    pkt[0] = tn & 0x07;
+    pkt[1] = (fn >> 24) & 0xff;
+    pkt[2] = (fn >> 16) & 0xff;
+    pkt[3] = (fn >>  8) & 0xff;
+    pkt[4] =  fn        & 0xff;
+    pkt[5] = 60;            /* RSSI → -60 dBm at the BTS */
+    pkt[6] = 0; pkt[7] = 0; /* ToA256 = 0 (centered, no timing advance request) */
+    for (int i = 0; i < 148; i++)
+        pkt[8 + i] = bits[i] ? 127 : (uint8_t)(-127);
+
+    /* Hex dump of every UL burst as it's sent — symmetric with the calypso-ipc-device
+     * UL print, so we can correlate L1 → bridge → BTS at the byte level
+     * when chasing TRXD framing or RACH parity issues. Cap at 200 to keep
+     * log finite. */
+    {
+        static unsigned ul_log_count = 0;
+        if (ul_log_count++ < 200 || (ul_log_count % 1000) == 0) {
+            BSP_LOG("UL #%u TN=%u fn=%u rssi=-60 toa=0 len=%zu "
+                    "hdr=%02x%02x%02x%02x%02x%02x%02x%02x "
+                    "bits[0:16]=[%+d %+d %+d %+d %+d %+d %+d %+d "
+                    "%+d %+d %+d %+d %+d %+d %+d %+d]",
+                    ul_log_count, tn, fn, sizeof(pkt),
+                    pkt[0], pkt[1], pkt[2], pkt[3],
+                    pkt[4], pkt[5], pkt[6], pkt[7],
+                    (int8_t)pkt[8], (int8_t)pkt[9], (int8_t)pkt[10],
+                    (int8_t)pkt[11], (int8_t)pkt[12], (int8_t)pkt[13],
+                    (int8_t)pkt[14], (int8_t)pkt[15],
+                    (int8_t)pkt[16], (int8_t)pkt[17], (int8_t)pkt[18],
+                    (int8_t)pkt[19], (int8_t)pkt[20], (int8_t)pkt[21],
+                    (int8_t)pkt[22], (int8_t)pkt[23]);
+        }
+    }
+
+    sendto(bsp.trxd_fd, pkt, sizeof(pkt), 0,
+           (struct sockaddr *)&bsp.trxd_peer, sizeof(bsp.trxd_peer));
+}
+
+bool calypso_bsp_tx_burst(uint8_t tn, uint32_t fn, uint8_t bits[148])
+{
+    if (!bsp.dsp || !bits) return false;
+
+    /* On real Calypso, the DSP encodes the UL burst (channel coding +
+     * interleaving + burst formation) and writes the 148 hard bits to a
+     * DARAM buffer that the BSP TX DMA reads. The exact destination is
+     * configured per task by TPU scenarios. We currently read from a
+     * candidate location; if it's all-zero, the DSP encoder did not run
+     * for this frame (timing miss or wrong addr) and we drop the burst. */
+    bool any = false;
+    calypso_pcb_daram_lock_acquire();
+    for (int i = 0; i < 148; i++) {
+        uint16_t w = bsp.dsp->data[0x0900 + i];
+        bits[i] = (uint8_t)(w & 1);
+        if (bits[i]) any = true;
+    }
+    calypso_pcb_daram_lock_release();
+
+    return any;
+}
+
+/* ---- RACH access burst encoding ---- */
+#include <osmocom/coding/gsm0503_coding.h>
+
+/* d_rach lives in NDB at a struct offset that depends on the DSP version.
+ * The firmware writes (uic|bsic)<<2 | (ra<<8) to ndb->d_rach right before
+ * setting db_w->d_task_ra.
+ *
+ * Default 0x023A — confirmed empirically 2026-05-07 via D_RACH-FINDER ring
+ * trace : ARM-side write at API byte 0x0474 (= DSP word 0x0A3A = word 0x23A
+ * from API base) carries values 0x0300, 0x0f00, ... matching mobile L3
+ * `RANDOM ACCESS ra 0xRR` log lines exactly.
+ *
+ * Cached via env var for ABI predictability — the old static-init+branch
+ * pattern was reportedly correlated with worse LU success rate vs explicit
+ * env set, so we now read env once and stash in bsp.* state at init. */
+#define D_RACH_DEFAULT_OFFSET 0x023A
+static uint32_t d_rach_word_offset(void)
+{
+    static uint32_t cached = 0;
+    static bool     done = false;
+    if (done) return cached;
+    const char *e = getenv("CALYPSO_NDB_D_RACH_OFFSET");
+    if (e && *e) {
+        cached = (uint32_t)strtoul(e, NULL, 0);
+        BSP_LOG("d_rach offset: 0x%04x (env=%s)", cached, e);
+    } else {
+        cached = D_RACH_DEFAULT_OFFSET;
+        BSP_LOG("d_rach offset: 0x%04x (default macro — pinned 2026-05-07)", cached);
+    }
+    done = true;
+    return cached;
+}
+
+/* CALYPSO_RACH_FORCE_BSIC=N forces the BSIC used by the RACH encoder to a
+ * fixed value, overriding whatever is read from d_rach. Useful when the
+ * d_rach offset is uncertain : if the BTS responds with IMM_ASS_CMD as
+ * soon as we encode with the BSC's `base_station_id_code`, the chain is
+ * proven and we know the only remaining bug is the d_rach offset.
+ *
+ * Returns -1 if unset, otherwise the forced BSIC value (0..63). */
+/* @BEQUILLE — RACH_FORCE_BSIC  (CALYPSO_RACH_FORCE_BSIC, VALEUR, defaut unset = inerte)
+ *   masque  : l'incertitude sur l'offset NDB de d_rach : plutot que de lire le
+ *             BSIC ecrit par le firmware, on impose celui du BSC pour prouver
+ *             la chaine d'encodage RACH independamment de l'offset.
+ *   retirer : quand CALYPSO_NDB_D_RACH_OFFSET est confirme (IMM_ASS_CMD recu
+ *             avec le BSIC lu depuis d_rach, sans forcage).
+ */
+static int rach_force_bsic(void)
+{
+    static int cached = -2;
+    if (cached != -2) return cached;
+    const char *e = getenv("CALYPSO_RACH_FORCE_BSIC");
+    /* Same empty-string-as-unset handling as d_rach_word_offset(). */
+    if (!e || !*e) {
+        cached = -1;
+        BSP_LOG("CALYPSO_RACH_FORCE_BSIC unset → BSIC read from d_rach");
+        return cached;
+    }
+    long v = strtol(e, NULL, 0);
+    if (v < 0 || v > 63) {
+        BSP_LOG("CALYPSO_RACH_FORCE_BSIC=%s out of range [0..63] — ignored", e);
+        cached = -1;
+        return cached;
+    }
+    cached = (int)v;
+    BSP_LOG("CALYPSO_RACH_FORCE_BSIC=%d (forcing all RACH bursts with this BSIC)", cached);
+    return cached;
+}
+
+bool calypso_bsp_tx_rach_burst(uint32_t fn, uint8_t bits[148])
+{
+    if (!bsp.dsp || !bits) return false;
+
+    /* Read d_rach from NDB. dsp->data[] is the DSP-side word view; the
+     * API RAM at DSP word 0x0800.. is shared with the ARM-visible page
+     * at 0xFFD00000. We address via dsp->data[0x0800 + offset]. */
+    uint32_t off = d_rach_word_offset();
+    uint16_t d_rach = calypso_dsp_daram_read(bsp.dsp, 0x0800 + off);
+    if (d_rach == 0) {
+        /* Pre-LU : firmware hasn't written d_rach yet. Normal during cell
+         * selection / SI decode phase. Don't alarm — just skip silently
+         * (cap log to first 5 to keep it visible if there's a real issue). */
+        static unsigned zero_log = 0;
+        if (zero_log++ < 5) {
+            BSP_LOG("RACH: d_rach@0x%04x is zero — skipping #%u "
+                    "(normal pre-LU, mobile not yet in RR_EST_REQ)",
+                    off, zero_log);
+        }
+        return false;
+    }
+
+    /* prim_rach.c:73 packs as:
+     *   d_rach[7:0]  = uic<<2 (or bsic<<2)
+     *   d_rach[15:8] = ra (8-bit RACH info) */
+    uint8_t uic_or_bsic = (uint8_t)((d_rach & 0xFF) >> 2);
+    uint8_t ra          = (uint8_t)((d_rach >> 8) & 0xFF);
+
+    /* Optional BSIC override (probes whether wrong BSIC is the only blocker). */
+    int forced = rach_force_bsic();
+    if (forced >= 0) {
+        uic_or_bsic = (uint8_t)forced;
+    }
+
+    /* gsm0503_rach_ext_encode writes 148 unpacked bits (ubit_t=uint8_t 0/1)
+     * into burst[]. is_11bit=false → use 8-bit RACH (legacy GSM). */
+    int rc = gsm0503_rach_ext_encode(bits, ra, uic_or_bsic, false);
+    if (rc < 0) {
+        BSP_LOG("RACH encode failed rc=%d ra=0x%02x bsic=0x%02x", rc, ra, uic_or_bsic);
+        return false;
+    }
+
+    static int rach_log = 0;
+    if (++rach_log <= 20) {
+        BSP_LOG("RACH encode #%d fn=%u ra=0x%02x bsic=0x%02x d_rach=0x%04x",
+                rach_log, fn, ra, uic_or_bsic, d_rach);
+    }
+    return true;
+}
+
+/* [2026-07-26 PORT LU] Emet un access-burst RACH UL depuis un ra/bsic EXPLICITE
+ * (bypass le read DARAM d_rach). Appele par le hook write-d_rach de calypso_trx.c
+ * sous SHUNT_LEGIT : la tache DSP d_task_ra est avalee par le shunt et
+ * calypso_bsp_tx_rach_burst ne tire jamais. 1 appel = 1 vraie tentative RACH. */
+bool calypso_bsp_send_rach_ra(uint8_t ra, uint8_t bsic, uint32_t fn, uint8_t tn)
+{
+    int forced = rach_force_bsic();
+    if (forced >= 0) bsic = (uint8_t)forced;
+    uint8_t bits[148] = {0};
+    int rc = gsm0503_rach_ext_encode(bits, ra, bsic, false);
+    if (rc < 0) {
+        BSP_LOG("RACH-RA encode fail rc=%d ra=0x%02x bsic=0x%02x", rc, ra, bsic);
+        return false;
+    }
+    static int lg = 0;
+    if (++lg <= 20)
+        BSP_LOG("RACH-RA encode #%d fn=%u ra=0x%02x bsic=0x%02x (hook d_rach)", lg, fn, ra, bsic);
+    calypso_bsp_send_ul(tn, fn, bits);   /* -> 127.0.0.1:5702 -> pont g_bsp_fd */
+    return true;
+}
+
+```

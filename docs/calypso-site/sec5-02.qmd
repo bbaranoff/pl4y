@@ -1,0 +1,3087 @@
+---
+title: "5 - Python - partie 2"
+---
+
+
+## `python_scripts/verify_si_inject.py` {#f-python-scripts-verify-si-inject-py}
+
+::: {.file-meta}
+[.py]{.tag} 197 lignes - 7,1KB
+:::
+
+```{.python .numberLines filename="python_scripts/verify_si_inject.py"}
+#!/usr/bin/env python3
+"""
+verify_si_inject.py - Cycle tous les SI types via gdb + verifie en live
+si le mobile les recoit.
+
+Pour chaque SI in {1, 2, 3, 4, 5, 6, 13} :
+  1. Probe NDB avant
+  2. Inject SI<n> dans a_cd[] (+ d_task_d=ALLC pour signaler ALLC done)
+  3. Wait + probe a_cd[] post-write (= survives ? overwritten ?)
+  4. Grep mobile.log lignes ajoutees + grep osmocon.log L1CTL_DATA_IND
+  5. Diff state mobile (show ms) avant/apres
+
+Output : tableau visuel par SI type + verdict global "marche / pas marche".
+
+Usage :
+  ./verify_si_inject.py
+  ./verify_si_inject.py --types 3,4         # restreint a SI3, SI4
+  ./verify_si_inject.py --iters 100         # plus de tentatives par SI
+"""
+
+from __future__ import annotations
+import argparse
+import sys
+import time
+from typing import Optional
+
+try:
+    import inject as inj
+    import mobile_ctl as mc
+except ImportError as e:
+    print(f"[verify_si] ERROR : {e}", file=sys.stderr)
+    sys.exit(1)
+
+
+ALLC_DSP_TASK = 24
+
+
+def banner(msg):
+    print(f"\n{'='*70}\n[verify_si] {msg}\n{'='*70}")
+
+
+def grep_count(path: str, pattern: str) -> int:
+    try:
+        import re
+        with open(path, errors="ignore") as f:
+            return len(re.findall(pattern, f.read()))
+    except FileNotFoundError:
+        return 0
+
+
+def show_state_short(v: Optional[mc.Vty], ms: str) -> str:
+    if v is None:
+        return "(no VTY)"
+    try:
+        txt = mc.show_ms(v, ms)
+        for line in txt.splitlines():
+            s = line.strip()
+            if "service" in s.lower():
+                return s.split(",")[-1].strip() if "," in s else s
+        return "(unknown)"
+    except Exception:
+        return "(VTY err)"
+
+
+def inject_si_with_task(g, si_type: int, iterations: int, interval_ms: int):
+    """Inject SI<n> + signal d_task_d=ALLC_DONE for ARM to read."""
+    def fn(gg):
+        ok_si = inj.inject_si(gg, si_type)
+        # Marquer d_task_d sur les deux pages pour augmenter chances
+        ok_t0 = inj.inject_d_task(gg, ALLC_DSP_TASK, page=0)
+        ok_t1 = inj.inject_d_task(gg, ALLC_DSP_TASK, page=1)
+        return ok_si and ok_t0 and ok_t1
+    return inj.burst_inject(g, fn,
+                             iterations=iterations,
+                             interval_ms=interval_ms)
+
+
+def test_one_si(g, v, ms: str, si_type: int, iters: int, interval_ms: int,
+                mobile_log: str = "/tmp/mobile.log",
+                osmocon_log: str = "/tmp/osmocon.log") -> dict:
+    """Test injection of one SI type, return result dict."""
+    # Pre-state
+    snap_before = inj.probe_ndb(g)
+    mobile_before = grep_count(mobile_log, r".")
+    osmocon_data_ind_before = grep_count(osmocon_log, r"L1CTL_DATA_IND")
+    state_before = show_state_short(v, ms)
+
+    # Inject
+    payload = inj.synth_si(si_type)
+    print(f"  payload (23B) : {payload.hex()}")
+    print(f"  inject SI{si_type} x {iters} (delay {interval_ms}ms)")
+    inject_si_with_task(g, si_type, iters, interval_ms)
+
+    # Post-state
+    time.sleep(1.0)  # let ARM/mobile process
+    snap_after = inj.probe_ndb(g)
+    mobile_after = grep_count(mobile_log, r".")
+    osmocon_data_ind_after = grep_count(osmocon_log, r"L1CTL_DATA_IND")
+    state_after = show_state_short(v, ms)
+
+    a_cd_before = snap_before.get("a_cd[0..14]")
+    a_cd_after = snap_after.get("a_cd[0..14]")
+    a_cd_matches_payload = a_cd_after.startswith(payload[:20].hex())
+
+    return {
+        "si_type":            si_type,
+        "payload":            payload.hex(),
+        "a_cd_before":        a_cd_before,
+        "a_cd_after":         a_cd_after,
+        "a_cd_match_payload": a_cd_matches_payload,
+        "mobile_lines_delta": mobile_after - mobile_before,
+        "data_ind_delta":     osmocon_data_ind_after - osmocon_data_ind_before,
+        "state_before":       state_before,
+        "state_after":        state_after,
+    }
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Verify SI inject live for each SI type")
+    ap.add_argument("--types", default="1,2,3,4,5,6,13",
+                    help="SI types to test (comma-sep)")
+    ap.add_argument("--iters", type=int, default=30,
+                    help="iterations per SI type")
+    ap.add_argument("--interval-ms", type=int, default=80)
+    ap.add_argument("--gdb-host", default="127.0.0.1")
+    ap.add_argument("--gdb-port", type=int, default=1234)
+    ap.add_argument("--vty-host", default="127.0.0.1")
+    ap.add_argument("--vty-port", type=int, default=4247)
+    ap.add_argument("--ms", default="1")
+    ap.add_argument("--mobile-log", default="/tmp/mobile.log")
+    ap.add_argument("--osmocon-log", default="/tmp/osmocon.log")
+    args = ap.parse_args()
+
+    si_types = [int(x) for x in args.types.split(",") if x.strip()]
+    banner(f"Verify SI inject : types={si_types} iters={args.iters}")
+
+    # Open sessions
+    try:
+        g = inj.open_session(host=args.gdb_host, port=args.gdb_port, activate=False)
+    except Exception:
+        g = None
+    if g is None:
+        print(f"  ERROR gdb-stub {args.gdb_host}:{args.gdb_port} pas dispo", file=sys.stderr)
+        sys.exit(2)
+
+    v = None
+    try:
+        v = mc.Vty(host=args.vty_host, port=args.vty_port)
+        v.connect()
+    except Exception as e:
+        print(f"  WARN VTY {args.vty_host}:{args.vty_port} pas dispo : {e}")
+        v = None
+
+    results = []
+    try:
+        for si in si_types:
+            banner(f"SI{si} test")
+            r = test_one_si(g, v, args.ms, si, args.iters, args.interval_ms,
+                            args.mobile_log, args.osmocon_log)
+            results.append(r)
+            print(f"  a_cd_before  : {r['a_cd_before'][:40]}...")
+            print(f"  a_cd_after   : {r['a_cd_after'][:40]}...")
+            print(f"  match payload: {r['a_cd_match_payload']}")
+            print(f"  mobile +lines: {r['mobile_lines_delta']}")
+            print(f"  L1CTL_DATA_IND delta : {r['data_ind_delta']}")
+            print(f"  state: {r['state_before']!r} -> {r['state_after']!r}")
+    finally:
+        inj.close_session(g)
+        if v is not None:
+            v.close()
+
+    # Final table
+    banner("RESULTS TABLE")
+    print(f"  {'SI':>3} | {'match':5} | {'mob+':>5} | {'D_IND+':>7} | state change")
+    print(f"  {'-'*3:>3}-+-{'-'*5:5}-+-{'-'*5:>5}-+-{'-'*7:>7}-+-{'-'*30}")
+    for r in results:
+        ok = "Y" if r["a_cd_match_payload"] else "N"
+        change = "yes" if r["state_before"] != r["state_after"] else "no"
+        print(f"  SI{r['si_type']:>1} |   {ok}   | {r['mobile_lines_delta']:>5} | "
+              f"{r['data_ind_delta']:>7} | {change}")
+
+    # Verdict
+    banner("VERDICT")
+    any_match = any(r["a_cd_match_payload"] for r in results)
+    any_data_ind = any(r["data_ind_delta"] > 0 for r in results)
+    if any_match and any_data_ind:
+        print("  V SI inject visible cote DSP RAM + mobile recoit L1CTL_DATA_IND")
+    elif any_match:
+        print("  ~ SI present en RAM mais mobile ne recoit pas DATA_IND")
+        print("    -> ARM/firmware ne lit pas a_cd[] (pas de ALLC task scheduled ?)")
+    else:
+        print("  X SI ecrasee immediatement -- DSP race ou wrong addr ?")
+        print("    -> Try mode shunt (CALYPSO_MODE=shunt-ipc) pour gater c54x")
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `scripts/inject_fb.py` {#f-scripts-inject-fb-py}
+
+::: {.file-meta}
+[.py]{.tag} 90 lignes - 2,9KB
+:::
+
+```{.python .numberLines filename="scripts/inject_fb.py"}
+#!/usr/bin/env python3
+"""
+inject_fb.py — diagnostic script: send a clean FB burst (148 zero bits)
+straight to QEMU's BSP UDP port (127.0.0.1:6702), bypassing osmo-bts-trx.
+
+Purpose: confirm whether the DSP correlator at PROM0 0x82f6 actually
+writes d_fb_det when fed a perfect frequency burst. If yes → the loop
+in production runs is failing on amplitude/phase/timing of the bridge's
+GMSK simulation. If no → the DSP code path itself is broken.
+
+We tail bridge.log to track QEMU's current FN (the bridge prints
+"bridge: QEMU tick #N FN=X" on every TDMA tick) and send each burst
+slightly in the future of the live FN so it lands in the BSP match
+window (±64).
+"""
+import os
+import re
+import socket
+import struct
+import sys
+import time
+
+(removed) = "/tmp/bridge.log"
+BSP_ADDR = ("127.0.0.1", 6702)
+LOOKAHEAD = 30          # frames ahead of cur_fn (well inside ±64 window)
+SEND_PERIOD_S = 0.004   # ~one TDMA frame
+DURATION_S = 30
+
+def make_fb_burst(tn, fn, rssi=20, toa=0):
+    """TRXDv0 DL: tn(1) fn(4 BE) rssi(1) toa(2 BE) + 148 zero bits."""
+    return (
+        bytes([tn & 0x07])
+        + struct.pack(">I", fn & 0xFFFFFFFF)
+        + bytes([rssi])
+        + struct.pack(">H", toa & 0xFFFF)
+        + bytes(148)
+    )
+
+def latest_fn_from_bridge():
+    """Walk bridge.log backwards looking for the most recent 'fn=N' tag."""
+    try:
+        with open((removed), "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            chunk = 8192
+            f.seek(max(0, size - chunk))
+            tail = f.read().decode("utf-8", errors="replace")
+        # Prefer DL bursts (carry bts_fn and our rewritten fn) for freshness
+        m = list(re.finditer(r"\bfn=(\d+)", tail))
+        if m:
+            return int(m[-1].group(1))
+    except FileNotFoundError:
+        pass
+    return None
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    print(f"inject_fb: target={BSP_ADDR} lookahead={LOOKAHEAD} duration={DURATION_S}s",
+          flush=True)
+
+    # Wait until bridge.log has at least one fn= line
+    start = time.time()
+    while time.time() - start < 10:
+        fn = latest_fn_from_bridge()
+        if fn is not None:
+            break
+        time.sleep(0.2)
+    else:
+        print("inject_fb: no fn= seen in bridge.log within 10s", file=sys.stderr)
+        sys.exit(1)
+    print(f"inject_fb: starting FN={fn}", flush=True)
+
+    sent = 0
+    end = time.time() + DURATION_S
+    while time.time() < end:
+        cur = latest_fn_from_bridge()
+        if cur is None:
+            cur = fn
+        target_fn = cur + LOOKAHEAD
+        sock.sendto(make_fb_burst(tn=0, fn=target_fn), BSP_ADDR)
+        sent += 1
+        if sent % 250 == 0:
+            print(f"inject_fb: sent={sent} cur_fn~={cur} target_fn={target_fn}",
+                  flush=True)
+        time.sleep(SEND_PERIOD_S)
+
+    print(f"inject_fb: done sent={sent}", flush=True)
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `scripts/make_dsp_bin_L1.py` {#f-scripts-make-dsp-bin-l1-py}
+
+::: {.file-meta}
+[.py]{.tag} 233 lignes - 8,5KB
+:::
+
+```{.python .numberLines filename="scripts/make_dsp_bin_L1.py"}
+#!/usr/bin/env python3
+
+# --- racine de l'installation, resolue sans chemin en dur --------------------
+# GSM_ROOT si l'environnement le pose (c'est le cas quand on passe par run.sh),
+# sinon le parent du depot : les deux depots vivent cote a cote.
+import os as _os
+GSM_ROOT = _os.environ.get(
+    "GSM_ROOT",
+    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+
+"""
+make_dsp_bin_L1.py — Generate calypso_dsp.PROM0.bin with synthetic L1+L2 publisher.
+
+Scope (extension 2026-05-28 : L1 → L2) :
+- FB lock : d_fb_det + a_sync_demod[4] cells (TOA/PM/ANGLE/SNR)
+- PM measurement : a_pm[3] WP0/WP1 with canned -85 dBm value
+- SB lock : a_sch[5] WP0/WP1 with canned BSIC matching osmo-bsc.cfg
+- BCCH SI3 (L2) : a_cd[0..14] with FIRE-OK status + 23-byte SI3 LAPDm frame
+  (same canned bytes as CALYPSO_DSP_SHUNT shunt_dispatch_allc, MCC=001/MNC=01)
+
+Entry point : 0x7120 (= SILICON-BOOT-REDIRECT target from c54x.c).
+Patches existing PROM0.bin at offset 0x240 (= word 0x120, code addr 0x7120).
+Rest of ROM preserved.
+
+Architecture :
+- Boot init at 0x7120 : sets SP=0x5AC8, IMR=0xFFFF
+- Main loop : tight loop writing all cells continuously
+- ARM reads cells anytime, always sees canned "lock detected" values
+
+Strategy : continuous-write rather than dispatch-on-task. Simpler than full
+dispatcher, plus ARM cell-read race is auto-resolved (whatever read happens
+sees current canned value).
+
+Usage :
+    python3 make_dsp_bin_L1.py [input.bin] [output.bin]
+    Default input  : /opt/GSM/calypso_dsp.PROM0.bin
+    Default output : /opt/GSM/calypso_dsp.PROM0.bin.L1
+"""
+import sys
+import struct
+
+INPUT  = sys.argv[1] if len(sys.argv) > 1 else f'{GSM_ROOT}/calypso_dsp.PROM0.bin'
+# *** OUTPUT path EXPLICITLY separate — JAMAIS écrase l'original ***
+OUTPUT = sys.argv[2] if len(sys.argv) > 2 else '/tmp/calypso_dsp_L1stub.PROM0.bin'
+
+# ---- C54x opcode encoders ----
+
+def stm_lk_mmr(lk, mmr):
+    """STM #lk, MMR — 2 words (0x7700 | MMR_low7, lk)"""
+    return [0x7700 | (mmr & 0x7F), lk & 0xFFFF]
+
+def ld_lk_a(lk):
+    """LD #lk, A — 2 words ALU class F0xx (alu_op=2 LD)"""
+    # bits 7:4 = 0010 = LD ; bit 8 = SRC ; bit 9 = DST
+    # Use src=A dst=A : bit 8 = 0 bit 9 = 0
+    # opcode 0xF0 << 8 | (alu_op << 4) | shift = 0xF020 (shift=0)
+    return [0xF020, lk & 0xFFFF]
+
+def stl_a_arn(n, mod):
+    """STL A, *ARn[mod] — 1 word (0x80xx hi8 = STL A)
+       mod ∈ {0=*ARn, 1=*ARn-, 2=*ARn+}"""
+    smem = 0x80 | ((mod & 0xF) << 3) | (n & 0x7)
+    return [(0x80 << 8) | smem]
+
+def b_unc(target):
+    """B pmad (unconditional NEAR branch) — 2 words.
+       Use 0xF880 (= FB FAR in c54x.c emulator but sets XPC=0 always,
+       which is no-op when staying within PROM0). Same encoding as the
+       SILICON-BOOT-REDIRECT vector synthesis in calypso_c54x.c.
+       NOT 0xF800 : that's BANZ AR0 (= conditional on AR0!=0) in this emu."""
+    return [0xF880, target & 0xFFFF]
+
+# ---- MMR table ----
+MMR_IMR = 0x00
+MMR_AR0 = 0x10
+MMR_SP  = 0x18
+
+# ---- Cell addresses (DSP code space) ----
+# API base = 0x0800
+# NDB base = 0x08D4 (= byte 0x01A8 / 2)
+D_FB_DET     = 0x08F8    # NDB + 0x48 byte
+D_FB_MODE    = 0x08F9    # NDB + 0x4A byte
+A_SYNC_DEMOD = 0x08FA    # NDB + 0x4C..0x53 byte = 4 words
+A_PM_WP0     = 0x0830    # API + 0x60 byte = read page 0 word 8
+A_PM_WP1     = 0x0844    # API + 0x88 byte = read page 1 word 8
+# a_sch[5] at words 15..19 of read page (after a_pm[3] words 8..10 + a_serv_demod[4] words 11..14)
+A_SCH_WP0    = 0x0837    # RP0 + 15 word = 0x0828 + 15
+A_SCH_WP1    = 0x084B    # RP1 + 15 word = 0x083C + 15
+# a_cd[0..14] = CCCH demod result.
+# Per CLAUDE.md DWARF-validated 2026-05-26 : NDB+0x1DC byte = NDB+0xEE word
+# = code 0x08D4 + 0xEE = 0x09C2. Le shunt utilise 0x1FC (= probablement une
+# struct variant alternative). On suit le DWARF qui est l'autorité firmware.
+A_CD_BASE    = 0x09C2    # a_cd[0]
+A_CD_PAYLOAD = 0x09C5    # a_cd[3] = start of 12-word SI3 packed payload
+
+# ---- Canned values ----
+FB_DET_VAL   = 0x4E20     # 20000 = nonzero detection flag
+TOA_VAL      = 0x0240     # 576 (mid burst window)
+PM_VAL       = 0xFB00     # signed -1280, firmware >>3 = -160, Power = (-160-520)/8 = -85 dBm
+ANGLE_VAL    = 0x0000     # AFC error = 0 Hz
+SNR_VAL      = 0x4E20     # 20000 = above FB1_SNR_THRESH=3000
+
+# SB encoding for BSIC=7, t1=0, t2=0, t3=1 : sb = (bsic & 0x3f) << 2 = 0x1C
+SB_BSIC      = 7
+SB_PACKED    = (SB_BSIC & 0x3F) << 2  # = 0x1C
+SB_LO        = SB_PACKED & 0xFFFF      # = 0x001C
+SB_HI        = (SB_PACKED >> 16) & 0xFFFF  # = 0x0000
+
+# ---- Canned SI3 L2 frame (23 bytes, identical to shunt_dispatch_allc) ----
+SI3_BYTES = [
+    0x49, 0x06, 0x1B,                    # L2 hdr + RR PD + SI3 mt
+    0x00, 0x01,                          # Cell ID = 1
+    0x00, 0xF1, 0x10,                    # MCC=001 MNC=01
+    0x00, 0x01,                          # LAC = 1
+    0x01, 0x00,                          # cell opts + cell select
+    0x18, 0xFF, 0xFF,                    # RACH ctrl
+    0x2B, 0x2B, 0x2B, 0x2B, 0x2B, 0x2B, 0x2B, 0x2B
+]
+assert len(SI3_BYTES) == 23
+
+# Pack 23 bytes → 12 LE words (lo + hi<<8); last word pads with 0x2B
+SI3_WORDS = []
+for i in range(0, 23, 2):
+    lo = SI3_BYTES[i]
+    hi = SI3_BYTES[i+1] if i+1 < 23 else 0x2B
+    SI3_WORDS.append(lo | (hi << 8))
+assert len(SI3_WORDS) == 12
+
+# ---- Build code ----
+code = []
+
+# Boot init
+code += stm_lk_mmr(0x5AC8, MMR_SP)        # STM #0x5AC8, SP
+code += stm_lk_mmr(0xFFFF, MMR_IMR)       # STM #0xFFFF, IMR
+
+# Compute main_loop address now that we know boot prefix length
+main_loop_addr = 0x7120 + len(code)
+
+# --- d_fb_det = 0x4E20 ---
+code += stm_lk_mmr(D_FB_DET, MMR_AR0)
+code += ld_lk_a(FB_DET_VAL)
+code += stl_a_arn(0, 0)                    # STL A, *AR0 (no mod)
+
+# --- a_sync_demod[0..3] = TOA, PM, ANGLE, SNR ---
+code += stm_lk_mmr(A_SYNC_DEMOD, MMR_AR0)
+code += ld_lk_a(TOA_VAL)
+code += stl_a_arn(0, 2)                    # STL A, *AR0+ (post-inc)
+code += ld_lk_a(PM_VAL)
+code += stl_a_arn(0, 2)
+code += ld_lk_a(ANGLE_VAL)
+code += stl_a_arn(0, 2)
+code += ld_lk_a(SNR_VAL)
+code += stl_a_arn(0, 2)
+
+# --- a_pm[3] WP0 ---
+code += stm_lk_mmr(A_PM_WP0, MMR_AR0)
+code += ld_lk_a(PM_VAL)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+
+# --- a_pm[3] WP1 (reuse A) ---
+code += stm_lk_mmr(A_PM_WP1, MMR_AR0)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+
+# --- a_sch[5] WP0 : a_sch[0]=0 (CRC OK), [1]=0, [2]=0, [3]=SB_LO, [4]=SB_HI ---
+code += stm_lk_mmr(A_SCH_WP0, MMR_AR0)
+code += ld_lk_a(0x0000)
+code += stl_a_arn(0, 2)                   # a_sch[0] = 0 (CRC OK)
+code += stl_a_arn(0, 2)                   # a_sch[1] = 0
+code += stl_a_arn(0, 2)                   # a_sch[2] = 0
+code += ld_lk_a(SB_LO)
+code += stl_a_arn(0, 2)                   # a_sch[3] = SB low
+code += ld_lk_a(SB_HI)
+code += stl_a_arn(0, 2)                   # a_sch[4] = SB high
+
+# --- a_sch[5] WP1 same ---
+code += stm_lk_mmr(A_SCH_WP1, MMR_AR0)
+code += ld_lk_a(0x0000)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+code += ld_lk_a(SB_LO)
+code += stl_a_arn(0, 2)
+code += ld_lk_a(SB_HI)
+code += stl_a_arn(0, 2)
+
+# --- a_cd[0..2] = FIRE-OK status (CRC pass, no biterr) ---
+code += stm_lk_mmr(A_CD_BASE, MMR_AR0)
+code += ld_lk_a(0x0000)
+code += stl_a_arn(0, 2)                    # a_cd[0] = FIRE bits = 0 (CRC OK)
+code += stl_a_arn(0, 2)                    # a_cd[1] = reserved = 0
+code += stl_a_arn(0, 2)                    # a_cd[2] = num_biterr = 0
+
+# --- a_cd[3..14] = 12 words of SI3 LAPDm packed payload ---
+code += stm_lk_mmr(A_CD_PAYLOAD, MMR_AR0)
+for w in SI3_WORDS:
+    code += ld_lk_a(w)
+    code += stl_a_arn(0, 2)
+
+# --- Loop back ---
+code += b_unc(main_loop_addr)
+
+# ---- Sanity check ----
+print(f"Code length: {len(code)} words ({len(code)*2} bytes)")
+print(f"Main loop entry: 0x{main_loop_addr:04x}")
+print(f"Code spans 0x7120 - 0x{0x7120 + len(code) - 1:04x}")
+
+# ---- Patch PROM0.bin ----
+with open(INPUT, 'rb') as f:
+    prom_bytes = bytearray(f.read())
+
+print(f"Input PROM0 size: {len(prom_bytes)} bytes ({len(prom_bytes)//2} words)")
+
+# 0x7120 → byte offset 0x240 from PROM0 start (= 2 × (0x7120 - 0x7000))
+PATCH_BYTE_OFFSET = 2 * (0x7120 - 0x7000)
+print(f"Patch byte offset: 0x{PATCH_BYTE_OFFSET:04x} ({PATCH_BYTE_OFFSET})")
+
+for i, w in enumerate(code):
+    off = PATCH_BYTE_OFFSET + 2*i
+    prom_bytes[off]   = w & 0xFF
+    prom_bytes[off+1] = (w >> 8) & 0xFF
+
+with open(OUTPUT, 'wb') as f:
+    f.write(prom_bytes)
+
+print(f"Wrote {OUTPUT}")
+print()
+print("Pour utiliser SANS toucher l'original :")
+print(f"  Update QEMU launch dsp-prom0=...PROM0.bin → dsp-prom0={OUTPUT}")
+print(f"  L'original /opt/GSM/calypso_dsp.PROM0.bin reste INTACT.")
+
+```
+
+## `scripts/replay_pm_payload.py` {#f-scripts-replay-pm-payload-py}
+
+::: {.file-meta}
+[.py]{.tag} 211 lignes - 6,6KB
+:::
+
+```{.python .numberLines filename="scripts/replay_pm_payload.py"}
+#!/usr/bin/env python3
+"""
+replay_pm_payload.py - Reproduit le payload L1CTL PM scan observe dans
+les logs (hdlc_send/recv sur DLCI 5).
+
+Encode des L1CTL_PM_REQ + decode/print des L1CTL_PM_CONF.
+
+Trois modes :
+  1. --dump      : imprime les bytes attendus (verification format)
+  2. --to-socket /tmp/osmocom_l2  : push vers un socket L1CTL existant
+  3. --hdlc-pty  /dev/pts/X  : enveloppe en HDLC DLCI 5 et envoie sur PTY
+
+Format L1CTL observe (32-bit big-endian) :
+  hdlc payload = CMD(4B) ARG(4B) [PAYLOAD...]
+
+Commandes vues dans le log :
+  0x08 PM_REQ  : ARG=band, payload = 2x uint16 BE (arfcn_lo, arfcn_hi)
+  0x09 PM_CONF : ARG=batch_id, payload = N x uint32 BE arfcn list
+  0x0d         : sub-cmd ack/next (suit chaque PM_CONF)
+
+Usage :
+  ./replay_pm_payload.py --dump
+  ./replay_pm_payload.py --to-socket /tmp/osmocom_l2
+  ./replay_pm_payload.py --hdlc-pty /dev/pts/1
+"""
+
+import argparse
+import socket
+import struct
+import sys
+
+
+# L1CTL command IDs (deduits du log + osmocom-bb l1ctl_proto.h)
+CMD_PM_REQ   = 0x08
+CMD_PM_CONF  = 0x09
+CMD_DONE     = 0x0d
+
+# GSM band IDs
+BAND_GSM900  = 0x00
+BAND_DCS1800 = 0x01
+
+
+def encode_pm_req(band: int, arfcn_lo: int, arfcn_hi: int) -> bytes:
+    """
+    Encode L1CTL_PM_REQ comme observe dans le log :
+      08 00 00 00 BB 00 00 00 LL LL HH HH
+
+    band = BB (0x00 GSM900, 0x01 DCS1800)
+    arfcn_lo = LL LL (16-bit BE)
+    arfcn_hi = HH HH (16-bit BE)
+    """
+    return struct.pack(
+        ">II HH",
+        CMD_PM_REQ,         # 32-bit BE cmd
+        band,               # 32-bit BE band
+        arfcn_lo,           # 16-bit BE
+        arfcn_hi,           # 16-bit BE
+    )
+
+
+def encode_done(sub: int = 1) -> bytes:
+    """Encode L1CTL_DONE (0x0d) : 0d 00 00 00 SS 00 00 00"""
+    return struct.pack(">II", CMD_DONE, sub)
+
+
+def decode_pm_conf(b: bytes) -> tuple[int, int, list[int]]:
+    """
+    Decode L1CTL_PM_CONF :
+      09 00 00 00 SS 00 00 00 [arfcn 32-bit BE]*
+
+    Returns (cmd, sub, arfcn_list)
+    """
+    if len(b) < 8:
+        raise ValueError("PM_CONF too short")
+    cmd, sub = struct.unpack(">II", b[:8])
+    if cmd != CMD_PM_CONF:
+        raise ValueError(f"not a PM_CONF (cmd=0x{cmd:02x})")
+    n = (len(b) - 8) // 4
+    arfcns = list(struct.unpack(f">{n}I", b[8 : 8 + 4 * n]))
+    return cmd, sub, arfcns
+
+
+# ---------- HDLC framing (DLCI 5) ----------
+#
+# osmocon hdlc protocol : frame_start(0x7E) [escaped payload] frame_end(0x7E)
+# Escape : 0x7D 0x5D = literal 0x7D ; 0x7D 0x5E = literal 0x7E
+#
+# DLCI byte prepended to payload, then HDLC framing.
+HDLC_FLAG    = 0x7E
+HDLC_ESC     = 0x7D
+HDLC_ESC_XOR = 0x20
+DLCI_SERCOMM = 5
+
+
+def hdlc_escape(b: bytes) -> bytes:
+    out = bytearray()
+    for x in b:
+        if x in (HDLC_FLAG, HDLC_ESC):
+            out.append(HDLC_ESC)
+            out.append(x ^ HDLC_ESC_XOR)
+        else:
+            out.append(x)
+    return bytes(out)
+
+
+def hdlc_frame(dlci: int, payload: bytes) -> bytes:
+    """Wrap payload in HDLC framing for given DLCI."""
+    body = bytes([dlci]) + payload
+    return bytes([HDLC_FLAG]) + hdlc_escape(body) + bytes([HDLC_FLAG])
+
+
+# ---------- Scenarios ----------
+
+def build_observed_sequence() -> list[tuple[str, bytes]]:
+    """Reproduit la sequence exacte du log."""
+    seq = []
+    # DCS 1800 scan : ARFCN 940..954
+    seq.append(("PM_REQ DCS 940-954", encode_pm_req(BAND_DCS1800, 940, 954)))
+    # CONF expected : list of arfcn 940..954
+    arfcn_list = list(range(940, 955))
+    conf = struct.pack(">II", CMD_PM_CONF, 1) + b"".join(
+        struct.pack(">I", a) for a in arfcn_list
+    )
+    seq.append(("PM_CONF DCS 940-954 (expected)", conf))
+    seq.append(("DONE sub=1", encode_done(1)))
+
+    # GSM 900 scan : ARFCN 1..124
+    seq.append(("PM_REQ GSM900 1-124", encode_pm_req(BAND_GSM900, 1, 124)))
+    arfcn_list2 = list(range(1, 125))
+    conf2 = struct.pack(">II", CMD_PM_CONF, 0) + b"".join(
+        struct.pack(">I", a) for a in arfcn_list2
+    )
+    seq.append(("PM_CONF GSM900 1-124 (expected)", conf2))
+    seq.append(("DONE sub=1", encode_done(1)))
+    return seq
+
+
+# ---------- Main ----------
+
+def hex_pretty(b: bytes, line_len: int = 32) -> str:
+    out = []
+    for i in range(0, len(b), line_len):
+        chunk = b[i : i + line_len]
+        hexpart = " ".join(f"{x:02x}" for x in chunk)
+        asciipart = "".join(chr(x) if 32 <= x < 127 else "." for x in chunk)
+        out.append(f"  {hexpart:<{line_len*3}}  {asciipart}")
+    return "\n".join(out)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Replay L1CTL PM scan payload")
+    ap.add_argument("--dump", action="store_true",
+                    help="print expected bytes (no I/O)")
+    ap.add_argument("--to-socket", metavar="PATH",
+                    help="send PM_REQs as L1CTL frames to unix socket")
+    ap.add_argument("--hdlc-pty", metavar="PATH",
+                    help="wrap in HDLC DLCI 5 and write to PTY")
+    ap.add_argument("--band", choices=["gsm900", "dcs1800"], default="gsm900")
+    ap.add_argument("--arfcn-lo", type=int, default=1)
+    ap.add_argument("--arfcn-hi", type=int, default=124)
+    args = ap.parse_args()
+
+    band = BAND_DCS1800 if args.band == "dcs1800" else BAND_GSM900
+    custom_req = encode_pm_req(band, args.arfcn_lo, args.arfcn_hi)
+
+    if args.dump:
+        print("=== Observed sequence reproduction ===\n")
+        for label, payload in build_observed_sequence():
+            print(f"-- {label} ({len(payload)} bytes) --")
+            print(hex_pretty(payload))
+            print()
+        print("=== Custom PM_REQ ===")
+        print(f"  band={args.band} arfcn={args.arfcn_lo}-{args.arfcn_hi}")
+        print(hex_pretty(custom_req))
+        print()
+        print("=== HDLC framed (DLCI 5) ===")
+        framed = hdlc_frame(DLCI_SERCOMM, custom_req)
+        print(hex_pretty(framed))
+        return
+
+    if args.to_socket:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.connect(args.to_socket)
+        # L1CTL frame = 16-bit BE length prefix + payload (per osmocom-bb l1ctl)
+        framed = struct.pack(">H", len(custom_req)) + custom_req
+        s.sendall(framed)
+        print(f"sent {len(framed)} bytes to {args.to_socket}")
+        # Optionally wait for CONF
+        s.settimeout(2.0)
+        try:
+            r = s.recv(4096)
+            print(f"recv {len(r)} bytes :")
+            print(hex_pretty(r))
+        except socket.timeout:
+            print("(no response in 2s)")
+        s.close()
+        return
+
+    if args.hdlc_pty:
+        framed = hdlc_frame(DLCI_SERCOMM, custom_req)
+        with open(args.hdlc_pty, "wb") as f:
+            f.write(framed)
+        print(f"sent HDLC frame ({len(framed)} bytes) to {args.hdlc_pty}")
+        return
+
+    ap.print_help()
+    sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `tools/calypso-ipc-device/tch_dl_inject.py` {#f-tools-calypso-ipc-device-tch-dl-inject-py}
+
+::: {.file-meta}
+[.py]{.tag} 49 lignes - 2,1KB
+:::
+
+```{.python .numberLines filename="tools/calypso-ipc-device/tch_dl_inject.py"}
+#!/usr/bin/env python3
+# tch_dl_inject.py — injecteur de test JALON 1 du chemin DL TCH.
+#
+# Pousse des trames GSM-FR (33 o, codec 06.10 = celui de gapk) dans le sideband
+# /dev/shm/calypso_tch_dl, au format lu par calypso_tch_dl_poll() du shunt :
+#   seq@0 (u32 LE)  fn@4 (u32 LE)  fr[33]@8   (total 48 o, consume-once par seq)
+#
+# But : valider shunt -> a_dd_0 -> firmware L1CTL_TRAFFIC_IND -> L23/gapk -> ALSA,
+# SANS dependre de gr-gsm. Si on entend le ton (web /audio ou HP) pendant la
+# fenetre TCH d'un appel, la chaine DL + le packing BE=1 sont bons.
+#
+# Usage : tch_dl_inject.py [freq_hz] [path]
+#   freq_hz : 0 = silence FR, sinon ton (defaut 600). path : defaut /dev/shm/calypso_tch_dl
+import ctypes, struct, math, os, sys, time
+
+FREQ = float(sys.argv[1]) if len(sys.argv) > 1 else 600.0
+PATH = sys.argv[2] if len(sys.argv) > 2 else "/dev/shm/calypso_tch_dl"
+RATE = 8000
+SPF  = 160          # echantillons / trame FR (20 ms)
+
+# --- vocoder FR (libgsm 06.10, standard 33 o ; meme codec que gapk gsmfr) ---
+lib = ctypes.CDLL("libgsm.so.1")
+lib.gsm_create.restype = ctypes.c_void_p
+lib.gsm_encode.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_short),
+                           ctypes.POINTER(ctypes.c_ubyte)]
+h = lib.gsm_create()
+
+# 160 ech de ton (600 Hz @ 8 kHz = 12 cycles pile -> phase-continue en boucle).
+src = (ctypes.c_short * SPF)()
+for i in range(SPF):
+    src[i] = int(10000 * math.sin(2 * math.pi * FREQ * i / RATE)) if FREQ > 0 else 0
+dst = (ctypes.c_ubyte * 33)()
+lib.gsm_encode(h, src, dst)
+fr = bytes(dst)
+assert (fr[0] >> 4) == 0xD, "signature FR attendue 0xD, got 0x%x" % (fr[0] >> 4)
+print("[inject] trame FR (%s) : %s" % ("silence" if FREQ == 0 else "%g Hz" % FREQ,
+                                       fr.hex()), flush=True)
+
+fd = os.open(PATH, os.O_RDWR | os.O_CREAT, 0o644)
+os.ftruncate(fd, 48)
+seq = 0
+fn = 0
+print("[inject] -> %s @50 Hz (Ctrl+C pour arreter)" % PATH, flush=True)
+while True:
+    seq += 1
+    fn = (fn + 4) & 0xFFFFFFFF
+    buf = struct.pack("<II", seq, fn) + fr + b"\x00" * (48 - 8 - 33)
+    os.pwrite(fd, buf, 0)
+    time.sleep(0.020)        # 1 trame / 20 ms = cadence bloc TCH/F
+
+```
+
+## `tools/corr_iq.py` {#f-tools-corr-iq-py}
+
+::: {.file-meta}
+[.py]{.tag} 399 lignes - 20KB
+:::
+
+```{.python .numberLines filename="tools/corr_iq.py"}
+#!/usr/bin/env python3
+"""corr_iq.py -- diagnostic complet de l'I/Q du correlateur DSP (Calypso QEMU).
+
+Metrique cle = COHERENCE du tone = |Sum iq[k+1].conj(iq[k])| / Sum|iq[k+1]||iq[k]|
+  1.0 = tone pur (FCCH) ; ~0 = bruit/data GMSK.
+dphi (rotation moyenne/sample), exprime en unites de pi/2 -> infere le SPS :
+  +1.00 x pi/2  = FCCH @1SPS (ce que le correlateur veut)
+  +0.25 x pi/2  = FCCH @4SPS non-decime (il faut decimer ÷4)
+  negatif       = miroir spectral (I/Q swap -> CALYPSO_DL_IQ_CONJ=1)
+
+Sources :
+  shunt  : /dev/shm/dsp_iq.cfile (fc32) -- I/Q d'entree du shunt (reference propre)
+  rxdump : /tmp/iq_rx_*.bin (CALYPSO_IQDUMP) -- bursts FCCH ecrits en DARAM 0x2a00
+  bursts : /dev/shm/bursts.cfile (BSP_DUMP_RX_FILE, IQ16) -- idem, avec fn/tn
+  daram  : 0x2a00 live via monitor qemu (best-effort, racy)
+  ddump  : /dev/shm/daram_2a00.cfile (CALYPSO_DARAM_DUMP) -- MEME buffer 0x2a00
+           mais dumpe DE L'INTERIEUR de qemu a l'instant ou le detecteur FB le
+           lit : atomique, non-racy. C'est LA mesure de la DESTINATION.
+
+Usage : corr_iq.py [--src auto|shunt|rxdump|bursts|daram|ddump|all] [--fs Hz]
+"""
+import argparse, os, glob, socket, struct, sys, time
+import numpy as np
+
+FS_SYM  = 270833.0
+FCCH_HZ = FS_SYM / 4.0
+PI2     = np.pi / 2.0
+
+
+# ---------- metriques ----------
+def tone_metrics(iq, fs):
+    n = len(iq)
+    if n < 8:
+        return dict(n=n, rms=0, peak=0, dc=0j, coh=0.0, dphi=0.0, fpk=0.0, conc=0.0, zero=0.0)
+    mag = np.abs(iq)
+    rms = float(np.sqrt(np.mean(mag ** 2)))
+    dc  = complex(np.mean(iq))
+    prod = iq[1:] * np.conj(iq[:-1])
+    den  = float(np.sum(np.abs(iq[1:]) * np.abs(iq[:-1]))) + 1e-12
+    acc  = np.sum(prod)
+    coh  = float(np.abs(acc) / den)
+    dphi = float(np.angle(acc))
+    w = iq - dc
+    win = np.hanning(n)
+    sp = np.fft.fftshift(np.abs(np.fft.fft(w * win)))
+    fr = np.fft.fftshift(np.fft.fftfreq(n, 1.0 / fs))
+    k = int(np.argmax(sp))
+    return dict(n=n, rms=rms, peak=float(mag.max()), dc=dc, coh=coh, dphi=dphi,
+                fpk=float(fr[k]), conc=float(sp[k] / (np.mean(sp) + 1e-12)),
+                zero=float(np.mean(mag < 1e-6)))
+
+
+def verdict(m):
+    if m["rms"] < 1e-9 or m["zero"] > 0.98:
+        return "VIDE -- rien fed au correlateur"
+    r = m["dphi"] / PI2
+    near = abs(abs(m["fpk"]) - FCCH_HZ) < 0.15 * FCCH_HZ   # pic FFT a +/-67708 Hz
+    # (1) burst unique coherent -> dphi fiable -> SPS + orientation
+    if m["coh"] > 0.9:
+        if abs(abs(r) - 1.0) < 0.20:
+            return ("FCCH @1SPS PROPRE (dphi=%+.2fx pi/2) -- feed CORRECT" % r if r > 0
+                    else "FCCH @1SPS MIROIR (dphi=%+.2fx pi/2) -> CALYPSO_DL_IQ_CONJ=1" % r)
+        if abs(abs(r) - 0.25) < 0.10:
+            return "FCCH @4SPS NON-DECIME (dphi=%+.2fx pi/2) -> decimer ÷4 (CALYPSO_BSP_IQ_DECIM=4)" % r
+    # (2) flux continu / complement : pic FFT sur FCCH
+    if m["conc"] > 20 and near:
+        return "FCCH PRESENTE (FFT %+.0f Hz, conc=%.0f) -- signal OK (flux)" % (m["fpk"], m["conc"])
+    if m["coh"] < 0.4 and m["conc"] < 10:
+        return "BRUIT/DATA (coh=%.2f) -- pas un tone FCCH" % m["coh"]
+    return "coherent hors FCCH std (dphi=%+.2fx pi/2, FFT %+.0f Hz)" % (r, m["fpk"])
+
+
+def report(iq, fs, label):
+    m = tone_metrics(iq, fs)
+    print("\n=== %s ===  N=%d  fs=%.0f Hz" % (label, m["n"], fs))
+    if m["n"] < 8:
+        print("  (trop court)"); return m
+    print("  rms=%.3g peak=%.3g |DC|=%.3g zeros=%.0f%%" % (m["rms"], m["peak"], abs(m["dc"]), 100 * m["zero"]))
+    _LAST["coh"] = m["coh"]; _LAST["fft"] = m["fpk"]
+    print("  coherence=%.3f  dphi=%+.3f rad/samp (%+.2fx pi/2)  FFTpic=%+.0f Hz conc=%.1fx  [FCCH@1SPS=+1.571]"
+          % (m["coh"], m["dphi"], m["dphi"] / PI2, m["fpk"], m["conc"]))
+    print("  VERDICT: %s" % verdict(m))
+    return m
+
+
+# ---------- loaders ----------
+def load_fc32(path, n, off):
+    with open(path, "rb") as f:
+        f.seek(off * 8, os.SEEK_SET)
+        raw = f.read(n * 8)
+    return np.frombuffer(raw, dtype=np.complex64).astype(np.complex128)
+
+
+def load_raw_bins(rxdir):
+    out = []
+    for f in sorted(glob.glob(os.path.join(rxdir, "iq_rx_*.bin"))):
+        a = np.frombuffer(open(f, "rb").read(), dtype="<i2").astype(np.float32)
+        a = a[:(len(a) // 2) * 2]
+        out.append((os.path.basename(f), a[0::2] + 1j * a[1::2]))
+    return out
+
+
+def load_iq16(path, maxrec=400):
+    out = []
+    with open(path, "rb") as f:
+        while len(out) < maxrec:
+            hdr = f.read(12)
+            if len(hdr) < 12:
+                break
+            magic, fn, tn, nint16, _pad = struct.unpack("<4sIBHB", hdr)
+            if magic != b"IQ16":
+                f.seek(-11, os.SEEK_CUR); continue
+            raw = f.read(nint16 * 2)
+            if len(raw) < nint16 * 2:
+                break
+            a = np.frombuffer(raw, dtype="<i2").astype(np.float32)
+            out.append(("fn=%u/tn=%u" % (fn, tn), a[0::2] + 1j * a[1::2]))
+    return out
+
+
+_LAST = {}
+
+def last_report_coh_fft():
+    return _LAST.get("coh"), _LAST.get("fft")
+
+def read_daram(mon, addr, words, tries=6):
+    """Best-effort : lit `words` mots 16b a addr via HMP xp, garde la lecture la
+    plus coherente (le DSP ecrit en concurrence -> racy)."""
+    best = None
+    for _ in range(tries):
+        try:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.settimeout(2.5)
+            s.connect(mon); s.recv(4096)
+            s.sendall(("xp/%dhx 0x%x\n" % (words, addr)).encode())
+            buf = b""; t0 = time.time()
+            while time.time() - t0 < 2.5:
+                d = s.recv(65536)
+                if not d: break
+                buf += d
+                if b"(qemu)" in buf: break
+            s.close()
+        except Exception as e:
+            continue
+        vals = []
+        for line in buf.decode(errors="replace").splitlines():
+            if ":" not in line: continue
+            for tok in line.split(":", 1)[1].split():
+                if tok.startswith("0x"):
+                    try: vals.append(int(tok, 16))
+                    except ValueError: pass
+        a = np.array(vals, dtype=np.uint16).astype(np.int16).astype(np.float32)
+        a = a[:(len(a) // 2) * 2]
+        iq = a[0::2] + 1j * a[1::2]
+        if len(iq) < 8: continue
+        m = tone_metrics(iq, FS_SYM)
+        if best is None or m["coh"] > best[0]:
+            best = (m["coh"], iq)
+    return best[1] if best else np.array([], dtype=complex)
+
+
+# ---------- scan per-burst (rxdump / bursts) ----------
+def scan_bursts(recs, fs, label):
+    scored = []
+    for name, iq in recs:
+        if len(iq) < 8: continue
+        m = tone_metrics(iq, fs)
+        if m["rms"] < 1000: continue
+        scored.append((m["coh"], m["dphi"], m["rms"], name, iq))
+    if not scored:
+        print("  (aucun burst non-nul)"); return
+    # tri sur les scalaires seuls : le 5e champ est un ndarray et rend
+    # la comparaison de tuples ambigue des que (coh,dphi,rms) sont egaux.
+    scored.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+    nf = sum(1 for c, *_ in scored if c > 0.85)
+    print("%s : %d bursts non-nuls, %d coherents (FCCH, coh>0.85)" % (label, len(scored), nf))
+    for c, d, r, name, _ in scored[:8]:
+        print("  %-14s coh=%.3f dphi=%+.3f (%+.2fx pi/2) rms=%.0f %s"
+              % (name, c, d, d / PI2, r, "<- FCCH" if c > 0.85 else ""))
+    report(scored[0][4], fs, "burst le + coherent = %s" % scored[0][3])
+
+
+# ---------- main ----------
+# ---------------------------------------------------------------------------
+# [2026-07-30] L'adresse du tampon corrélateur se LIT SUR LE RUN, pas dans
+# l'environnement de l'appelant.
+#
+# Pourquoi : le défaut historique était figé sur 0xFFD04400 (mot DSP 0x2a00),
+# alors que les profils natifs livrent en CALYPSO_BSP_DARAM_ADDR=0x4c00
+# (-> 0xFFD08800). Résultat : « VIDE -- rien fed au correlateur » sur un run où
+# 0x4c00 contenait de la FCCH parfaite (coh=0.998, dphi=+1.567). Un faux négatif
+# spectaculaire, et il a survécu à une première correction parce que celle-ci
+# lisait os.environ : depuis un shell interactif la variable n'est pas exportée,
+# donc on retombait sur l'ancien défaut sans le voir.
+#
+# Ordre de résolution, du plus fiable au moins fiable — et on IMPRIME la source,
+# parce qu'un instrument qui ne dit pas d'où vient son réglage produit des
+# verdicts qu'on ne peut pas auditer :
+#   1. /proc/<pid qemu>/environ   — l'environnement RÉEL du process qui tourne ;
+#   2. le manifeste dans qemu.log — la doctrine du projet (« lire le manifeste,
+#      jamais la CLI ») ;
+#   3. CALYPSO_BSP_DARAM_ADDR de l'appelant ;
+#   4. 0x2a00, l'ancien défaut, annoncé comme tel.
+# ---------------------------------------------------------------------------
+def _word_to_arm(word):
+    return 0xFFD00000 + (word - 0x0800) * 2
+
+def resolve_daram_addr(verbose=True):
+    src = None; word = None
+    for pid in glob.glob("/proc/[0-9]*"):
+        try:
+            if "qemu-system-arm" not in open(pid + "/cmdline", "rb").read().decode(errors="replace"):
+                continue
+            env = open(pid + "/environ", "rb").read().decode(errors="replace")
+            for kv in env.split("\0"):
+                if kv.startswith("CALYPSO_BSP_DARAM_ADDR="):
+                    word = int(kv.split("=", 1)[1], 16); src = "/proc/%s/environ (run vivant)" % pid.split("/")[-1]
+                    break
+            if word is not None: break
+        except Exception:
+            continue
+    if word is None:
+        for log in ("/root/qemu.log", "/tmp/calypso/logs/qemu.log"):
+            try:
+                import re
+                m = None
+                with open(log, "rb") as f:
+                    for line in f:
+                        mm = re.search(rb"CALYPSO_BSP_DARAM_ADDR=(0x[0-9a-fA-F]+)", line)
+                        if mm: m = mm
+                if m:
+                    word = int(m.group(1), 16); src = "manifeste %s" % log
+                    break
+            except Exception:
+                continue
+    if word is None:
+        e = os.environ.get("CALYPSO_BSP_DARAM_ADDR", "")
+        if e:
+            try: word = int(e, 16); src = "CALYPSO_BSP_DARAM_ADDR de l'appelant"
+            except Exception: word = None
+    if word is None:
+        word = 0x2a00; src = "DEFAUT 0x2a00 -- aucun run trouve, verdict a prendre avec des pincettes"
+    addr = _word_to_arm(word)
+    if verbose:
+        print("[daram] mot DSP 0x%04x -> ARM 0x%08X   source : %s" % (word, addr, src))
+    return word, addr
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Diag I/Q correlateur DSP")
+    ap.add_argument("--src", choices=["auto", "shunt", "rxdump", "bursts", "daram", "ddump", "all"], default="auto")
+    ap.add_argument("--shunt", default="/dev/shm/dsp_iq.cfile")
+    ap.add_argument("--rxdir", default="/tmp")
+    ap.add_argument("--bursts", default="/dev/shm/bursts.cfile")
+    # [2026-07-30] Chemin CORRIGÉ. L'ancien défaut /tmp/qemu-calypso-mon.sock
+    # n'a jamais existé : run.sh lance QEMU avec
+    #   -monitor unix:/tmp/calypso/qemu-monitor.sock,server,nowait
+    # (vérifié sur la ligne de commande du process). D'où « monitor absent
+    # (qemu down ?) » alors que QEMU tournait depuis 6 minutes.
+    ap.add_argument("--mon", default="/tmp/calypso/qemu-monitor.sock")
+    ap.add_argument("--ddump", default="/dev/shm/daram_2a00.cfile")
+    _dw, _da = resolve_daram_addr(verbose=False)
+    ap.add_argument("--addr", default="0x%08X" % _da)
+    ap.add_argument("--words", type=int, default=296)   # daram_len = 296 int16 = 148 cplx
+    ap.add_argument("--n", type=int, default=40000)
+    ap.add_argument("--off", type=int, default=-1)
+    ap.add_argument("--fs", type=float, default=None)
+    a = ap.parse_args()
+
+    def do_shunt():
+        if not os.path.exists(a.shunt): print("shunt: absent"); return
+        sz = os.path.getsize(a.shunt); tot = sz // 8
+        off = a.off if a.off >= 0 else max(0, tot - a.n)
+        report(load_fc32(a.shunt, a.n, off), a.fs or 1083333.0, "shunt dsp_iq.cfile @%d (fc32, entree 4SPS)" % off)
+
+    def do_rxdump():
+        recs = load_raw_bins(a.rxdir)
+        if not recs: print("rxdump: aucun iq_rx_*.bin (CALYPSO_IQDUMP=1 + relance)"); return
+        scan_bursts(recs, a.fs or 270833.0, "rxdump (/tmp/iq_rx, fed 0x%04x @1SPS)" % _dw)
+
+    def do_bursts():
+        if not os.path.exists(a.bursts) or os.path.getsize(a.bursts) < 13:
+            print("bursts: %s absent/vide (BSP_DUMP_RX_FILE=1 + relance, mode direct ok)" % a.bursts); return
+        scan_bursts(load_iq16(a.bursts), a.fs or 270833.0, "bursts.cfile (IQ16, fed 0x%04x @1SPS)" % _dw)
+
+    def do_ddump():
+        """DESTINATION, non-racy : buffer 0x2a00 dumpe par qemu au moment ou le
+        detecteur FB le lit. Le kernel attend du FCCH @1SPS (dphi = +1.00x pi/2)."""
+        p = a.ddump
+        if not os.path.exists(p) or os.path.getsize(p) < 13:
+            print("ddump: %s absent/vide." % p)
+            print("       Ce n'est PAS forcement un defaut d'activation : la sonde cree ce")
+            print("       fichier des l'armement (fopen), puis n'ecrit que si BOTH :")
+            print("         1. exec_pc == CALYPSO_DARAM_DUMP_PC (defaut 0x9ac0 -- banque")
+            print("            atteinte seulement sous native_helped, entree reroutee) ;")
+            print("         2. d_fb_mode[0x08f9] != 0, sauf CALYPSO_DARAM_DUMP_ANYMODE=1.")
+            print("       Et sa base filmee est CODEE EN DUR a 0x2a00. Sur un banc qui")
+            print("       livre ailleurs, utilisez --src bursts ou --src daram.")
+            print("       Verifier : grep -a 'DARAM-DUMP armed' /root/qemu.log")
+            return
+        recs = load_iq16(p, maxrec=400)
+        print("\n#### DESTINATION data[0x2a00..0x2b28) -- dump interne qemu (non-racy)")
+        scan_bursts(recs, a.fs or 270833.0, "ddump %s" % p)
+        # verdict de conformite au kernel : il veut du FCCH @1SPS
+        best = None
+        for _n, iq in recs:
+            if len(iq) < 8: continue
+            m = tone_metrics(iq, a.fs or 270833.0)
+            if best is None or m["coh"] > best["coh"]: best = m
+        if best:
+            r = best["dphi"] / PI2
+            ok = best["coh"] > 0.85 and abs(abs(r) - 1.0) < 0.20
+            print("  CONFORMITE KERNEL (attendu FCCH @1SPS, dphi=+1.00x pi/2) : %s"
+                  % ("OK -- le buffer contient ce que le correlateur cherche ; "
+                     "le probleme est EN AVAL du buffer" if ok else
+                     "NON (coh=%.3f dphi=%+.2fx pi/2) -- le REMPLISSAGE est encore fautif "
+                     "(rate/phase/pairing), pas l aval" % (best["coh"], r)))
+            if not ok:
+                # [2026-07-30] Le « remplissage » a un mecanisme precis, mesure dans
+                # le modele. Sans ces trois lignes le verdict envoie chercher un bug
+                # de signal alors que c'est une gate.
+                print("  MECANISME  : ce buffer n'est PAS ecrit par l'hote. c54x_bsp_load()")
+                print("               (calypso_c54x.c) copie seulement les echantillons dans")
+                print("               s->bsp_buf ; c'est le DSP qui les TIRE, un mot par")
+                print("               PORTR sur PA=0xF430 (ou 0x0034), bsp_pos remis a 0 par")
+                print("               rafale. L'appariement I/Q depend donc du NOMBRE de")
+                print("               lectures que fait le DSP : une de trop ou de moins et")
+                print("               tout decale -> exactement rate/phase/pairing.")
+                print("  A VERIFIER : 1) CALYPSO_FIX_PORTR — defaut 0 ! Sans elle le port ne")
+                print("                  sert AUCUN echantillon (calypso_c54x.c, gate autour")
+                print("                  du `if (fix_portr && (pa == 0xF430 || pa == 0x0034))`).")
+                print("                  Un buffer vide ou incoherent commence par la.")
+                print("               2) l'ADRESSE analysee : ce dump est fige sur 0x2a00 par")
+                print("                  la sonde C, alors que CALYPSO_BSP_DARAM_ADDR peut")
+                print("                  pointer ailleurs (0x4c00 par defaut en profil natif).")
+                print("                  Verifier au manifeste, et utiliser --src daram")
+                print("                  --addr/--words pour lire la zone reellement visee.")
+                print("               3) le point d'entree du correlateur : selon")
+                print("                  CALYPSO_FB_CORR_ENTRY, le demod lit 0x4c00 en stride 5")
+                print("                  (polyphase) ou 0x9213 — la zone conforme n'est pas la")
+                print("                  meme. Le dump ne prouve rien s'il filme la mauvaise.")
+
+    def do_daram():
+        resolve_daram_addr(verbose=True)   # trace la provenance du reglage
+        # ⚠️ PIEGE, precise le 30/07 apres mesure. Ce qui a tue QEMU ce jour-la,
+        # c'est la lecture de 0xFFD001A8 : cette cellule porte un MemoryRegion
+        # overlay de 2 octets dont le handler appelle calypso_mbx() hors du
+        # thread CPU. Ce n'est PAS la fenetre entiere : 0xFFD04400 et 0xFFD08800
+        # ont ete lues plusieurs fois sur un run vivant, QEMU a survecu (577 s,
+        # insn qui avance). Regle : tout sauf 0xFFD001A8, et jamais d'aveugle.
+        if not os.path.exists(a.mon): print("daram: monitor %s absent (qemu down ?)" % a.mon); return
+        iq = read_daram(a.mon, int(a.addr, 16), a.words)
+        if len(iq) < 8:
+            print("daram: lecture vide/echec @%s (0x2a00 hors fenetre API ARM ? racy) -- fie-toi a rxdump/FCCH-PROBE" % a.addr); return
+        report(iq, a.fs or 270833.0, "DARAM %s (%d mots, correlateur live, best-of-6)" % (a.addr, a.words))
+        # [2026-07-30] `xp` au monitor n'est PAS atomique : le BSP reecrit les 296
+        # mots pendant la lecture, on obtient donc parfois un RACCORD de deux
+        # bursts. Signature de ce raccord, et non du tampon : coh qui s'effondre
+        # ET pic FFT a ~la MOITIE de 67708 Hz (un saut de phase au milieu double
+        # la periode apparente). Mesure du 30/07, MEME tampon MEME run : 0.998 /
+        # +67708 Hz, puis 0.514 / +32939 Hz -- alors que ce que le BSP ECRIVAIT
+        # etait 140/140 coherent FCCH (--src bursts). D'ou cet avertissement, pour
+        # qu'un artefact de lecture ne devienne pas un verdict sur le feed.
+        try:
+            _c, _f = last_report_coh_fft()
+            if _c is not None and _c < 0.90:
+                print("  ⚠ LECTURE, PAS TAMPON : coh=%.3f < 0.90 sur un `xp` non atomique." % _c)
+                if _f is not None and abs(abs(_f) - 33854.0) < 6000:
+                    print("     pic a %+.0f Hz ~= 67708/2 -> signature d'un RACCORD de deux bursts." % _f)
+                print("     N'attendez PAS un taux : au debit de livraison courant (~22")
+                print("     bursts/s pour 296 mots lus un par un), une lecture propre est RARE.")
+                print("     Releve du 30/07 : 2 lectures a coh=0.998, puis 5 d'affilee entre")
+                print("     0.36 et 0.51 -- MEME tampon, MEME run, contenu ECRIT parfait.")
+                print("     Le juge de ce qui est ECRIT est --src bursts. Pour une capture")
+                print("     NON RACY, prise depuis le thread CPU, relancez le run avec :")
+                print("       CALYPSO_DARAM_DUMP=1 CALYPSO_DARAM_DUMP_ADDR=0x4c00 \\")
+                print("       CALYPSO_DARAM_DUMP_PC=<un PC execute> CALYPSO_DARAM_DUMP_ANYMODE=1")
+                print("     puis --src ddump. (0xb530 est mesure a ~2168 passages.)")
+        except Exception:
+            pass
+
+    src = a.src
+    if src == "auto":
+        if os.path.exists(a.ddump) and os.path.getsize(a.ddump) > 13: src = "ddump"
+        elif os.path.exists(a.bursts) and os.path.getsize(a.bursts) > 13: src = "bursts"
+        elif glob.glob(os.path.join(a.rxdir, "iq_rx_*.bin")): src = "rxdump"
+        else: src = "shunt"
+        print("[auto] source = %s" % src)
+
+    if src == "all":
+        for fn in (do_shunt, do_bursts, do_rxdump, do_ddump, do_daram):
+            try: fn()
+            except Exception as e: print("  ERR:", e)
+    else:
+        {"shunt": do_shunt, "rxdump": do_rxdump, "bursts": do_bursts,
+         "daram": do_daram, "ddump": do_ddump}[src]()
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `tools/doppler.py` {#f-tools-doppler-py}
+
+::: {.file-meta}
+[.py]{.tag} 157 lignes - 5,3KB
+:::
+
+```{.python .numberLines filename="tools/doppler.py"}
+"""Doppler / AFC rotation for GMSK I/Q samples.
+
+Modèle hardware : VCO mobile shifte la baseband selon AFC trim. Bridge/
+osmo-trx-ipc fournissent des samples GMSK "parfaits" (pas de drift osc) →
+DSP correlator donne un résidu non-zéro qui ne converge jamais (firmware
+applique AFC → samples inchangés → même résidu → boucle).
+
+Cette routine injecte une rotation phase :
+  sample[i] *= exp(j * 2π * doppler * i / fs)
+
+Utilisé soit pour modéliser un vrai Doppler (CALYPSO_DOPPLER_HZ != 0),
+soit pour réfléter la correction AFC firmware (sample[i] *= exp(-j*afc)).
+
+Env vars :
+  CALYPSO_DOPPLER_HZ  Hz de drift injecté (default 0)
+  CALYPSO_SAMPLE_RATE Hz sample rate (default 270833 = 1 sps GSM)
+
+Import-only API :
+  apply_doppler(iq_bytes, doppler_hz=None, sample_rate=None, start_phase=0.0)
+    -> rotated iq_bytes (même format int16 interleaved I,Q,I,Q,...)
+"""
+import math
+import os
+
+DOPPLER_HZ_DEFAULT = float(os.environ.get("CALYPSO_DOPPLER_HZ", "0"))
+SAMPLE_RATE_DEFAULT = float(os.environ.get("CALYPSO_SAMPLE_RATE", "270833"))
+
+
+def apply_doppler(iq_bytes, doppler_hz=None, sample_rate=None,
+                  start_phase=0.0):
+    """Tourne des samples int16 interleaved I,Q par exp(j*2π*f*i/fs).
+
+    iq_bytes      : bytes contenant 2N int16 little-endian (I,Q,I,Q,...).
+    doppler_hz    : décalage fréq Hz. None => env CALYPSO_DOPPLER_HZ.
+    sample_rate   : Hz. None => env CALYPSO_SAMPLE_RATE (= 270833).
+    start_phase   : phase initiale rad (continuité inter-bursts).
+
+    Returns rotated iq_bytes (même longueur, même format).
+    Si doppler=0 : retourne iq_bytes inchangé (no-op).
+    """
+    f = DOPPLER_HZ_DEFAULT if doppler_hz is None else float(doppler_hz)
+    if f == 0.0:
+        return iq_bytes
+    fs = SAMPLE_RATE_DEFAULT if sample_rate is None else float(sample_rate)
+
+    try:
+        import numpy as np
+    except ImportError:
+        return iq_bytes  # silent fallback si numpy absent
+
+    samples = np.frombuffer(iq_bytes, dtype=np.int16)
+    n = len(samples) // 2
+    if n == 0:
+        return iq_bytes
+    i_arr = samples[0::2].astype(np.float64)
+    q_arr = samples[1::2].astype(np.float64)
+
+    phase_step = 2.0 * math.pi * f / fs
+    phases = start_phase + phase_step * np.arange(n)
+    cos_p = np.cos(phases)
+    sin_p = np.sin(phases)
+
+    new_i = i_arr * cos_p - q_arr * sin_p
+    new_q = i_arr * sin_p + q_arr * cos_p
+
+    out = np.empty(2 * n, dtype=np.int16)
+    out[0::2] = np.clip(new_i, -32768, 32767).astype(np.int16)
+    out[1::2] = np.clip(new_q, -32768, 32767).astype(np.int16)
+    return out.tobytes()
+
+
+def next_phase(prev_phase, n_samples, doppler_hz=None, sample_rate=None):
+    """Calcule la phase continue après n_samples (pour chainage bursts).
+
+    Retourne la phase à utiliser comme start_phase du prochain burst.
+    """
+    f = DOPPLER_HZ_DEFAULT if doppler_hz is None else float(doppler_hz)
+    if f == 0.0:
+        return 0.0
+    fs = SAMPLE_RATE_DEFAULT if sample_rate is None else float(sample_rate)
+    phase_step = 2.0 * math.pi * f / fs
+    return (prev_phase + phase_step * n_samples) % (2.0 * math.pi)
+
+
+# Print env :
+#   CALYPSO_BURST_PRINT  = 0/1     active dump (default 0)
+#   CALYPSO_BURST_MAX    = N       cap nombre de dumps (default 50)
+#   CALYPSO_BURST_HEAD   = N       montre N premiers I,Q (default 12)
+_BURST_PRINT = os.environ.get("CALYPSO_BURST_PRINT", "0") == "1"
+_BURST_MAX = int(os.environ.get("CALYPSO_BURST_MAX", "50"))
+_BURST_HEAD = int(os.environ.get("CALYPSO_BURST_HEAD", "12"))
+_burst_count = 0
+
+
+def dump_burst(iq_bytes, tag="", fn=None, tn=None):
+    """Pretty-print un burst I/Q pour diag GMSK.
+
+    Affiche les N premiers samples I/Q en signed int16, plus stats globales
+    (énergie, mean phase). Capped à CALYPSO_BURST_MAX dumps pour pas
+    inonder le log.
+
+    Env-gated par CALYPSO_BURST_PRINT=1.
+    """
+    global _burst_count
+    if not _BURST_PRINT:
+        return
+    if _burst_count >= _BURST_MAX:
+        return
+    _burst_count += 1
+
+    try:
+        import numpy as np
+    except ImportError:
+        return
+
+    samples = np.frombuffer(iq_bytes, dtype=np.int16)
+    n = len(samples) // 2
+    if n == 0:
+        return
+    i_arr = samples[0::2].astype(np.float64)
+    q_arr = samples[1::2].astype(np.float64)
+
+    energy = float(np.mean(i_arr * i_arr + q_arr * q_arr))
+    rms = math.sqrt(energy)
+    mag = np.sqrt(i_arr * i_arr + q_arr * q_arr)
+    nonzero = int(np.sum(mag > 0))
+
+    # Mean phase progression per sample (= AFC residue ~ Doppler)
+    if n >= 2:
+        ph = np.unwrap(np.arctan2(q_arr, i_arr))
+        dph = np.diff(ph)
+        mean_dph = float(np.mean(dph))
+        # Convert rad/sample → Hz (fs = 270833)
+        mean_freq_hz = mean_dph * SAMPLE_RATE_DEFAULT / (2.0 * math.pi)
+    else:
+        mean_dph = 0.0
+        mean_freq_hz = 0.0
+
+    head = min(_BURST_HEAD, n)
+    pairs = " ".join(f"({i_arr[k]:+6.0f},{q_arr[k]:+6.0f})" for k in range(head))
+
+    suffix_parts = []
+    if tag:
+        suffix_parts.append(tag)
+    if fn is not None:
+        suffix_parts.append(f"fn={fn}")
+    if tn is not None:
+        suffix_parts.append(f"tn={tn}")
+    suffix = " ".join(suffix_parts)
+
+    print(
+        f"[doppler] BURST #{_burst_count} {suffix} "
+        f"n={n} rms={rms:.0f} nonzero={nonzero} "
+        f"dphi/sample={mean_dph:+.4f}rad freq={mean_freq_hz:+.0f}Hz "
+        f"head=[{pairs}]",
+        flush=True,
+    )
+
+```
+
+## `tools/dsp_txt2bin.py` {#f-tools-dsp-txt2bin-py}
+
+::: {.file-meta}
+[.py]{.tag} 156 lignes - 5,5KB
+:::
+
+```{.python .numberLines filename="tools/dsp_txt2bin.py"}
+#!/usr/bin/env python3
+"""
+dsp_txt2bin.py — Convert calypso_dsp.txt (OsmocomBB Compal DSP dumper format)
+to raw 16-bit little-endian binary.
+
+Input format expected (per `c54x_load_rom`, calypso_c54x.c:9798-9854):
+
+    DSP dump: PROM0
+    07000 : XXXX XXXX XXXX ... XXXX
+    07010 : XXXX XXXX XXXX ... XXXX
+    ...
+    DSP dump: PROM1
+    18000 : ...
+
+Each data line is "ADDR : WORD WORD WORD ..." where ADDR is hex (no prefix)
+and each WORD is 4 hex chars. Sections: regs, DROM, PDROM, PROM0..PROM3.
+
+Usage:
+  dsp_txt2bin.py INPUT.txt                       # summary only, no output
+  dsp_txt2bin.py INPUT.txt OUT.bin                # emit all sections → OUT.SECTION.bin
+  dsp_txt2bin.py INPUT.txt OUT.bin --section S   # emit one section, zero-filled
+  dsp_txt2bin.py INPUT.txt OUT.bin --slice A L   # emit L words from addr A (hex/dec OK)
+
+Output is raw LE words. Loadable as -M calypso,dsp-blob=OUT.bin if the slice
+falls in DARAM's OVLY-accessible range (0x80..0x27FF) and the PC override is
+honored.
+
+Examples:
+  # split-by-section dump (OUT.bin base → OUT.PROM0.bin, OUT.PROM1.bin, ...)
+  dsp_txt2bin.py calypso_dsp.txt calypso_dsp.bin
+
+  # extract first 0x100 words of PROM0 (0x7000..0x70FF) as a probe blob
+  dsp_txt2bin.py calypso_dsp.txt prom0_head.bin --slice 0x7000 0x100
+
+  # full PROM0 dump
+  dsp_txt2bin.py calypso_dsp.txt prom0.bin --section PROM0
+"""
+
+import argparse
+import re
+import struct
+import sys
+from collections import defaultdict
+
+SECTION_RE = re.compile(r"DSP dump:\s+(\w+)")
+DATA_RE    = re.compile(r"^\s*([0-9a-fA-F]+)\s*:\s*(.+?)\s*$")
+WORD_RE    = re.compile(r"[0-9a-fA-F]{1,4}")
+
+
+def parse_txt(path):
+    """Return dict {section_name: {addr: word}}."""
+    sections = defaultdict(dict)
+    cur = None
+    with open(path) as fp:
+        for line in fp:
+            m = SECTION_RE.search(line)
+            if m:
+                cur = m.group(1)
+                continue
+            if cur is None:
+                continue
+            m = DATA_RE.match(line)
+            if not m:
+                continue
+            base = int(m.group(1), 16)
+            for i, w in enumerate(WORD_RE.findall(m.group(2))):
+                sections[cur][base + i] = int(w, 16) & 0xFFFF
+    return sections
+
+
+def merge(sections):
+    """Flatten all sections into one {addr: word} dict (last writer wins)."""
+    out = {}
+    for s in sections.values():
+        out.update(s)
+    return out
+
+
+def emit_slice(words, start_addr, length, out_path):
+    with open(out_path, "wb") as fp:
+        for a in range(start_addr, start_addr + length):
+            fp.write(struct.pack("<H", words.get(a, 0)))
+    filled = sum(1 for a in range(start_addr, start_addr + length) if a in words)
+    print(f"[txt2bin] slice {length} words at {start_addr:#06x} → {out_path} "
+          f"({filled} filled, {length - filled} zero-filled gaps)")
+
+
+def emit_section(words, name, out_path):
+    if not words:
+        sys.exit(f"[txt2bin] section '{name}' is empty")
+    lo, hi = min(words), max(words)
+    n = hi - lo + 1
+    with open(out_path, "wb") as fp:
+        for a in range(lo, hi + 1):
+            fp.write(struct.pack("<H", words.get(a, 0)))
+    filled = len(words)
+    print(f"[txt2bin] section {name}: {n} words [{lo:#06x}..{hi:#06x}] → "
+          f"{out_path} ({filled} filled, {n - filled} zero-filled gaps)")
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="Convert calypso_dsp.txt to raw 16-bit LE binary.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__)
+    ap.add_argument("input", help="path to calypso_dsp.txt")
+    ap.add_argument("output", nargs="?", help="output .bin path")
+    grp = ap.add_mutually_exclusive_group()
+    grp.add_argument("--section", help="emit one section (regs/DROM/PDROM/PROM0..3)")
+    grp.add_argument("--slice", nargs=2, metavar=("ADDR", "LEN"),
+                     help="emit LEN words starting at ADDR (hex or decimal)")
+    args = ap.parse_args()
+
+    sections = parse_txt(args.input)
+
+    if not args.output:
+        print(f"[txt2bin] sections found in {args.input}:")
+        for name in sorted(sections):
+            ws = sections[name]
+            if not ws:
+                print(f"  {name}: (empty)")
+                continue
+            lo, hi = min(ws), max(ws)
+            print(f"  {name:8s}: {len(ws):6d} words, "
+                  f"{lo:#07x}..{hi:#07x}  (span {hi - lo + 1})")
+        return
+
+    if args.section:
+        if args.section not in sections:
+            sys.exit(f"[txt2bin] no section named '{args.section}'. "
+                     f"Available: {', '.join(sorted(sections))}")
+        emit_section(sections[args.section], args.section, args.output)
+    elif args.slice:
+        addr = int(args.slice[0], 0)
+        length = int(args.slice[1], 0)
+        emit_slice(merge(sections), addr, length, args.output)
+    else:
+        # No flags + output given → split each section into OUTPUT.SECTION.bin.
+        # Sections live in different address spaces (data vs program) and may
+        # overlap in DSP address, so a single merged flat file would be
+        # ambiguous. One file per section keeps things semantically clean.
+        base = args.output
+        if base.lower().endswith(".bin"):
+            base = base[:-4]
+        any_emitted = False
+        for name in sorted(sections):
+            if not sections[name]:
+                continue
+            emit_section(sections[name], name, f"{base}.{name}.bin")
+            any_emitted = True
+        if not any_emitted:
+            sys.exit("[txt2bin] no non-empty sections found in input")
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `tools/fcch_analyze.py` {#f-tools-fcch-analyze-py}
+
+::: {.file-meta}
+[.py]{.tag} 239 lignes - 11KB
+:::
+
+```{.python .numberLines filename="tools/fcch_analyze.py"}
+#!/usr/bin/env python3
+"""FCCH burst diagnostic — FFT + dphi + RMS sur capture bi-directionnelle calypso-ipc-device.
+
+Diag pour décider si FBSB_CONF=0 est dû à un modulateur GMSK cassé (calypso-ipc-device
+soft_bits_to_gmsk_iq), à un scheduling BTS faux, ou à un bug DSP-side. Sortie =
+verdict en 3 branches.
+
+Usage :
+    1. Patcher calypso-ipc-device : CALYPSO_FCCH_DUMP=1 ./run.sh
+    2. Attendre le print "bridge: [FCCH-DUMP] one-shot capture fn=N..."
+    3. python3 tools/fcch_analyze.py --fn N
+       (ou --bits /tmp/fcch_bits_fnN.bin --iq /tmp/fcch_iq_fnN.bin)
+
+Convention attendue (cf. calypso-ipc-device:soft_bits_to_gmsk_iq) :
+- bits   : N octets, soft-bit osmocom (0=strong 0, 255=strong 1). FCCH = tous à 0.
+- iq     : 4N octets cs16 entrelacés I,Q,I,Q (scale=4096, modulation BT=0.3).
+- N      : 148 (burst NB) ou 142/146 si BTS truncate.
+
+Signal théorique FCCH (148 bits zéro) :
+- pic spectral unique à +fs/4 = +67708 Hz (fs = 270833 Hz symbol rate, 1 SPS).
+- dphi = +π/2 ≈ +1.5708 rad/sample, constant, sans saut.
+- magnitude IQ ≈ scale=4096 (cos²+sin² × scale² = scale²).
+
+Verdict :
+- bits != tout-zéro                         → BUG SCHEDULING BTS (le bridge reçoit autre chose qu'une FCCH)
+- bits OK, dphi miroir (-π/2)               → BUG MODULATEUR (swap I/Q ou polarité bit, FCCH à -67.7 kHz, corrélateur cherche +67.7 → invisible à la FFT seule)
+- bits OK, dphi |≠ π/2| > 5 %               → BUG MODULATEUR (mauvaise fréquence)
+- bits OK, dphi(std) > 0.1                  → BUG MODULATEUR (phase break aux bords, mauvais BT, ou troncature)
+- bits OK, dphi propre, RMS très bas        → BUG MODULATEUR (clip ou scale anormal)
+- bits OK, dphi propre, RMS OK, len OK      → BUG DSP-SIDE (corrélateur/AGC/timing/framing window)
+"""
+import argparse
+import math
+import os
+import sys
+
+import numpy as np
+
+FS_SYM = 270833.0  # GSM symbol rate (Hz)
+EXPECTED_DPHI = math.pi / 2  # +π/2 rad/sample pour FCCH 148b zéro à 1 SPS
+EXPECTED_FREQ = FS_SYM / 4   # +67708.25 Hz
+
+
+def load(bits_path, iq_path):
+    with open(bits_path, "rb") as f:
+        bits = np.frombuffer(f.read(), dtype=np.uint8)
+    with open(iq_path, "rb") as f:
+        raw = np.frombuffer(f.read(), dtype=np.int16)
+    if len(raw) % 2 != 0:
+        sys.exit(f"ERR: IQ stream length {len(raw)} int16 not even (expect I,Q,I,Q)")
+    iq = raw[0::2].astype(np.float32) + 1j * raw[1::2].astype(np.float32)
+    return bits, iq
+
+
+def analyze_bits(bits):
+    """Returns (ok, msg)."""
+    n = len(bits)
+    # FCCH = tout-zéro en soft-bit osmocom (0 = strong "0")
+    nonzero = int(np.count_nonzero(bits))
+    ratio = nonzero / n if n else 1.0
+    if nonzero == 0:
+        return True, f"len={n} all-zero ✓ (FCCH bits propres)"
+    if ratio < 0.01:
+        return True, f"len={n} nonzero={nonzero} ({ratio*100:.2f} %) ≈ all-zero ✓"
+    return False, (f"len={n} nonzero={nonzero} ({ratio*100:.1f} %) ✗ "
+                   f"PAS UNE FCCH PROPRE — première occurrence non-zéro idx={int(np.argmax(bits != 0))}")
+
+
+def analyze_iq(iq):
+    """FFT + dphi + RMS. Returns dict."""
+    n = len(iq)
+    # FFT
+    fft = np.fft.fft(iq)
+    freqs = np.fft.fftfreq(n, d=1.0 / FS_SYM)
+    mag = np.abs(fft)
+    peak_idx = int(np.argmax(mag))
+    peak_freq = freqs[peak_idx]
+    peak_mag = mag[peak_idx]
+    # Noise floor = mediane des bins hors d'une fenêtre ±2 autour du pic
+    excl = set(range(max(0, peak_idx - 2), min(n, peak_idx + 3)))
+    other = [mag[i] for i in range(n) if i not in excl]
+    noise_med = float(np.median(other)) if other else 0.0
+    snr_db = 20 * math.log10(peak_mag / noise_med) if noise_med > 0 else float('inf')
+
+    # dphi
+    phase = np.unwrap(np.angle(iq))
+    dphi = np.diff(phase)
+    # Trim 2 samples chaque bord (artefacts troncature)
+    if len(dphi) > 8:
+        dphi_core = dphi[2:-2]
+    else:
+        dphi_core = dphi
+
+    # RMS I, Q, magnitude
+    rms_i = float(np.sqrt(np.mean(iq.real ** 2)))
+    rms_q = float(np.sqrt(np.mean(iq.imag ** 2)))
+    rms_mag = float(np.sqrt(np.mean(np.abs(iq) ** 2)))
+    peak_abs = float(np.max(np.abs(iq)))
+
+    return {
+        "n_samples": n,
+        "peak_freq": float(peak_freq),
+        "peak_mag": float(peak_mag),
+        "noise_med": noise_med,
+        "snr_db": snr_db,
+        "dphi_mean": float(np.mean(dphi_core)),
+        "dphi_std": float(np.std(dphi_core)),
+        "dphi_min": float(np.min(dphi_core)),
+        "dphi_max": float(np.max(dphi_core)),
+        "dphi_full": dphi,
+        "rms_i": rms_i,
+        "rms_q": rms_q,
+        "rms_mag": rms_mag,
+        "peak_abs": peak_abs,
+    }
+
+
+def verdict(bits_ok, bits_msg, st):
+    print()
+    print("============ VERDICT ============")
+    if not bits_ok:
+        print("BRANCHE 0 : BUG SCHEDULING BTS")
+        print(f"  → {bits_msg}")
+        print("  → Le bridge reçoit autre chose qu'une FCCH sur cette frame.")
+        print("  → Modulateur innocent. Investiguer osmo-bts-trx scheduling.")
+        return
+
+    dphi_err = abs(st["dphi_mean"] - EXPECTED_DPHI) / EXPECTED_DPHI
+    dphi_err_neg = abs(st["dphi_mean"] - (-EXPECTED_DPHI)) / EXPECTED_DPHI
+    freq_err = abs(abs(st["peak_freq"]) - EXPECTED_FREQ) / EXPECTED_FREQ
+    sign_neg = st["peak_freq"] < 0 or st["dphi_mean"] < 0
+
+    if sign_neg and dphi_err_neg < 0.05:
+        print("BRANCHE 2a : BUG MODULATEUR — MIROIR (signe inversé)")
+        print(f"  → dphi_mean = {st['dphi_mean']:+.4f} rad/sample (attendu {EXPECTED_DPHI:+.4f})")
+        print(f"  → peak_freq = {st['peak_freq']:+.0f} Hz (attendu {EXPECTED_FREQ:+.0f} Hz)")
+        print("  → Spectre parfaitement propre mais à la fréquence opposée.")
+        print("  → Corrélateur cherche +67.7 kHz, voit -67.7 kHz → FBSB_CONF=0.")
+        print("  → Cause probable : swap I/Q ou polarité de bit dans soft_bits_to_gmsk_iq.")
+        print("  → osmo-trx-ipc résout (génère FCCH au bon signe).")
+        return
+
+    if dphi_err > 0.05:
+        print("BRANCHE 2b : BUG MODULATEUR — FRÉQUENCE FAUSSE")
+        print(f"  → dphi_mean = {st['dphi_mean']:+.4f} rad/sample, attendu {EXPECTED_DPHI:+.4f} "
+              f"(écart {dphi_err*100:.1f} %)")
+        print(f"  → peak_freq = {st['peak_freq']:+.0f} Hz, attendu {EXPECTED_FREQ:+.0f} Hz "
+              f"(écart {freq_err*100:.1f} %)")
+        print("  → osmo-trx-ipc résout.")
+        return
+
+    if st["dphi_std"] > 0.10:
+        print("BRANCHE 2c : BUG MODULATEUR — DISCONTINUITÉ DE PHASE")
+        print(f"  → dphi_std = {st['dphi_std']:.4f} rad (attendu < 0.1)")
+        print(f"  → dphi range = [{st['dphi_min']:+.4f}, {st['dphi_max']:+.4f}]")
+        print("  → Saut de phase au milieu ou aux bords. Vérifier BT, taps gaussiens, troncature.")
+        print("  → osmo-trx-ipc résout.")
+        return
+
+    # Scale check : modulateur écrit scale=4096 → magnitude ≈ 4096
+    # (cos²+sin² = 1 × scale²) Tolérance large à cause du filtre gaussien
+    # qui peut amortir un peu.
+    expected_mag = 4096.0
+    if st["rms_mag"] < expected_mag * 0.3:
+        print("BRANCHE 2d : BUG MODULATEUR — AMPLITUDE TROP FAIBLE")
+        print(f"  → rms_mag = {st['rms_mag']:.0f}, attendu ~{expected_mag:.0f} "
+              f"({st['rms_mag']/expected_mag*100:.0f} %)")
+        print("  → AGC du corrélateur DSP peut décrocher.")
+        return
+    if st["peak_abs"] > 32700:
+        print("BRANCHE 2e : BUG MODULATEUR — CLIP (peak == int16 max)")
+        print(f"  → peak_abs = {st['peak_abs']:.0f}, near int16 max 32767")
+        print("  → Distorsion harmonique, FCCH polluée.")
+        return
+
+    print("BRANCHE 1 : SOURCE I/Q PROPRE — BUG DSP-SIDE")
+    print(f"  → bits propres, dphi = {st['dphi_mean']:+.4f} (≈ {EXPECTED_DPHI:+.4f}), "
+          f"std = {st['dphi_std']:.4f}")
+    print(f"  → peak {st['peak_freq']:+.0f} Hz @ mag {st['peak_mag']:.0f}, SNR {st['snr_db']:.1f} dB")
+    print(f"  → RMS_mag {st['rms_mag']:.0f} (scale 4096 attendu)")
+    print("  → osmo-trx-ipc N'AIDERA PAS sur FBSB. Chasser dans DSP/BSP :")
+    print("    - taille de la fenêtre corrélateur côté DSP (148 reçus vs N attendus ?)")
+    print("    - placement temporel du burst dans la fenêtre BDLENA")
+    print("    - AGC/seuil de confiance du corrélateur FB")
+    print("    - timing TPU→TSP→IOTA BDLENA")
+    print(f"  → Calibration target pour Phase 1 device : RMS_mag = {st['rms_mag']:.0f}")
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--fn", type=int, help="Charge /tmp/fcch_{bits,iq}_fn<FN>.bin")
+    p.add_argument("--bits", help="Path explicit bits file (sinon dérivé de --fn)")
+    p.add_argument("--iq",   help="Path explicit iq file (sinon dérivé de --fn)")
+    args = p.parse_args()
+
+    if args.fn is not None:
+        bits_path = args.bits or f"/tmp/fcch_bits_fn{args.fn}.bin"
+        iq_path   = args.iq   or f"/tmp/fcch_iq_fn{args.fn}.bin"
+    else:
+        if not args.bits or not args.iq:
+            p.error("--fn N ou bien (--bits BITS_PATH --iq IQ_PATH)")
+        bits_path, iq_path = args.bits, args.iq
+
+    if not os.path.exists(bits_path):
+        sys.exit(f"ERR: {bits_path} introuvable")
+    if not os.path.exists(iq_path):
+        sys.exit(f"ERR: {iq_path} introuvable")
+
+    bits, iq = load(bits_path, iq_path)
+    bits_ok, bits_msg = analyze_bits(bits)
+    st = analyze_iq(iq)
+
+    print(f"=== FCCH burst analysis ===")
+    print(f"bits file : {bits_path}")
+    print(f"iq file   : {iq_path}")
+    print()
+    print(f"--- Bits ---")
+    print(f"  {bits_msg}")
+    print()
+    print(f"--- IQ samples ---")
+    print(f"  N samples       = {st['n_samples']}")
+    print(f"  peak freq       = {st['peak_freq']:+.1f} Hz   (FCCH attendue {EXPECTED_FREQ:+.1f} Hz)")
+    print(f"  peak magnitude  = {st['peak_mag']:.1f}")
+    print(f"  noise median    = {st['noise_med']:.2f}")
+    print(f"  SNR             = {st['snr_db']:.1f} dB")
+    print(f"  dphi mean       = {st['dphi_mean']:+.5f} rad/sample   (attendu {EXPECTED_DPHI:+.5f})")
+    print(f"  dphi std        = {st['dphi_std']:.5f} rad")
+    print(f"  dphi min/max    = [{st['dphi_min']:+.5f}, {st['dphi_max']:+.5f}]")
+    print(f"  rms I           = {st['rms_i']:.1f}")
+    print(f"  rms Q           = {st['rms_q']:.1f}")
+    print(f"  rms |IQ|        = {st['rms_mag']:.1f}")
+    print(f"  peak |IQ|       = {st['peak_abs']:.1f}   (int16 max 32767)")
+
+    verdict(bits_ok, bits_msg, st)
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `tools/fcch_sweep.py` {#f-tools-fcch-sweep-py}
+
+::: {.file-meta}
+[.py]{.tag} 191 lignes - 7,5KB
+:::
+
+```{.python .numberLines filename="tools/fcch_sweep.py"}
+#!/usr/bin/env python3
+"""α — sweep 51 raw chunks (pre-slice 625 cs16 samples each), classify by dphi_std.
+
+Offset-agnostic FCCH search : on n'a pas le mapping internal_fn ↔ on-air fn,
+mais une FCCH = tonalité pure +π/2/sample → dphi_std ≈ 0 et dphi_mean ≈ +π/2.
+Tout le reste (BCCH NB, dummy, SACCH) a dphi_std ≥ 1.
+
+Sortie :
+- Tableau trié par std croissant.
+- Identification automatique des FCCH (top hits avec std<0.1).
+- Si ≥ 1 FCCH trouvée : X = internal_fn % 51 → c'est l'offset on-air↔interne
+  à utiliser pour Phase 1.5 slot rewrite (X est constant dans un run, change
+  au restart osmo-trx → re-détecter au boot ou sniffer TRXD).
+
+Usage :
+    CALYPSO_FCCH_DUMP=1 [CALYPSO_FCCH_DUMP_SKIP=2000] ./run.sh
+    # attendre "alpha sweep DONE : 51 raw chunks ..."
+    python3 tools/fcch_sweep.py
+"""
+import math
+import os
+import sys
+
+import numpy as np
+
+FS = 270833.0  # GSM symbol rate at 1 SPS
+EXPECT_DPHI = math.pi / 2  # +π/2 rad/sample for FCCH (148 zero bits → +fs/4)
+INDEX = "/tmp/fcch_sweep_index.txt"
+PATTERN = "/tmp/fcch_sweep_{:03d}.bin"
+
+
+def load_chunk(idx, ts0_only=True):
+    """Load chunk. ts0_only=True extracts first 148 samples (= TS=0 burst).
+    The full chunk is 625 samples = half TDMA frame = TS0+TS1+TS2+TS3 mixed,
+    which dilutes FCCH signature. TS=0 slicing is what we forward to BSP."""
+    path = PATTERN.format(idx)
+    raw = np.fromfile(path, dtype="<i2").astype(np.float32)
+    if len(raw) < 4 or len(raw) % 2 != 0:
+        return None
+    iq = raw[0::2] + 1j * raw[1::2]
+    if ts0_only:
+        iq = iq[:148]
+    return iq
+
+
+def analyze(iq):
+    """Return (peak_freq, peak_mag, snr_db, dphi_mean, dphi_std, rms_mag)."""
+    n = len(iq)
+    fft = np.fft.fft(iq)
+    mag = np.abs(fft)
+    freqs = np.fft.fftfreq(n, 1.0 / FS)
+    peak = int(np.argmax(mag))
+    peak_freq = float(freqs[peak])
+    peak_mag = float(mag[peak])
+    floor = float(np.median(mag))
+    snr_db = 20 * math.log10(peak_mag / floor) if floor > 0 else float("inf")
+
+    phase = np.unwrap(np.angle(iq))
+    dphi = np.diff(phase)
+    if len(dphi) > 16:
+        dphi_core = dphi[8:-8]  # trim edges (transient at burst boundary)
+    else:
+        dphi_core = dphi
+    dphi_mean = float(np.mean(dphi_core))
+    dphi_std = float(np.std(dphi_core))
+
+    rms_mag = float(np.sqrt(np.mean(np.abs(iq) ** 2)))
+    return peak_freq, peak_mag, snr_db, dphi_mean, dphi_std, rms_mag
+
+
+def main():
+    if not os.path.exists(INDEX):
+        sys.exit(f"ERR: {INDEX} not found. Run pipeline with CALYPSO_FCCH_DUMP=1 first.")
+
+    # Parse index : idx ts internal_fn internal_fn_mod51 ts_in_frame qfn_tagged
+    index = []
+    with open(INDEX) as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+            parts = line.split()
+            if len(parts) < 6:
+                continue
+            index.append({
+                "idx": int(parts[0]),
+                "ts": int(parts[1]),
+                "internal_fn": int(parts[2]),
+                "internal_fn_mod51": int(parts[3]),
+                "ts_in_frame": int(parts[4]),
+                "qfn_tagged": int(parts[5]),
+            })
+
+    if not index:
+        sys.exit(f"ERR: {INDEX} has no entries.")
+
+    rows = []
+    for entry in index:
+        iq = load_chunk(entry["idx"])
+        if iq is None or len(iq) < 64:
+            continue
+        peak_freq, peak_mag, snr_db, dphi_mean, dphi_std, rms_mag = analyze(iq)
+        rows.append({
+            **entry,
+            "n_samples": len(iq),
+            "peak_freq": peak_freq,
+            "peak_mag": peak_mag,
+            "snr_db": snr_db,
+            "dphi_mean": dphi_mean,
+            "dphi_std": dphi_std,
+            "rms_mag": rms_mag,
+        })
+
+    if not rows:
+        sys.exit("ERR: no readable chunks.")
+
+    # Sort by dphi_std ascending — FCCH should float to top.
+    rows.sort(key=lambda r: r["dphi_std"])
+
+    print(f"=== Sweep result : {len(rows)} chunks, sorted by dphi_std ascending ===")
+    print(f"{'idx':>3} {'int_fn':>8} {'mod51':>5} {'ts_in_fr':>8} "
+          f"{'peak_Hz':>10} {'SNR_dB':>7} {'dphi_mean':>10} {'dphi_std':>9} {'rms':>7}")
+    print("-" * 86)
+    FCCH_STD_THRESH = 0.30
+    FCCH_MEAN_TOL   = 0.25
+    for r in rows[:20]:  # top 20
+        mark = ""
+        if r["dphi_std"] < FCCH_STD_THRESH and abs(r["dphi_mean"] - EXPECT_DPHI) < FCCH_MEAN_TOL:
+            mark = " ← FCCH (+π/2)"
+        elif r["dphi_std"] < FCCH_STD_THRESH and abs(r["dphi_mean"] + EXPECT_DPHI) < FCCH_MEAN_TOL:
+            mark = " ← FCCH MIRROR (-π/2) !!"
+        print(f"{r['idx']:>3d} {r['internal_fn']:>8d} "
+              f"{r['internal_fn_mod51']:>5d} {r['ts_in_frame']:>8d} "
+              f"{r['peak_freq']:>+10.0f} {r['snr_db']:>7.1f} "
+              f"{r['dphi_mean']:>+10.4f} {r['dphi_std']:>9.4f} "
+              f"{r['rms_mag']:>7.0f}{mark}")
+
+    # FCCH identification — thresholds relaxed (chunk 06 baseline was
+    # dphi_std=0.14, dphi_mean=+1.55 ≠ exact +π/2 due to GMSK BT smearing
+    # at burst edges. Real FCCH still floats clearly above non-FCCH
+    # bursts in dphi_std ranking, just not always at <0.10).
+    FCCH_STD_THRESH = 0.30        # was 0.10
+    FCCH_MEAN_TOL   = 0.25        # was 0.10
+    fcch = [r for r in rows
+            if r["dphi_std"] < FCCH_STD_THRESH
+            and abs(r["dphi_mean"] - EXPECT_DPHI) < FCCH_MEAN_TOL]
+    fcch_mirror = [r for r in rows
+                   if r["dphi_std"] < FCCH_STD_THRESH
+                   and abs(r["dphi_mean"] + EXPECT_DPHI) < FCCH_MEAN_TOL]
+
+    print()
+    print("=" * 86)
+    if fcch:
+        print(f"✓ {len(fcch)} FCCH burst(s) detected (dphi_std<0.10, dphi_mean≈+π/2)")
+        mods = sorted(set(r["internal_fn_mod51"] for r in fcch))
+        ifns = sorted(r["internal_fn"] for r in fcch)
+        spacings = [ifns[i+1] - ifns[i] for i in range(len(ifns) - 1)]
+        print(f"  internal_fn list  : {ifns}")
+        print(f"  internal_fn % 51  : {mods}")
+        print(f"  spacings (frames) : {spacings}")
+        # FCCH on-air = fn%51 ∈ {0,10,20,30,40} (combined CCCH+SDCCH8)
+        # → if all internal_fn_mod51 == X for one value, X is the "0" position
+        if len(mods) == 1:
+            X = mods[0]
+            print(f"  → X = {X} (single mod51 value, suggests one FCCH per 51 frames)")
+        else:
+            # multiple : align with {0,10,20,30,40} pattern
+            best_offset = None
+            best_score = -1
+            for off in range(51):
+                shifted = {(m - off) % 51 for m in mods}
+                expected = {0, 10, 20, 30, 40}
+                score = len(shifted & expected)
+                if score > best_score:
+                    best_score = score
+                    best_offset = off
+            print(f"  → best offset X = {best_offset} "
+                  f"(matches {best_score}/5 FCCH slots)")
+            print(f"    Phase 1.5 rewrite : on-air_fn = internal_fn - {best_offset}")
+    elif fcch_mirror:
+        print(f"⚠ {len(fcch_mirror)} MIRROR FCCH (-π/2). Source signal has flipped phase.")
+        print("  → I/Q swap or polarity inversion somewhere in osmo-trx or our forward.")
+    else:
+        print("✗ NO FCCH detected in 51 chunks.")
+        print("  → Either osmo-trx isn't generating FCCH (BTS not transmitting yet, ")
+        print("    filler stuck on 'zero', config issue), OR the format we read is wrong.")
+        print(f"  Best (lowest) dphi_std = {rows[0]['dphi_std']:.3f} on idx={rows[0]['idx']} "
+              f"(dphi_mean={rows[0]['dphi_mean']:+.4f}, peak={rows[0]['peak_freq']:+.0f}Hz)")
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `tools/gmsk_grgsm.py` {#f-tools-gmsk-grgsm-py}
+
+::: {.file-meta}
+[.py]{.tag} 77 lignes - 2,5KB
+:::
+
+```{.python .numberLines filename="tools/gmsk_grgsm.py"}
+"""GMSK modulator via GNU Radio (gnuradio.digital.gmskmod_bc).
+
+Remplace le custom soft_bits_to_gmsk_iq de bridge.py par une implémentation
+spec-conforme. Si gnuradio absent, raise ImportError — bridge.py fallback
+sur sa version custom.
+
+GSM params : samples_per_sym=1 (= 1 sample/symbol, ~270.833 kHz baseband),
+L=4 (pulse length), beta=0.3 (BT product = 0.3).
+
+API :
+  bits_to_iq_grgsm(soft_bits, scale=4096) -> bytes (int16 interleaved I,Q)
+"""
+import struct
+
+from gnuradio import gr, blocks
+from gnuradio.digital import gmskmod_bc
+
+
+_TB = None  # top_block cache (reused across calls)
+_SRC = None
+_SINK = None
+
+
+def _build_flowgraph():
+    """Construit le flowgraph gmsk_mod réutilisable.
+
+    vector_source (packed bytes) → gmskmod_bc → vector_sink (complex).
+    Le source/sink sont updated par call (set_data + reset).
+    """
+    global _TB, _SRC, _SINK
+    if _TB is not None:
+        return
+    _SRC = blocks.vector_source_b([], False)
+    _MOD = gmskmod_bc(samples_per_sym=1, L=4, beta=0.3)
+    _SINK = blocks.vector_sink_c()
+    _TB = gr.top_block()
+    _TB.connect(_SRC, _MOD, _SINK)
+
+
+def bits_to_iq_grgsm(soft_bits_raw, scale=4096):
+    """Convert TRXD soft bits → GMSK I/Q int16 baseband via gr-digital.
+
+    soft_bits_raw : iterable of soft bits (0=strong 1, 255=strong 0,
+                    threshold 128).
+    scale         : multiplier int16 (default 4096 = même que custom).
+    Retourne bytes (2N int16 interleaved I,Q,I,Q,...).
+    """
+    _build_flowgraph()
+    # gmskmod_bc avec samples_per_sym=1 = 1 byte d'entrée = 1 symbole = 1
+    # sample complexe out. Pas de bit-packing.
+    #
+    # Encoding gmskmod_bc :
+    #   byte=0   → rotation 0       (NRZ -1, pas de tone)
+    #   byte=1   → rotation +π/2    (NRZ +1, tone +fs/4)
+    #
+    # Notre convention soft bit (osmocom) :
+    #   soft < 128 → bit décodé = 0 (FCCH spec : 0 bit → +π/2 tone)
+    #   soft >= 128 → bit décodé = 1
+    #
+    # Donc invert : soft<128 → gmsk input 1 (tone), soft>=128 → 0.
+    n_bits = len(soft_bits_raw)
+    bits_for_mod = [1 if b < 128 else 0 for b in soft_bits_raw]
+
+    _SRC.set_data(bits_for_mod)
+    _SINK.reset()
+    _TB.run()
+    cx = _SINK.data()  # liste de complex (numpy complex64)
+
+    # samples_per_sym=1 → out length = n_bits (pas de transient)
+    cx = cx[:n_bits]
+
+    out = bytearray()
+    for c in cx:
+        i_int = max(-32768, min(32767, int(c.real * scale)))
+        q_int = max(-32768, min(32767, int(c.imag * scale)))
+        out += struct.pack("<hh", i_int, q_int)
+    return bytes(out)
+
+```
+
+## `tools/iq_proxy.py` {#f-tools-iq-proxy-py}
+
+::: {.file-meta}
+[.py]{.tag} 121 lignes - 4,5KB
+:::
+
+```{.python .numberLines filename="tools/iq_proxy.py"}
+#!/usr/bin/env python3
+"""UDP proxy DL bursts : source (bridge.py | calypso-ipc-device) → QEMU BSP.
+
+Sit entre source et QEMU BSP pour appliquer Doppler injection + burst dump
+indépendamment du chemin GMSK choisi. Réutilise tools/doppler.py.
+
+Architecture :
+  source → udp:LISTEN_PORT (default 6702)
+            → [apply_doppler + dump_burst]
+            → udp:127.0.0.1:FWD_PORT (default 6712)
+            → QEMU BSP (listens on CALYPSO_BSP_PORT=6712)
+
+Pour activer ce proxy entre source et QEMU :
+  1. set CALYPSO_BSP_PORT=6712 (= QEMU BSP listen on alt port)
+  2. lance ce proxy : iq_proxy.py --listen 6702 --forward 6712
+  3. source unchanged : envoie sur 6702 → proxy intercepte → QEMU
+
+Format UDP attendu :
+  [0]    TN
+  [1:5]  FN big-endian
+  [5]    RSSI
+  [6:8]  reserved
+  [8:]   IQ payload (int16 interleaved I,Q,I,Q,...) OU soft bits
+
+Env vars (héritées de doppler.py) :
+  CALYPSO_DOPPLER_HZ  Hz de drift injecté (default 0 = pass-through)
+  CALYPSO_BURST_PRINT 0/1 dump des bursts (default 0)
+  CALYPSO_SAMPLE_RATE Hz sample rate (default 270833)
+"""
+import argparse
+import os
+import socket
+import struct
+import sys
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
+from doppler import apply_doppler, dump_burst
+
+
+def run(listen_port, forward_host, forward_port, iq_bytes_per_burst):
+    """Boucle pass-through avec Doppler injection + dump.
+
+    iq_bytes_per_burst : longueur attendue du payload IQ après header 8B
+                         (pour BSP IQ mode = 4*148 = 592 bytes typiquement).
+                         Si != taille reçue → pass-through sans rotation
+                         (= probablement soft bits, pas IQ).
+    """
+    rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    rx.bind(("0.0.0.0", listen_port))
+    tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    fwd_addr = (forward_host, forward_port)
+
+    print(f"[iq_proxy] listen=:{listen_port} forward={forward_host}:{forward_port}"
+          f" doppler_hz={os.environ.get('CALYPSO_DOPPLER_HZ','0')}"
+          f" burst_print={os.environ.get('CALYPSO_BURST_PRINT','0')}"
+          f" iq_expected={iq_bytes_per_burst}",
+          flush=True)
+
+    n_fwd = 0
+    n_iq = 0
+    n_soft = 0
+    while True:
+        try:
+            pkt, src_addr = rx.recvfrom(8192)
+        except KeyboardInterrupt:
+            break
+        if len(pkt) < 8:
+            tx.sendto(pkt, fwd_addr)
+            continue
+        hdr = pkt[:8]
+        payload = pkt[8:]
+        tn = hdr[0]
+        fn = struct.unpack(">I", hdr[1:5])[0]
+
+        # Détection IQ vs soft bits : si payload size = 4*N pour N proche
+        # de 148, c'est IQ. Sinon soft bits.
+        if iq_bytes_per_burst > 0 and abs(len(payload) - iq_bytes_per_burst) <= 8:
+            # IQ : applique Doppler rotation
+            payload_out = apply_doppler(payload)
+            dump_burst(payload_out, tag="proxy-IQ", fn=fn, tn=tn)
+            n_iq += 1
+        else:
+            # Soft bits ou autre : pass-through
+            payload_out = payload
+            n_soft += 1
+
+        tx.sendto(hdr + payload_out, fwd_addr)
+        n_fwd += 1
+        if n_fwd <= 5 or n_fwd % 5000 == 0:
+            print(f"[iq_proxy] fwd #{n_fwd} (iq={n_iq} soft={n_soft})"
+                  f" tn={tn} fn={fn} payload={len(payload)}B",
+                  flush=True)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="UDP DL burst proxy with Doppler injection")
+    ap.add_argument("--listen", type=int,
+                    default=int(os.environ.get("CALYPSO_PROXY_LISTEN", "6702")),
+                    help="UDP port à écouter (default 6702 = original BSP port)")
+    ap.add_argument("--forward", type=int,
+                    default=int(os.environ.get("CALYPSO_BSP_PORT", "6712")),
+                    help="UDP port QEMU BSP (default 6712 = alt port)")
+    ap.add_argument("--forward-host", default="127.0.0.1",
+                    help="Host cible (default 127.0.0.1)")
+    ap.add_argument("--iq-bytes", type=int, default=4 * 148,
+                    help="Taille IQ payload attendu (default 592 = 148 samples I,Q)")
+    args = ap.parse_args()
+
+    if args.listen == args.forward and args.forward_host in ("127.0.0.1", "localhost"):
+        print(f"[iq_proxy] FATAL listen={args.listen} == forward={args.forward}"
+              " on same host → loop. Set CALYPSO_BSP_PORT to a different port.",
+              file=sys.stderr)
+        sys.exit(2)
+
+    run(args.listen, args.forward_host, args.forward, args.iq_bytes)
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `tools/irda_capture.py` {#f-tools-irda-capture-py}
+
+::: {.file-meta}
+[.py]{.tag} 121 lignes - 4,3KB
+:::
+
+```{.python .numberLines filename="tools/irda_capture.py"}
+#!/usr/bin/env python3
+"""
+irda_capture.py — consomme le PTY UART_IRDA du firmware et l'écrit dans
+/tmp/fw-irda.log avec le même préfixe timestamp `<epoch> +<rel>s [fw-irda]`
+que les autres logs (qemu/bridge/osmocon/mobile).
+
+Phase 3 du plan PLAN_CLAUDE_CODE_20260516_IRDA_DEBUG_CHANNEL.md.
+
+Usage :
+    # Direct
+    python3 tools/irda_capture.py [pty_path]
+
+    # Auto-symlinké par run.sh
+    IRDA_PTY=/tmp/irda.pty.link python3 tools/irda_capture.py
+
+Env vars :
+    IRDA_PTY        — chemin PTY (default /tmp/irda.pty.link)
+    FW_IRDA_LOG     — fichier de sortie (default /tmp/fw-irda.log)
+    IRDA_BAUD       — baud rate (default 115200)
+"""
+from __future__ import annotations
+
+import os
+import sys
+import time
+
+IRDA_PTY    = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("IRDA_PTY", "/tmp/irda.pty.link")
+FW_IRDA_LOG = os.environ.get("FW_IRDA_LOG", "/tmp/fw-irda.log")
+IRDA_BAUD   = int(os.environ.get("IRDA_BAUD", "115200"))
+
+
+def _set_raw_termios(fd: int) -> None:
+    """Mode raw : pas de buffering canonical, pas d'écho, pas de translation
+    \\r↔\\n, pas de signals (intr/quit/...). Indispensable sinon le PTY slave
+    bufferise jusqu'à \\n (mode canonical) et filtre les bytes spéciaux —
+    fw-irda.log reste vide même quand QEMU push 1+ MB côté master.
+    """
+    try:
+        import termios, tty
+        tty.setraw(fd, termios.TCSANOW)
+        # Ajout : nettoyage explicite des flags d'input qui peuvent perturber
+        attrs = termios.tcgetattr(fd)
+        # iflag : disable IXON/IXOFF (XON/XOFF flow control), ICRNL, INLCR
+        attrs[0] &= ~(termios.IXON | termios.IXOFF | termios.ICRNL
+                      | termios.INLCR | termios.IGNCR)
+        # lflag : disable ECHO, ECHONL, ICANON, ISIG, IEXTEN
+        attrs[3] &= ~(termios.ECHO | termios.ECHONL | termios.ICANON
+                      | termios.ISIG | termios.IEXTEN)
+        # cc : VMIN=1 (au moins 1 byte avant retour), VTIME=0 (pas de timeout)
+        attrs[6][termios.VMIN]  = 1
+        attrs[6][termios.VTIME] = 0
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+    except Exception as e:
+        sys.stderr.write(f"irda_capture: termios raw setup failed ({e}) — continuing\n")
+
+
+def _open_pty():
+    """Ouvre le PTY en bytes non-bufférisé + bascule en mode raw via termios.
+    Préfère pyserial si dispo (qui fait déjà raw), sinon ouverture directe."""
+    try:
+        import serial
+        s = serial.Serial(IRDA_PTY, IRDA_BAUD, timeout=0.5)
+        # pyserial fait déjà raw + IGNBRK + cflag CLOCAL|CREAD, RAS
+        return s
+    except ImportError:
+        # Fallback : ouverture directe + force raw via termios.
+        f = open(IRDA_PTY, "rb", buffering=0)
+        _set_raw_termios(f.fileno())
+        return f
+
+
+def main():
+    # Wait que le PTY existe (utile si lancé en parallèle de run.sh)
+    waited = 0
+    while not os.path.exists(IRDA_PTY) and waited < 30:
+        time.sleep(0.5); waited += 1
+    if not os.path.exists(IRDA_PTY):
+        sys.stderr.write(f"irda_capture: PTY {IRDA_PTY} absent après 15s, abort\n")
+        sys.exit(2)
+
+    # Écrit son PID pour le test_irda_capture_process_alive
+    try:
+        with open("/tmp/irda_capture.pid", "w") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        pass
+
+    src = _open_pty()
+    out = open(FW_IRDA_LOG, "a", buffering=1)  # line-buffered
+    t0 = time.time()
+    sys.stderr.write(f"irda_capture: reading {IRDA_PTY} → {FW_IRDA_LOG}\n")
+
+    buf = b""
+    try:
+        while True:
+            try:
+                chunk = src.read(4096)  # blocking ou timeout selon backend
+            except Exception:
+                time.sleep(0.1)
+                continue
+            if not chunk:
+                time.sleep(0.05)
+                continue
+            buf += chunk
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                epoch = time.time()
+                rel = epoch - t0
+                txt = line.decode(errors="replace").rstrip("\r")
+                out.write(f"{epoch:.3f} +{rel:.3f}s [fw-irda] {txt}\n")
+    except KeyboardInterrupt:
+        sys.stderr.write("irda_capture: stop\n")
+    finally:
+        try: out.close()
+        except Exception: pass
+        try: src.close()
+        except Exception: pass
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `tools/mailbox-annote.py` {#f-tools-mailbox-annote-py}
+
+::: {.file-meta}
+[.py]{.tag} 222 lignes - 8,7KB
+:::
+
+```{.python .numberLines filename="tools/mailbox-annote.py"}
+#!/usr/bin/env python3
+"""
+mailbox-annote.py — croise mailbox.log avec le désassembleur c54x.
+
+Le moniteur mailbox (calypso_mailbox.c) note le PC de chaque accès DSP :
+
+    54068145  0  DSP>WR 0x0829 d_burst_d/rp0  0x0002 -> 0x0000  @0xb007
+
+« quelqu'un a écrit d_burst_d » est déjà utile ; « QUELLE instruction l'a
+écrit » l'est bien davantage. Cet outil relève tous les PC distincts du
+journal, les désassemble, et rend le tableau croisé cellule × instruction.
+
+Exemple de ce que ça donne — un cas réel du 2026-07-29 :
+    0xb446  stl *AR1+, A     ← post-incrément : c'est un memset de la read page,
+                               pas un bug. Les « 0x0000 -> 0x0000 » répétés sur
+                               d_burst_d s'expliquent d'un coup.
+
+Usage :
+    tools/mailbox-annote.py [mailbox.log] [--rom ...] [--cellule 0x0829]
+"""
+import argparse
+import collections
+import io
+import os
+import re
+import sys
+
+ICI = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, ICI)
+import importlib.util
+
+_spec = importlib.util.spec_from_file_location(
+    "tic54xdis", os.path.join(ICI, "tic54x-dis.py"))
+_dis = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_dis)
+
+# « insn fn sens mot nom ... @0xPC » — le nom peut être vide.
+LIGNE = re.compile(
+    r"^\s*(\d+)\s+(\d+)\s+(ARM>WR|ARM<RD|DSP>WR|DSP<RD)\s+(0x[0-9a-f]{4})\s+"
+    r"(.*?)@(0x[0-9a-f]+)(?:\s+x(\d+))?\s*$")
+
+
+def charger_roms(chemins):
+    """Rend [(base, contenu)] pour chaque ROM lisible."""
+    roms = []
+    for c in chemins:
+        base = _dis.ROMS.get(os.path.basename(c), {}).get("base") \
+            if isinstance(_dis.ROMS.get(os.path.basename(c)), dict) else None
+        if base is None:
+            base = 0xE000 if "PDROM" in c else 0x7000
+        try:
+            with open(c, "rb") as f:
+                roms.append((base, f.read()))
+        except OSError:
+            pass
+    return roms
+
+
+def desassembler_pc(tab, roms, pc):
+    """Première instruction à ce PC, ou None si aucune ROM ne le couvre.
+
+    `_dis.desassembler()` IMPRIME au lieu de rendre : on capture sa sortie. Écrit
+    ainsi plutôt qu'en modifiant le désassembleur, pour ne pas toucher un outil
+    déjà utilisé ailleurs."""
+    import contextlib
+    for base, rom in roms:
+        n = len(rom) // 2
+        if not (base <= pc < base + n):
+            continue
+        tampon = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(tampon):
+                r = _dis.desassembler(tab, rom, base, pc, pc + 1)
+        except Exception:
+            continue
+        txt = tampon.getvalue().strip().splitlines()
+        if txt:
+            # « 0xb446  8091  stl *AR1+, A » -> on garde à partir du mnémonique
+            l = txt[0].strip()
+            parties = l.split(None, 1)
+            return parties[1].strip() if len(parties) > 1 else l
+        if r:
+            return str(r[0])
+    return None
+
+
+def flux(tab, roms, cible):
+    """Annote le flux au fil de l'eau. Une ligne d'entrée -> une ligne de sortie.
+
+    Le désassemblage est mis en cache par PC : une boucle serrée ne coûte donc
+    qu'une recherche, pas une par ligne. Sortie non tamponnée pour que le pane
+    tmux défile en direct."""
+    cache = {}
+    for l in sys.stdin:
+        l = l.rstrip("\n")
+        if l.startswith("#") or not l.strip():
+            print(l, flush=True)
+            continue
+        m = LIGNE.match(l)
+        if not m:
+            print(l, flush=True)
+            continue
+        _insn, _fn, sens, mot, _reste, pc, _rep = m.groups()
+        if cible is not None and int(mot, 16) != cible:
+            continue
+        if not sens.startswith("DSP"):
+            print(l, flush=True)      # côté ARM le contexte est un offset MMIO
+            continue
+        p = int(pc, 16)
+        if p not in cache:
+            cache[p] = desassembler_pc(tab, roms, p) or ""
+        print("%s   %s" % (l, cache[p]), flush=True)
+
+
+def main():
+    import time
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("journal", nargs="?", default="/tmp/calypso/logs/mailbox.log")
+    p.add_argument("--rom", action="append", default=[],
+                   help="ROM à utiliser (répétable ; défaut PROM0 + PDROM)")
+    p.add_argument("--table", default=None, help="table binutils tic54x-opc.c")
+    p.add_argument("--cellule", default=None,
+                   help="ne détailler que cette cellule, ex. 0x0829")
+    p.add_argument("--top", type=int, default=25, help="nb de lignes (défaut 25)")
+    p.add_argument("--flux", action="store_true",
+                   help="mode FLUX : lit l'entrée standard et annote CHAQUE ligne "
+                        "avec l'instruction qui la produit, au fil de l'eau. "
+                        "Prévu pour « tail -F mailbox.log | mailbox-annote.py --flux ». "
+                        "Le mode par défaut agrège ; celui-ci déroule.")
+    p.add_argument("--fenetre", type=int, default=200000, metavar="N",
+                   help="ne lire que les N DERNIÈRES lignes du journal "
+                        "(défaut 200000, 0 = tout). Le journal grossit en "
+                        "continu : le relire en entier à chaque cycle rend le "
+                        "rafraîchissement de plus en plus lent jusqu'à paraître "
+                        "figé. Une fenêtre glissante est aussi plus parlante en "
+                        "direct — elle dit ce qui se passe MAINTENANT, pas les "
+                        "totaux depuis le démarrage.")
+    p.add_argument("--suivre", type=float, metavar="SEC", default=None,
+                   help="relire en boucle toutes les SEC secondes (live). Le "
+                        "moniteur vide son tampon toutes les 1024 lignes, donc "
+                        "le journal est exploitable pendant que QEMU tourne.")
+    a = p.parse_args()
+
+    if not a.rom:
+        a.rom = ["/opt/GSM/calypso_dsp.PROM0.bin", "/opt/GSM/calypso_dsp.PDROM.bin"]
+    if not a.table:
+        # même emplacement que tic54x-dis.py : la table binutils versée au dépôt.
+        a.table = os.path.join(os.path.dirname(ICI),
+                               "hw/arm/calypso/doc/opcodes/tic54x-opc.c")
+    tab = _dis.charger_table(a.table)
+    roms = charger_roms(a.rom)
+    if not roms:
+        sys.exit("aucune ROM lisible parmi : %s" % ", ".join(a.rom))
+
+    cible = int(a.cellule, 0) if a.cellule else None
+
+    if a.flux:
+        flux(tab, roms, cible)
+        return
+
+    # (mot, sens, pc) -> occurrences (en tenant compte du « x N » du repliement)
+    compte = collections.Counter()
+    noms = {}
+    try:
+        f = io.open(a.journal, encoding="utf-8", errors="replace")
+    except OSError as e:
+        sys.exit("journal illisible : %s" % e)
+    with f:
+        if a.fenetre:
+            # On se place à la fin moins une estimation généreuse (les lignes
+            # font ~70 o), puis on jette la première, forcément tronquée.
+            import os as _os
+            taille = _os.fstat(f.fileno()).st_size
+            saut = taille - a.fenetre * 80
+            if saut > 0:
+                f.seek(saut)
+                f.readline()
+        for l in f:
+            if l.startswith("#"):
+                continue
+            m = LIGNE.match(l.rstrip("\n"))
+            if not m:
+                continue
+            _insn, _fn, sens, mot, reste, pc, rep = m.groups()
+            if not sens.startswith("DSP"):
+                continue              # côté ARM le contexte est un offset MMIO
+            mo = int(mot, 16)
+            if cible is not None and mo != cible:
+                continue
+            nom = reste.split()[0] if reste.split() else ""
+            if nom and not nom.startswith("0x") and nom not in ("=",):
+                noms[mo] = nom
+            compte[(mo, sens, int(pc, 16))] += 1 + (int(rep) - 1 if rep else 0)
+
+    if not compte:
+        sys.exit("aucun accès DSP trouvé dans %s" % a.journal)
+
+    cache = {}
+    if a.suivre:
+        os.system("clear")
+    print("# croisement mailbox × désassemblage — %s" % a.journal)
+    if a.fenetre:
+        print("# fenêtre glissante : ~%d dernières lignes (--fenetre 0 pour tout)"
+              % a.fenetre)
+    print("# %-8s %-14s %-6s %-8s %-9s %s"
+          % ("cellule", "nom", "sens", "occurr.", "pc", "instruction"))
+    for (mo, sens, pc), n in compte.most_common(a.top):
+        if pc not in cache:
+            cache[pc] = desassembler_pc(tab, roms, pc)
+        instr = cache[pc] or "(hors ROM chargée)"
+        print("  0x%04x   %-14s %-6s %8d  0x%04x   %s"
+              % (mo, noms.get(mo, ""), sens, n, pc, instr))
+
+    if a.suivre:
+        time.sleep(a.suivre)
+        sys.argv = [sys.argv[0]] + [x for x in sys.argv[1:]]
+        main()
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `tools/mailbox-gdb.py` {#f-tools-mailbox-gdb-py}
+
+::: {.file-meta}
+[.py]{.tag} 109 lignes - 4,2KB
+:::
+
+```{.python .numberLines filename="tools/mailbox-gdb.py"}
+#!/usr/bin/env python3
+"""
+mailbox-gdb.py — lire la mailbox ARM↔DSP EN DIRECT via le gdbstub de QEMU.
+
+Complément du moniteur : `mailbox.log` est un HISTORIQUE, ceci est l'état
+INSTANTANÉ, à la demande.
+
+⚠️ Se connecter au gdbstub ARRÊTE le guest le temps de la lecture. Sur une pile
+   GSM temps réel, le mobile perdra sa synchro. Inspection ponctuelle, pas un
+   mode de travail continu — pour le continu, c'est mailbox.log.
+
+⚠️ Ne montre QUE la fenêtre API RAM (mots DSP 0x0800..0x0FFF), la seule que l'ARM
+   voie. Les cellules INTERNES du DSP (0x3f92, 0x5a00, 0x43d8…) ne sont PAS
+   accessibles ici : elles vivent dans data[] côté modèle, hors de portée du
+   guest. Pour celles-là : CALYPSO_MAILBOX_CELLS=0x3f92,0x5a00 dans le moniteur.
+
+⚠️ `gdb` x86 ne parle pas ARM (« Undefined item: arm », « Truncated register 16
+   in remote 'g' packet ») — il faut gdb-multiarch.
+
+Adressage : ARM = 0xFFD00000 + (mot_DSP - 0x0800) * 2
+
+Usage :
+    tools/mailbox-gdb.py                   les cellules usuelles
+    tools/mailbox-gdb.py 0x0804 0x08f8     des mots DSP précis
+    tools/mailbox-gdb.py --port 1234
+"""
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+
+BASE_ARM = 0xFFD00000
+BASE_DSP = 0x0800
+
+USUELLES = [
+    (0x0804, "d_task_md/wp0"), (0x0818, "d_task_md/wp1"),
+    (0x0810, "d_ctrl_system"),
+    (0x0828, "d_task_d/rp0"),  (0x0829, "d_burst_d/rp0"),
+    (0x083c, "d_task_d/rp1"),  (0x083d, "d_burst_d/rp1"),
+    (0x08d5, "etat_dsp"),      (0x08e2, "d_dsp_page"),
+    (0x08f8, "d_fb_det"),      (0x08f9, "d_fb_mode"),
+    (0x08fa, "a_sync_TOA"),    (0x08fb, "a_sync_PM"),
+    (0x08fc, "a_sync_ANGLE"),  (0x08fd, "a_sync_SNR"),
+]
+
+
+def adresse_arm(mot):
+    return BASE_ARM + (mot - BASE_DSP) * 2
+
+
+def main():
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("mots", nargs="*", help="mots DSP à lire, ex. 0x0804")
+    p.add_argument("--port", default=os.environ.get("CALYPSO_GDB_PORT", "1234"))
+    p.add_argument("--elf", default=os.environ.get(
+        "CALYPSO_GDB_ELF",
+        "/opt/GSM/osmo-qemu-calypso/firmware/compal_e88/layer1.highram.elf"))
+    p.add_argument("--gdb", default="gdb-multiarch")
+    a = p.parse_args()
+
+    cellules = [(int(m, 0), "(demandée)") for m in a.mots] if a.mots else USUELLES
+
+    lignes = ["set pagination off", "set confirm off"]
+    if os.path.exists(a.elf):
+        lignes.append("file %s" % a.elf)
+    lignes.append("target remote :%s" % a.port)
+    # ⚠️ PAS d'argument CHAÎNE dans le printf de gdb : il devrait allouer la
+    # chaîne DANS la cible, et rend « evaluation of this expression requires the
+    # program to have a function "malloc" ». Les libellés vont donc dans le
+    # format lui-même ; seule la valeur lue reste un argument.
+    lignes.append(r'printf "  PC ARM                     ->  0x%08x\n", $pc')
+    for mot, nom in cellules:
+        etiquette = "%-16s 0x%04x" % (nom, mot)
+        lignes.append(
+            'printf "  %s  ->  0x%%04x\\n", *(unsigned short*)0x%08x'
+            % (etiquette, adresse_arm(mot)))
+
+    lignes.append("detach")
+
+    with tempfile.NamedTemporaryFile("w", suffix=".gdb", delete=False) as f:
+        f.write("\n".join(lignes) + "\n")
+        script = f.name
+
+    sys.stderr.write("\n  mailbox ARM<->DSP — instantané via gdbstub :%s\n"
+                     "  (le guest est ARRÊTÉ pendant la lecture)\n\n" % a.port)
+    try:
+        r = subprocess.run([a.gdb, "-q", "-batch", "-x", script],
+                           capture_output=True, text=True, timeout=60)
+    except FileNotFoundError:
+        sys.exit("  %s introuvable — le gdb x86 ne parle pas ARM, il faut "
+                 "gdb-multiarch" % a.gdb)
+    except subprocess.TimeoutExpired:
+        sys.exit("  délai dépassé — le gdbstub :%s répond-il ?" % a.port)
+    finally:
+        os.unlink(script)
+
+    vues = [l for l in r.stdout.splitlines() if l.startswith("  ") and "->" in l]
+    if not vues:
+        sys.stderr.write(r.stdout[-800:] + r.stderr[-800:] + "\n")
+        sys.exit("  aucune cellule lue — QEMU tourne-t-il avec -gdb tcp::%s ?"
+                 % a.port)
+    print("\n".join(vues))
+    print()
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `tools/ndb-offsets.py` {#f-tools-ndb-offsets-py}
+
+::: {.file-meta}
+[.py]{.tag} 140 lignes - 5,3KB
+:::
+
+```{.python .numberLines filename="tools/ndb-offsets.py"}
+#!/usr/bin/env python3
+# ndb-offsets.py — extrait les offsets des champs de T_NDB_MCU_DSP du DWARF du
+# firmware, avec binutils-arm-none-eabi. Sortie : des lignes `champ=0xNNN`.
+#
+# POURQUOI CET OUTIL EXISTE
+# -------------------------
+# Les offsets NDB (a_cd, a_fd, a_dd_0, a_cu, a_fu, a_du_1...) etaient des
+# #define dans calypso_dsp_internal.h. Un #define ne peut pas savoir que le
+# firmware a ete recompile : si la struct bouge, QEMU ecrit A COTE, en silence,
+# et le symptome apparait tres loin en aval (2026-06-02 : a_cd suppose a 0x1DC
+# -> num_biterr=0xff + CRC fail, cherche pendant des jours). Le seul juge est le
+# binaire qui tourne ; on le lit donc au lieu de le supposer.
+#
+# CE QUE CE N'EST PAS : un parseur DWARF. On delegue a readelf, et on ne fait
+# que suivre les liens entre DIE.
+#
+# PIEGE DU DUMP : `T_NDB_MCU_DSP` est un DW_TAG_typedef, pas une structure. La
+# structure qui SUIT immediatement le typedef dans le dump en est une autre
+# (byte_size 292, verifie). Il faut suivre le DW_AT_type du typedef vers l'offset
+# de DIE de la vraie structure. Prendre "la structure d'apres" donnerait des
+# offsets plausibles et faux.
+import re, subprocess, sys, os
+
+TYPEDEF = os.environ.get("CALYPSO_NDB_TYPEDEF", "T_NDB_MCU_DSP")
+# Champs qui interessent le shunt. On sort tout ce qu'on trouve parmi ceux-la ;
+# un champ absent est signale par l'appelant, pas invente ici.
+WANTED = ["a_cd", "a_fd", "a_dd_0", "a_dd_1", "a_cu", "a_fu", "a_du_0", "a_du_1",
+          "d_fb_det", "a_sync_demod", "d_tch_mode"]
+
+# ' <1><dcc8>: Abbrev Number: 22 (DW_TAG_typedef)'
+RE_DIE = re.compile(r"^\s*<(\d+)><([0-9a-f]+)>:\s+Abbrev Number:\s+\d+\s+\(([A-Za-z_]+)\)")
+RE_NAME = re.compile(r"DW_AT_name\s*:.*?:\s*(\S+)\s*$")
+RE_NAME_DIRECT = re.compile(r"DW_AT_name\s*:\s*(\S+)\s*$")
+RE_TYPE = re.compile(r"DW_AT_type\s*:\s*<0x([0-9a-f]+)>")
+RE_LOC = re.compile(r"DW_AT_data_member_location.*?DW_OP_plus_uconst:\s*(\d+)")
+RE_LOC_PLAIN = re.compile(r"DW_AT_data_member_location\s*:\s*(\d+)\s*$")
+RE_SIZE = re.compile(r"DW_AT_byte_size\s*:\s*(\d+)")
+
+
+def die_name(line):
+    m = RE_NAME.search(line) or RE_NAME_DIRECT.search(line)
+    return m.group(1) if m else None
+
+
+def extract(elf, readelf):
+    try:
+        out = subprocess.run([readelf, "--debug-dump=info", elf],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                             check=True).stdout.decode("utf-8", "replace")
+    except (OSError, subprocess.CalledProcessError) as e:
+        print("# ERREUR: %s sur %s : %s" % (readelf, elf, e), file=sys.stderr)
+        return None
+
+    lines = out.splitlines()
+
+    # --- passe 1 : typedef -> offset de DIE de la structure cible -------------
+    target = None
+    cur_tag = None
+    cur_name = None
+    for ln in lines:
+        m = RE_DIE.match(ln)
+        if m:
+            if cur_tag == "DW_TAG_typedef" and cur_name == TYPEDEF and target:
+                break
+            cur_tag, cur_name, pending = m.group(3), None, None
+            continue
+        if cur_tag != "DW_TAG_typedef":
+            continue
+        n = die_name(ln)
+        if n:
+            cur_name = n
+        t = RE_TYPE.search(ln)
+        if t and cur_name == TYPEDEF:
+            target = t.group(1)
+    if cur_tag == "DW_TAG_typedef" and cur_name == TYPEDEF and target:
+        pass
+    if not target:
+        print("# ERREUR: typedef %s introuvable dans le DWARF" % TYPEDEF, file=sys.stderr)
+        return None
+
+    # --- passe 2 : membres de la structure a l'offset `target` ---------------
+    res, size = {}, None
+    in_struct = False
+    struct_level = None
+    member_name = None
+    for ln in lines:
+        m = RE_DIE.match(ln)
+        if m:
+            level, off, tag = int(m.group(1)), m.group(2), m.group(3)
+            if not in_struct:
+                if off == target and tag == "DW_TAG_structure_type":
+                    in_struct, struct_level = True, level
+                continue
+            # dans la structure : on sort des qu'on remonte au niveau du parent
+            if level <= struct_level:
+                break
+            member_name = None if tag != "DW_TAG_member" else ""
+            continue
+        if not in_struct:
+            continue
+        s = RE_SIZE.search(ln)
+        if s and size is None:
+            size = int(s.group(1))
+        if member_name is None:
+            continue
+        n = die_name(ln)
+        if n:
+            member_name = n
+            continue
+        loc = RE_LOC.search(ln) or RE_LOC_PLAIN.search(ln)
+        if loc and member_name:
+            res[member_name] = int(loc.group(1))
+    return res, size
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("usage: ndb-offsets.py <firmware.elf> [readelf]", file=sys.stderr)
+        return 2
+    elf = sys.argv[1]
+    readelf = sys.argv[2] if len(sys.argv) > 2 else \
+        os.environ.get("CALYPSO_READELF", "arm-none-eabi-readelf")
+    got = extract(elf, readelf)
+    if not got:
+        return 1
+    res, size = got
+    if size is not None:
+        print("sizeof=0x%x" % size)
+    missing = [w for w in WANTED if w not in res]
+    for w in WANTED:
+        if w in res:
+            print("%s=0x%x" % (w, res[w]))
+    if missing:
+        # signale, ne fabrique pas : l'appelant decide quoi faire d'un manque
+        print("# ABSENTS: %s" % " ".join(missing), file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+```
+
+## `tools/tic54x-dis.py` {#f-tools-tic54x-dis-py}
+
+::: {.file-meta}
+[.py]{.tag} 201 lignes - 9,3KB
+:::
+
+```{.python .numberLines filename="tools/tic54x-dis.py"}
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""tic54x-dis — désassembleur TMS320C54x piloté par la table binutils.
+
+POURQUOI CET OUTIL. Le firmware DSP du Calypso n'est disponible qu'en binaire
+(les PROM*.bin du dépôt). Décoder ses instructions à la main est faisable mais
+peu fiable : trois conclusions fausses ont été tirées ainsi en une soirée — un
+`LD` pris pour du DP-relatif alors qu'il était en `*(lk)`, un `ST #2` cru sur le
+chemin d'exécution alors qu'un `B` le saute, une condition `NEQ` lue à l'envers.
+
+Il ne réimplémente donc AUCUNE table d'opcodes : il lit
+`hw/arm/calypso/doc/opcodes/tic54x-opc.c`, la table binutils versée au dépôt,
+qui fait autorité — y compris pour le NOMBRE DE MOTS de chaque instruction,
+sans lequel tout le décodage aval se décale.
+
+USAGE
+    tools/tic54x-dis.py --rom calypso_dsp.PROM0.bin --base 0x7000 0xde80 0xdea0
+    tools/tic54x-dis.py --rom calypso_dsp.PROM0.bin --base 0x7000 --count 24 0xddeb
+    tools/tic54x-dis.py --list-roms
+
+Les adresses et le nombre de mots s'écrivent en hexa (0x…) ou en décimal.
+"""
+import argparse, io, os, re, struct, sys
+
+RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TABLE  = os.path.join(RACINE, "hw/arm/calypso/doc/opcodes/tic54x-opc.c")
+
+# Cartographie des ROM du dépôt. La base est celle à laquelle le DSP les voit ;
+# se tromper de base décale TOUT le désassemblage sans qu'aucune erreur
+# n'apparaisse — c'est le piège le plus coûteux ici.
+ROMS = {
+    "calypso_dsp.PROM0.bin": 0x7000,
+    "calypso_dsp.PROM1.bin": None,   # base à confirmer avant usage
+    "calypso_dsp.PROM2.bin": None,
+    "calypso_dsp.PROM3.bin": None,
+}
+
+# ── la table ────────────────────────────────────────────────────────────────
+ENTREE = re.compile(
+    r'\{\s*"([^"]+)"\s*,\s*(\d+)\s*,[^,]*,[^,]*,\s*(0x[0-9A-Fa-f]+)\s*,\s*(0x[0-9A-Fa-f]+)\s*,\s*\{([^}]*)\}')
+
+def charger_table(chemin):
+    """Rend [(masque, opcode, nom, mots, operandes)], trié du plus spécifique au
+    plus large : un masque large capturerait sinon les instructions précises."""
+    if not os.path.exists(chemin):
+        sys.exit("table binutils introuvable : %s" % chemin)
+    src = io.open(chemin, encoding="utf-8", errors="replace").read()
+    # on ignore la table parallèle (paroptab) : elle décrit des paires, pas des
+    # mots isolés, et la mélanger produit de faux positifs.
+    fin = src.find("tic54x_paroptab")
+    if fin > 0:
+        src = src[:fin]
+    tab = []
+    for m in ENTREE.finditer(src):
+        nom, mots, op, masque, ops = m.group(1), int(m.group(2)), \
+            int(m.group(3), 16), int(m.group(4), 16), m.group(5).strip()
+        if nom == "???":
+            continue
+        tab.append((masque, op, nom, mots, ops))
+    tab.sort(key=lambda e: bin(e[0]).count("1"), reverse=True)
+    return tab
+
+def trouver(tab, mot):
+    for masque, op, nom, mots, ops in tab:
+        if (mot & masque) == op:
+            return nom, mots, ops
+    return None, 1, ""
+
+# ── opérandes ───────────────────────────────────────────────────────────────
+MOD = {
+    0x0: "*AR%d",      0x1: "*AR%d-",      0x2: "*AR%d+",     0x3: "*+AR%d",
+    0x4: "*AR%d-0B",   0x5: "*AR%d-0",     0x6: "*AR%d+0",    0x7: "*AR%d+0B",
+    0x8: "*AR%d-%%",   0x9: "*AR%d-0%%",   0xA: "*AR%d+%%",   0xB: "*AR%d+0%%",
+}
+COND = {  # cc & 0x07 quand cc & 0x40 (test accumulateur) — cf. SPRU172C
+    0x5: "EQ", 0x4: "NEQ", 0x3: "LT", 0x7: "LEQ", 0x6: "GT", 0x2: "GEQ",
+}
+
+def decrire_smem(mot, lk):
+    """Le champ Smem est l'octet bas. bit7=0 : direct (DP-relatif) ; bit7=1 :
+    indirect. Le mode 0xF est `*(lk)` — adresse ABSOLUE dans le mot suivant,
+    et c'est précisément celui qu'on décode de travers à la main."""
+    bas = mot & 0xFF
+    if not (bas & 0x80):
+        return "@0x%02x" % (bas & 0x7F), False        # direct : dma = DP<<7 | off
+    mod, ar = (bas >> 3) & 0x0F, bas & 0x07
+    if mod in MOD:
+        return MOD[mod] % ar, False
+    if mod == 0xC:  return "*AR%d(0x%04x)"  % (ar, lk), True
+    if mod == 0xD:  return "*+AR%d(0x%04x)" % (ar, lk), True
+    if mod == 0xE:  return "*+AR%d(0x%04x)%%" % (ar, lk), True
+    if mod == 0xF:  return "*(0x%04x)" % lk, True     # ABSOLU
+    return "?mod%x" % mod, False
+
+def decrire(nom, ops, mot, lk):
+    """Rend (texte des opérandes, mot long consommé PAR Smem).
+
+    Seul le Smem en mode 0xC..0xF consomme un mot NON compté par la table : la
+    cible d'un branchement (pmad) et une constante (lk) y sont déjà incluses.
+    Confondre les deux allonge les branchements d'un mot et décale tout."""
+    o, smem_lk = [], False
+    if "OP_Smem" in ops or "OP_Sind" in ops:
+        t, u = decrire_smem(mot, lk); o.append(t); smem_lk = u
+    if "OP_xpmad" in ops or "OP_pmad" in ops:
+        o.append("0x%04x" % lk)
+    if "OP_lk" in ops or "OP_LK" in ops:
+        o.append("#0x%04x" % lk)
+    if "OP_CC" in ops or nom in ("bc", "bcd", "cc", "ccd", "rc", "rcd", "xc"):
+        cc = mot & 0xFF
+        if cc & 0x40:
+            acc = "B" if (cc & 0x08) else "A"
+            o.append("%s%s" % (acc, COND.get(cc & 0x07, "cc%02x" % cc)))
+        elif cc:
+            o.append("cc0x%02x" % cc)
+    if "OP_SRC" in ops or "OP_DST" in ops:
+        o.append("B" if (mot & 0x0100) else "A")
+    return ", ".join(o), smem_lk
+
+# ── désassemblage ───────────────────────────────────────────────────────────
+def lire(rom, base, adr):
+    o = (adr - base) * 2
+    if o < 0 or o + 1 >= len(rom):
+        return None
+    return struct.unpack("<H", rom[o:o+2])[0]
+
+def desassembler(tab, rom, base, debut, fin):
+    adr = debut
+    while adr < fin:
+        mot = lire(rom, base, adr)
+        if mot is None:
+            print("  0x%04x  <hors ROM>" % adr); return
+        suiv = lire(rom, base, adr + 1) or 0
+        nom, mots, ops = trouver(tab, mot)
+        if nom is None:
+            print("  0x%04x  %04x                  .word 0x%04x" % (adr, mot, mot))
+            adr += 1
+            continue
+        texte, lk_pris = decrire(nom, ops, mot, suiv)
+        # LONGUEUR RÉELLE. La table donne le nombre de mots de l'instruction,
+        # mais un opérande Smem en mode 0xC..0xF porte SA PROPRE constante longue
+        # dans un mot supplémentaire. L'oublier décale tout le désassemblage en
+        # aval sans qu'aucune erreur n'apparaisse — on lit alors des
+        # instructions fantômes (constaté : « sub *AR4-, B » là où il n'y a que
+        # l'adresse 0x098c).
+        reels = mots + (1 if lk_pris else 0)
+        extras = [lire(rom, base, adr + i) for i in range(1, reels)]
+        brut = " ".join(["%04x" % mot] + ["%04x" % (e or 0) for e in extras])
+        # Quand l'instruction porte À LA FOIS une constante et une adresse
+        # longue, on affiche les mots supplémentaires tels quels plutôt que de
+        # deviner leur ordre : mieux vaut une lecture brute qu'une affirmation
+        # fausse.
+        if reels > 2:
+            texte = "%s   ; mots suppl. %s" % (
+                texte, " ".join("0x%04x" % (e or 0) for e in extras))
+        print("  0x%04x  %-16s %-7s %s" % (adr, brut, nom, texte))
+        adr += reels
+
+def main():
+    p = argparse.ArgumentParser(description="Désassembleur c54x (table binutils du dépôt)")
+    p.add_argument("--rom",   help="fichier ROM (défaut : calypso_dsp.PROM0.bin)")
+    p.add_argument("--base",  help="adresse de base de la ROM (défaut : celle de la carte)")
+    p.add_argument("--count", help="nombre de MOTS à désassembler depuis l'adresse")
+    p.add_argument("--table", default=TABLE, help="table binutils")
+    p.add_argument("--list-roms", action="store_true", help="cartographie des ROM connues")
+    p.add_argument("adresses", nargs="*", help="début [fin]")
+    a = p.parse_args()
+
+    if a.list_roms:
+        print("ROM connues (base = adresse vue par le DSP) :")
+        for n, b in ROMS.items():
+            c = os.path.join(RACINE, n)
+            etat = "%d mots" % (os.path.getsize(c)//2) if os.path.exists(c) else "absente"
+            print("  %-28s base=%s  %s" % (n, ("0x%04x" % b) if b else "À CONFIRMER", etat))
+        return 0
+
+    if not a.adresses:
+        p.error("donnez au moins une adresse de début")
+    nb = lambda s: int(s, 0)
+    rom_nom = a.rom or "calypso_dsp.PROM0.bin"
+    chemin  = rom_nom if os.path.exists(rom_nom) else os.path.join(RACINE, rom_nom)
+    if not os.path.exists(chemin):
+        sys.exit("ROM introuvable : %s" % rom_nom)
+    base = nb(a.base) if a.base else ROMS.get(os.path.basename(chemin))
+    if base is None:
+        sys.exit("base inconnue pour %s — donnez --base (une base fausse décale "
+                 "TOUT le désassemblage en silence)" % os.path.basename(chemin))
+
+    rom = io.open(chemin, "rb").read()
+    tab = charger_table(a.table)
+    debut = nb(a.adresses[0])
+    if a.count:      fin = debut + nb(a.count)
+    elif len(a.adresses) > 1: fin = nb(a.adresses[1])
+    else:            fin = debut + 16
+
+    print("# %s  base=0x%04x  %d entrées de table" %
+          (os.path.basename(chemin), base, len(tab)))
+    desassembler(tab, rom, base, debut, fin)
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+```

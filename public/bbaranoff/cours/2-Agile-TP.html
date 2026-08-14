@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>TP Agile &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+  <header class="title-block">
+    <h1>TP Agile</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#site-web-statique-pour-un-portfolio"
+id="toc-site-web-statique-pour-un-portfolio">Site Web Statique pour un
+Portfolio</a></li>
+<li><a href="#calculer-les-points-dhistoire-pour-cet-exemple-justifier"
+id="toc-calculer-les-points-dhistoire-pour-cet-exemple-justifier">Calculer
+les points d’histoire pour cet exemple (justifier)</a></li>
+<li><a href="#comment-organiseriez-vous-les-sprints"
+id="toc-comment-organiseriez-vous-les-sprints">Comment organiseriez vous
+les Sprints ?</a></li>
+</ul>
+  </nav>
+  <main>
+<h2 id="site-web-statique-pour-un-portfolio">Site Web Statique pour un
+Portfolio</h2>
+<p>Contexte</p>
+<p>Une équipe de trois personnes est chargée de créer un site web
+statique pour un <strong>portfolio professionnel</strong>. Le site doit
+contenir des informations sur les projets, les compétences, les
+expériences et les coordonnées de l’utilisateur.</p>
+<ol type="1">
+<li><strong>Composition de l’Équipe</strong></li>
+</ol>
+<p>L’équipe se compose de :</p>
+<ul>
+<li><strong>1 Développeur Frontend</strong> (capable de réaliser 5
+points d’histoire par semaine)</li>
+<li><strong>1 Designer</strong> (capable de créer 3 maquettes par
+semaine)</li>
+<li><strong>1 Responsable de Contenu</strong> (capable de produire 4
+sections de contenu par semaine)</li>
+</ul>
+<ol start="2" type="1">
+<li><strong>Temps Disponible</strong></li>
+</ol>
+<p>L’équipe planifie de travailler sur un <strong>sprint de 1
+semaine</strong>. Supposons que :</p>
+<ul>
+<li>Chaque membre de l’équipe travaille <strong>40 heures</strong>
+pendant la semaine.</li>
+</ul>
+<ol start="3" type="1">
+<li><strong>Calcul de la Capacité</strong></li>
+</ol>
+<ul>
+<li><strong>Capacité du Développeur Frontend</strong> :
+<ul>
+<li>1 développeur × 5 points d’histoire par semaine = <strong>5 points
+d’histoire par sprint</strong></li>
+</ul></li>
+<li><strong>Capacité du Designer</strong> :
+<ul>
+<li>1 designer × 3 maquettes par sprint = <strong>3 maquettes par
+sprint</strong></li>
+</ul></li>
+<li><strong>Capacité du Responsable de Contenu</strong> :
+<ul>
+<li>1 responsable de contenu × 4 sections par sprint = <strong>4
+sections de contenu par sprint</strong></li>
+</ul></li>
+</ul>
+<p>Pour calculer un backlog pour un site web statique, il est important
+de définir clairement les fonctionnalités souhaitées, estimer le temps
+nécessaire pour chaque tâche, et les organiser en User Stories. Voici un
+exemple détaillé de la façon dont vous pouvez établir un backlog pour un
+site web statique, ainsi qu’un guide pour le calculer et le
+prioriser.</p>
+<p>Exemples de Backlog pour un Site Web Statique</p>
+<p>Voici un exemple de backlog structuré pour un site web statique :</p>
+<table>
+<colgroup>
+<col style="width: 4%" />
+<col style="width: 43%" />
+<col style="width: 15%" />
+<col style="width: 8%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr>
+<th>ID</th>
+<th>User Story</th>
+<th>Points d’histoire</th>
+<th>Priorité</th>
+<th>Estimation de temps (en heures)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>US1</strong></td>
+<td>En tant qu’utilisateur, je veux une page d’accueil attrayante pour
+présenter mon portfolio.</td>
+<td>3</td>
+<td>Haute</td>
+<td>5 heures</td>
+</tr>
+<tr>
+<td><strong>US2</strong></td>
+<td>En tant qu’utilisateur, je veux une section “À propos” pour donner
+des informations sur moi-même.</td>
+<td>2</td>
+<td>Haute</td>
+<td>3 heures</td>
+</tr>
+<tr>
+<td><strong>US3</strong></td>
+<td>En tant qu’utilisateur, je veux une page de projets pour montrer mes
+réalisations.</td>
+<td>5</td>
+<td>Haute</td>
+<td>8 heures</td>
+</tr>
+<tr>
+<td><strong>US4</strong></td>
+<td>En tant qu’utilisateur, je veux une section “Compétences” pour
+mettre en avant mes compétences techniques.</td>
+<td>2</td>
+<td>Moyenne</td>
+<td>3 heures</td>
+</tr>
+<tr>
+<td><strong>US5</strong></td>
+<td>En tant qu’utilisateur, je veux une page de contact avec un
+formulaire pour que les visiteurs puissent me joindre.</td>
+<td>5</td>
+<td>Haute</td>
+<td>8 heures</td>
+</tr>
+<tr>
+<td><strong>US6</strong></td>
+<td>En tant qu’utilisateur, je veux que le site soit responsive pour
+qu’il fonctionne sur différents appareils.</td>
+<td>3</td>
+<td>Moyenne</td>
+<td>4 heures</td>
+</tr>
+<tr>
+<td><strong>US7</strong></td>
+<td>En tant qu’utilisateur, je veux que le site soit optimisé pour le
+référencement (SEO).</td>
+<td>3</td>
+<td>Moyenne</td>
+<td>4 heures</td>
+</tr>
+<tr>
+<td><strong>US8</strong></td>
+<td>En tant qu’utilisateur, je veux un design cohérent et esthétique sur
+toutes les pages.</td>
+<td>2</td>
+<td>Moyenne</td>
+<td>2 heures</td>
+</tr>
+<tr>
+<td><strong>US9</strong></td>
+<td>En tant qu’utilisateur, je veux intégrer des liens vers mes profils
+de réseaux sociaux.</td>
+<td>1</td>
+<td>Basse</td>
+<td>1 heure</td>
+</tr>
+<tr>
+<td><strong>US10</strong></td>
+<td>En tant qu’utilisateur, je veux un système de navigation simple et
+intuitif pour accéder facilement à toutes les sections.</td>
+<td>2</td>
+<td>Haute</td>
+<td>3 heures</td>
+</tr>
+</tbody>
+</table>
+<p>Estimation des Points d’Histoire</p>
+<ul>
+<li><strong>1 point :</strong> Tâche simple, peu complexe (1-2
+heures).</li>
+<li><strong>2 points :</strong> Tâche de complexité modérée (3-4
+heures).</li>
+<li><strong>3 points :</strong> Tâche plus complexe nécessitant des
+recherches (4-6 heures).</li>
+<li><strong>5 points :</strong> Tâche très complexe ou impliquant
+plusieurs sous-tâches (7 heures et plus).</li>
+</ul>
+<h2
+id="calculer-les-points-dhistoire-pour-cet-exemple-justifier">Calculer
+les points d’histoire pour cet exemple (justifier)</h2>
+<h2 id="comment-organiseriez-vous-les-sprints">Comment organiseriez vous
+les Sprints ?</h2>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

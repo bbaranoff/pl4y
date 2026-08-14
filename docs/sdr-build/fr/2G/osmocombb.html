@@ -1,0 +1,427 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OsmocomBB &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="A5/1 — Chiffrement GSM" href="a51.html" />
+    <link rel="prev" title="Guide d’installation modulaire EGPRS (Osmocom + SDR)" href="edge.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../en/index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index-fr.html#navigation-sdr">Navigation SDR</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../sdr/index.html">SDR</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">2G : GSM/GPRS/EDGE</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#navigation-rapide">Navigation rapide</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq-fr.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about-fr.html">Qui suis je</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">2G : GSM/GPRS/EDGE</a></li>
+      <li class="breadcrumb-item active">OsmocomBB</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/fr/2G/osmocombb.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <p><a class="reference internal" href="../../en/2G/osmocombb.html"><span class="std std-doc">English</span></a></p>
+<section id="osmocombb">
+<h1>OsmocomBB<a class="headerlink" href="#osmocombb" title="Link to this heading"></a></h1>
+<p><strong>OsmocomBB</strong> (Osmocom Baseband) est un projet open source qui implémente une pile GSM “baseband” pour certains téléphones Motorola et des configurations SDR.</p>
+<section id="quest-ce-quosmocombb">
+<h2>Qu’est-ce qu’OsmocomBB ?<a class="headerlink" href="#quest-ce-quosmocombb" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Pile protocolaire GSM côté mobile (MS, mobile station)</strong></p></li>
+<li><p>Remplace le firmware d’origine pour donner accès aux couches GSM 1/2/3, journalisation des protocoles, sniffing et tests</p></li>
+<li><p>Utilisations : analyse, tests de sécurité, recherche académique, IMSI catchers, fuzzing radio</p></li>
+</ul>
+</section>
+<section id="architecture">
+<h2>Architecture<a class="headerlink" href="#architecture" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>host/osmocon</strong> : Outil de chargement du firmware sur les appareils compatibles</p></li>
+<li><p><strong>src/host/layer23</strong> : Pile GSM s’exécutant sur le PC (appels, SMS, sniffing, capture de bursts, etc.)</p></li>
+<li><p><strong>firmware/</strong> : Code baseband à flasher sur les téléphones compatibles</p></li>
+</ul>
+</section>
+<section id="materiel-supporte">
+<h2>Matériel supporté<a class="headerlink" href="#materiel-supporte" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Série Motorola C1xx (C123, C118, C155, etc.)</strong></p></li>
+<li><p>Certains autres modèles à chipset “Calypso”</p></li>
+</ul>
+</section>
+<section id="cas-dusage-limitations">
+<h2>Cas d’usage &amp; limitations<a class="headerlink" href="#cas-dusage-limitations" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Peut se connecter à une vraie cellule 2G ou à une BTS Osmocom (osmo-bts-trx)</p></li>
+<li><p>Limité à la 2G pure (pas de support 3G/4G)</p></li>
+<li><p><strong>Attention :</strong> Émettre sans licence est illégal !<br />
+N’utilisez que pour la recherche ou en environnement contrôlé.</p></li>
+</ul>
+</section>
+<section id="liens-utiles">
+<h2>Liens utiles<a class="headerlink" href="#liens-utiles" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/osmocom/osmocom-bb">Dépôt GitHub OsmocomBB</a></p></li>
+<li><p><a class="reference external" href="https://osmocom.org/projects/baseband/wiki/OsmocomBB">Wiki officiel</a></p></li>
+<li><p><a class="reference external" href="https://www.lafabriquedunet.fr/blog/osmocombb-guide/">Guide d’installation (FR)</a></p></li>
+</ul>
+<hr class="docutils" />
+<p><strong>Pour SDR :</strong> Un projet expérimental existe pour connecter OsmocomBB à un SDR (BladeRF, HackRF, etc.) via l’interface “virtual layer1”.</p>
+</section>
+<section id="osmocombb-calypso-bts-ubuntu-24-04-c115-c118-c123-pl2303">
+<h2>🛰️ OsmocomBB Calypso BTS – Ubuntu 24.04 (C115/C118/C123 + PL2303)<a class="headerlink" href="#osmocombb-calypso-bts-ubuntu-24-04-c115-c118-c123-pl2303" title="Link to this heading"></a></h2>
+</section>
+<section id="materiel-requis">
+<h2>Matériel requis<a class="headerlink" href="#materiel-requis" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>2x Motorola C1xx (C115, C118, C123… chipset Calypso)</p></li>
+<li><p>2x Câbles USB-série jack 2.5 mm (PL2303/FTDI)</p></li>
+<li><p>Ubuntu 24.04 x86_64 (VM ou natif)</p></li>
+<li><p>Accès root</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="dependances-systeme">
+<h2>1. Dépendances système<a class="headerlink" href="#dependances-systeme" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>update
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>build-essential<span class="w"> </span>git<span class="w"> </span>cmake<span class="w"> </span>pkg-config<span class="w"> </span>autoconf<span class="w"> </span>automake<span class="w"> </span>libtool<span class="w"> </span>shtool<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>bison<span class="w"> </span>flex<span class="w"> </span>libtalloc-dev<span class="w"> </span>libpcsclite-dev<span class="w"> </span>zlib1g-dev<span class="w"> </span>libmpfr-dev<span class="w"> </span>libmpc-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>libgmp-dev<span class="w"> </span>libncurses5-dev<span class="w"> </span>libncursesw5-dev<span class="w"> </span>libsofia-sip-ua-dev<span class="w"> </span>libxml2-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>libfftw3-dev<span class="w"> </span>libgnutls28-dev<span class="w"> </span>libssl-dev<span class="w"> </span>python3<span class="w"> </span>python3-pip<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>alsa-oss<span class="w"> </span>lemon<span class="w"> </span>libtinfo-dev
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Note</strong> : Ubuntu 24.04 a GCC 13+ par défaut, mais il faut parfois cross-compiler avec GCC 4.9 pour le firmware Calypso. S’il existe des binaires arm-elf précompilés pour Ubuntu 22.04, ils fonctionnent aussi sous 24.04.
+Pour l’ARM toolchain, voir plus bas (utilise de préférence un container/VM si souci d’incompatibilité).</p>
+</div></blockquote>
+</section>
+<hr class="docutils" />
+<section id="installer-la-toolchain-arm-elf-cross-compiler-calypso">
+<h2>2. Installer la toolchain ARM-elf (cross-compiler Calypso)<a class="headerlink" href="#installer-la-toolchain-arm-elf-cross-compiler-calypso" title="Link to this heading"></a></h2>
+<section id="option-a-telechargement-direct-pret-a-lemploi">
+<h3>Option A : Téléchargement direct (prêt à l’emploi)<a class="headerlink" href="#option-a-telechargement-direct-pret-a-lemploi" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Depuis Osmocom (préconisé : ne pas compiler vous-même sous Ubuntu récent)</span>
+<span class="nb">cd</span><span class="w"> </span>/opt
+sudo<span class="w"> </span>wget<span class="w"> </span>https://downloads.osmocom.org/binaries/toolchain/arm-2021.03.tar.bz2
+sudo<span class="w"> </span>tar<span class="w"> </span>-xjf<span class="w"> </span>arm-2021.03.tar.bz2
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:/opt/arm-2021.03/bin
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Ajoute l’export PATH à ton .bashrc pour persistance</strong></p>
+</div></blockquote>
+</section>
+<section id="option-b-compilation-manuelle">
+<h3>Option B : Compilation manuelle<a class="headerlink" href="#option-b-compilation-manuelle" title="Link to this heading"></a></h3>
+<blockquote>
+<div><p>(non recommandé sur Ubuntu 24.04, c’est lent et casse souvent, préfère la méthode ci-dessus)</p>
+</div></blockquote>
+</section>
+</section>
+<hr class="docutils" />
+<section id="compiler-et-installer-osmocombb">
+<h2>3. Compiler et installer OsmocomBB<a class="headerlink" href="#compiler-et-installer-osmocombb" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Cloner les sources</span>
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmocom-bb.git
+<span class="nb">cd</span><span class="w"> </span>osmocom-bb
+
+<span class="c1"># 2. Préparer le build</span>
+<span class="nb">cd</span><span class="w"> </span>src
+autoreconf<span class="w"> </span>-i
+
+<span class="c1"># 3. Compiler le firmware (spécifie la toolchain si besoin)</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:/opt/arm-2021.03/bin
+./configure
+make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span>
+sudo<span class="w"> </span>make<span class="w"> </span>install
+sudo<span class="w"> </span>ldconfig
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="flasher-le-firmware-sur-les-telephones">
+<h2>4. Flasher le firmware sur les téléphones<a class="headerlink" href="#flasher-le-firmware-sur-les-telephones" title="Link to this heading"></a></h2>
+<p><strong>Connecte les deux téléphones via USB-PL2303, batterie retirée.</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>src/host/osmocon
+sudo<span class="w"> </span>./osmocon<span class="w"> </span>-m<span class="w"> </span>c123xor<span class="w"> </span>-p<span class="w"> </span>/dev/ttyUSB0<span class="w"> </span>-c<span class="w"> </span>../../target/firmware/board/compal_e88/rssi.highram.bin
+<span class="c1"># (Shell #1 : RSSI scan, contrôle-C pour arrêter)</span>
+</pre></div>
+</div>
+<p><strong>Trouve un ARFCN actif (fort signal GSM, ex. : 900/1800 MHz).</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Pour charger le firmware TRX (BTS)</span>
+sudo<span class="w"> </span>./osmocon<span class="w"> </span>-m<span class="w"> </span>c123xor<span class="w"> </span>-p<span class="w"> </span>/dev/ttyUSB0<span class="w"> </span>-s<span class="w"> </span>/tmp/osmocom_l2<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-c<span class="w"> </span>../../target/firmware/board/compal_e88/trx.highram.bin<span class="w"> </span>-r<span class="w"> </span><span class="m">99</span>
+sudo<span class="w"> </span>./osmocon<span class="w"> </span>-m<span class="w"> </span>c123xor<span class="w"> </span>-p<span class="w"> </span>/dev/ttyUSB1<span class="w"> </span>-s<span class="w"> </span>/tmp/osmocom_l2.2<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-c<span class="w"> </span>../../target/firmware/board/compal_e88/trx.highram.bin<span class="w"> </span>-r<span class="w"> </span><span class="m">99</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="lancer-le-transceiver-et-la-stack-bts">
+<h2>5. Lancer le transceiver et la stack BTS<a class="headerlink" href="#lancer-le-transceiver-et-la-stack-bts" title="Link to this heading"></a></h2>
+<p>Dans d’autres shells :</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Shell #3 : transceiver Calypso (remplace ARFCN trouvé)</span>
+<span class="nb">cd</span><span class="w"> </span>src/host/layer23/src/transceiver/
+sudo<span class="w"> </span>./transceiver<span class="w"> </span>-a<span class="w"> </span><span class="o">[</span>ARFCN<span class="o">]</span><span class="w"> </span>-2<span class="w"> </span>-r<span class="w"> </span><span class="m">99</span>
+
+<span class="c1"># Shell #4 : osmo-nitb (NITB = core minimal)</span>
+osmo-nitb<span class="w"> </span>-c<span class="w"> </span>~/.osmocom/open-bsc.cfg<span class="w"> </span>-l<span class="w"> </span>~/.osmocom/hlr.sqlite3<span class="w"> </span>-P<span class="w"> </span>-m<span class="w"> </span>-C<span class="w"> </span>--debug<span class="o">=</span>DRLL:DCC:DMM:DRR:DRSL:DNM
+
+<span class="c1"># Shell #5 : osmobts-trx</span>
+osmobts-trx<span class="w"> </span>-c<span class="w"> </span>~/.osmocom/osmo-bts.cfg<span class="w"> </span>-r<span class="w"> </span><span class="m">99</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="optionnel-installer-asterisk-lcr-pour-appels-sip">
+<h2>6. (Optionnel) Installer Asterisk + LCR pour appels SIP<a class="headerlink" href="#optionnel-installer-asterisk-lcr-pour-appels-sip" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>asterisk<span class="w"> </span>asterisk-dev
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/fairwaves/lcr
+<span class="nb">cd</span><span class="w"> </span>lcr
+autoreconf<span class="w"> </span>-i
+./configure<span class="w"> </span>--with-sip<span class="w"> </span>--with-gsm-bs<span class="w"> </span>--with-gsm-ms<span class="w"> </span>--with-asterisk
+make
+sudo<span class="w"> </span>make<span class="w"> </span>install
+sudo<span class="w"> </span>cp<span class="w"> </span>chan_lcr.so<span class="w"> </span>/usr/lib/asterisk/modules/
+</pre></div>
+</div>
+<p>Configurer <code class="docutils literal notranslate"><span class="pre">/etc/asterisk/sip.conf</span></code> avec tes identifiants SIP.</p>
+</section>
+<hr class="docutils" />
+<section id="verifier-le-setup-et-logs">
+<h2>7. Vérifier le setup et logs<a class="headerlink" href="#verifier-le-setup-et-logs" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Vérifie les logs dans chaque shell : recherche “registered”, “attach”, etc.</p></li>
+<li><p>Lancer l’attachement avec un mobile (SIM Osmocom ou Free avec accès PLMN custom).</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="osmocombb-mobile-ms-installation-rapide-ubuntu-24-04">
+<h2>🛰️ **OsmocomBB Mobile (MS) – Installation rapide Ubuntu 24.04<a class="headerlink" href="#osmocombb-mobile-ms-installation-rapide-ubuntu-24-04" title="Link to this heading"></a></h2>
+</section>
+<section id="prerequis">
+<h2>1. Prérequis<a class="headerlink" href="#prerequis" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Matériel :</strong></p>
+<ul>
+<li><p>Motorola C1xx (C115/C118/C123/C155, etc., baseband Calypso)</p></li>
+<li><p>Câble USB-série 2.5 mm (PL2303 ou FTDI)</p></li>
+</ul>
+</li>
+<li><p><strong>Système :</strong></p>
+<ul>
+<li><p>Ubuntu 24.04 x86_64 (natif ou VM)</p></li>
+<li><p>Accès internet + droits sudo/root</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="installer-les-dependances">
+<h2>2. Installer les dépendances<a class="headerlink" href="#installer-les-dependances" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>update
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>build-essential<span class="w"> </span>git<span class="w"> </span>cmake<span class="w"> </span>pkg-config<span class="w"> </span>autoconf<span class="w"> </span>automake<span class="w"> </span>libtool<span class="w"> </span>shtool<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>bison<span class="w"> </span>flex<span class="w"> </span>libtalloc-dev<span class="w"> </span>libpcsclite-dev<span class="w"> </span>zlib1g-dev<span class="w"> </span>libmpfr-dev<span class="w"> </span>libmpc-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>libgmp-dev<span class="w"> </span>libncurses5-dev<span class="w"> </span>libncursesw5-dev<span class="w"> </span>libsofia-sip-ua-dev<span class="w"> </span>libxml2-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>libfftw3-dev<span class="w"> </span>libgnutls28-dev<span class="w"> </span>libssl-dev<span class="w"> </span>python3<span class="w"> </span>python3-pip<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>alsa-oss<span class="w"> </span>lemon<span class="w"> </span>libtinfo-dev
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="installer-la-toolchain-arm-cross-compile-calypso">
+<h2>3. Installer la toolchain ARM (cross-compile Calypso)<a class="headerlink" href="#installer-la-toolchain-arm-cross-compile-calypso" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/opt
+sudo<span class="w"> </span>wget<span class="w"> </span>https://downloads.osmocom.org/binaries/toolchain/arm-2021.03.tar.bz2
+sudo<span class="w"> </span>tar<span class="w"> </span>-xjf<span class="w"> </span>arm-2021.03.tar.bz2
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:/opt/arm-2021.03/bin
+</pre></div>
+</div>
+<blockquote>
+<div><p><em>(Ajoute ce dernier export à ton <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code> pour qu’il soit permanent)</em></p>
+</div></blockquote>
+</section>
+<hr class="docutils" />
+<section id="cloner-et-compiler-osmocombb">
+<h2>4. Cloner et compiler OsmocomBB<a class="headerlink" href="#cloner-et-compiler-osmocombb" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmocom-bb.git
+<span class="nb">cd</span><span class="w"> </span>osmocom-bb/src
+autoreconf<span class="w"> </span>-i
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:/opt/arm-2021.03/bin
+./configure
+make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="flasher-le-firmware-mobile-compal-c123-etc">
+<h2>5. Flasher le firmware Mobile (Compal/C123 etc.)<a class="headerlink" href="#flasher-le-firmware-mobile-compal-c123-etc" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Branche le téléphone via le câble USB-série (sans la batterie).</strong></p></li>
+<li><p><strong>Dans un terminal :</strong></p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>host/osmocon
+sudo<span class="w"> </span>./osmocon<span class="w"> </span>-m<span class="w"> </span>c123xor<span class="w"> </span>-p<span class="w"> </span>/dev/ttyUSB0<span class="w"> </span>-c<span class="w"> </span>../../target/firmware/board/compal_e88/hello_world.highram.bin
+<span class="c1"># (optionnel : tester hello_world)</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p><strong>Pour le firmware mobile complet :</strong></p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>./osmocon<span class="w"> </span>-m<span class="w"> </span>c123xor<span class="w"> </span>-p<span class="w"> </span>/dev/ttyUSB0<span class="w"> </span>-c<span class="w"> </span>../../target/firmware/board/compal_e88/layer1.highram.bin
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p><strong>Dans un autre terminal :</strong></p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>host/layer23/src/mobile
+./mobile
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="configurer-mobile-cfg-sim-plmn-log-etc">
+<h2>6. Configurer <code class="docutils literal notranslate"><span class="pre">mobile.cfg</span></code> (SIM, PLMN, log, etc.)<a class="headerlink" href="#configurer-mobile-cfg-sim-plmn-log-etc" title="Link to this heading"></a></h2>
+<p>Crée/édite le fichier <code class="docutils literal notranslate"><span class="pre">mobile.cfg</span></code> (exemple dans <code class="docutils literal notranslate"><span class="pre">osmocom-bb/src/host/layer23/src/mobile/</span></code>) :</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="na">log gsmtap 127.0.0.1</span>
+<span class="na">log stderr</span>
+<span class="na">hlr</span>
+<span class="w">  </span><span class="na">subscriber-list subscriber_list.csv</span>
+<span class="na">sim</span>
+<span class="w">  </span><span class="na">driver sysmo</span>
+</pre></div>
+</div>
+<p><em>(Adapte la section SIM si tu utilises une vraie SIM ou une “test SIM”)</em></p>
+<hr class="docutils" />
+<p>##7. Lancer OsmocomBB Mobile</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Dans host/layer23/src/mobile/</span>
+./mobile<span class="w"> </span>-c<span class="w"> </span>mobile.cfg
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Le téléphone démarre, tente de s’enregistrer sur le réseau configuré.</p></li>
+<li><p>Regarde les logs : tu dois voir “PLMN search”, “network found”, “registration accepted” (si SIM &amp; PLMN ok).</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="optionnel-suivi-gsmtap-dans-wireshark">
+<h2>8. (Optionnel) Suivi GSMTAP dans Wireshark<a class="headerlink" href="#optionnel-suivi-gsmtap-dans-wireshark" title="Link to this heading"></a></h2>
+<p>Wireshark peut décoder en temps réel les trames GSMTAP envoyées en UDP :</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wireshark<span class="w"> </span>-k<span class="w"> </span>-Y<span class="w"> </span>gsmtap<span class="w"> </span>-i<span class="w"> </span>udp:4729
+</pre></div>
+</div>
+<p><em>(Pense à bien avoir <code class="docutils literal notranslate"><span class="pre">log</span> <span class="pre">gsmtap</span> <span class="pre">127.0.0.1</span></code> dans ta config !)</em></p>
+</section>
+<hr class="docutils" />
+<section id="id1">
+<h2>Liens utiles<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://osmocom.org/projects/baseband/wiki">OsmocomBB Wiki</a></p></li>
+<li><p><a class="reference external" href="https://lists.osmocom.org/mailman/listinfo/baseband-devel">Forum OsmocomBB</a></p></li>
+<li><p><a class="reference external" href="https://downloads.osmocom.org/binaries/toolchain/">Firmware Toolchain</a></p></li>
+<li><p><a class="reference external" href="https://osmocom.org/projects/baseband/wiki/CalypsoBTS">BTS HowTo</a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="edge.html" class="btn btn-neutral float-left" title="Guide d’installation modulaire EGPRS (Osmocom + SDR)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="a51.html" class="btn btn-neutral float-right" title="A5/1 — Chiffrement GSM" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

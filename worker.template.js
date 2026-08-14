@@ -291,7 +291,8 @@ function renderPage(script, psScript) {
     <h1>pl4y<span class="dot">.</span>store</h1>
   </div>
   <p class="sub">Installeur osmo_egprs &mdash; coeur de reseau GSM/EGPRS multi-operateur, containerise.
-     &mdash; <a href="#wiki">&#128214; Wiki QEMU / osmo_egprs / EGPRS</a></p>
+     &mdash; <a href="#wiki">&#128214; Wiki QEMU / osmo_egprs / EGPRS</a>
+     &middot; <a href="/docs/">&#128218; Documentation (Calypso, SDR, cours &amp; CTF)</a></p>
 
   <div class="card">
     <h2>Materiel de reference</h2>
@@ -369,9 +370,14 @@ function renderPage(script, psScript) {
     <p class="hint">L'ISO depasse la limite GitHub de 2 Go par fichier : la Release la fournit
        <strong>decoupee en parties</strong> (<code>osmo_egprs.iso.part-00/01</code>, a reassembler +
        verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> la fournit en un seul fichier.</p>
-    <span class="dl-label">&#128218; Documentation en ligne (Posit Connect)</span>
-    <a class="dl-btn" href="https://bastienbaranoff-calypso-qmd.share.connect.posit.cloud/" target="_blank" rel="noopener">&#128196; Doc Calypso QMD</a>
-    <a class="dl-btn" href="https://bastienbaranoff-osmo-egprs.share.connect.posit.cloud/" target="_blank" rel="noopener">&#128196; Doc osmo_egprs</a>
+    <span class="dl-label">&#128218; Documentation &mdash; servie ici, sur pl4y.store</span>
+    <a class="dl-btn alt" href="/calypso/">&#128196; QEMU Calypso (bundle du depot)</a>
+    <a class="dl-btn alt" href="/sdr/">&#128225; Software Defined Radio (2G&rarr;5G)</a>
+    <a class="dl-btn alt" href="/bbaranoff/">&#127891; Cours, projets &amp; CTF</a>
+    <p class="hint">Les trois corpus (<code>qemu-calypso</code>, <code>software-defined-radio</code>,
+       <code>bbaranoff.github.io</code>) sont rendus et unifies sous le meme habillage
+       par <code>docs/unify.mjs</code>, puis servis en statique par ce Worker.
+       Vue d'ensemble : <a href="/docs/">/docs/</a>.</p>
   </div>
 
   <nav class="toc">
@@ -758,11 +764,22 @@ subscriber msisdn 10001 sms sender msisdn 10002 send Hello</code></pre>
 </html>`;
 }
 
+// Prefixes servis par les Static Assets (contenu unifie des trois depots
+// documentaires, genere par docs/unify.mjs dans public/).
+const ASSET_PREFIXES = ["/calypso", "/sdr", "/bbaranoff", "/docs"];
+
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const script = decodeB64(SCRIPT_B64);
     const psScript = decodeB64(PS_SCRIPT_B64);
     const url = new URL(request.url);
+
+    // Documentation : toujours l'asset statique, meme pour curl/wget — sinon un
+    // `curl pl4y.store/sdr/` renverrait l'installeur bash au lieu de la page.
+    if (env?.ASSETS && ASSET_PREFIXES.some(
+      p => url.pathname === p || url.pathname.startsWith(p + "/"))) {
+      return env.ASSETS.fetch(request);
+    }
 
     // Medias binaires (GIFs du screencast d'install), servis bruts + caches.
     if (Object.prototype.hasOwnProperty.call(MEDIA, url.pathname)) {

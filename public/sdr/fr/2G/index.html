@@ -1,0 +1,275 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2G : GSM/GPRS/EDGE &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Bases du GSM : Vue d’ensemble" href="gsm-basics.html" />
+    <link rel="prev" title="Différents types de SDR" href="../sdr/sdr.html" /> 
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+
+<body class="wy-body-for-nav">
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+ 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../en/index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index-fr.html#navigation-sdr">Navigation SDR</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../sdr/index.html">SDR</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">2G : GSM/GPRS/EDGE</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#navigation-rapide">Navigation rapide</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq-fr.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about-fr.html">Qui suis je</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+      <li class="breadcrumb-item active">2G : GSM/GPRS/EDGE</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/fr/2G/index.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="g-gsm-gprs-edge">
+<h1>2G : GSM/GPRS/EDGE<a class="headerlink" href="#g-gsm-gprs-edge" title="Link to this heading"></a></h1>
+<p><strong>2G</strong> (Deuxième Génération) désigne la <strong>première génération numérique de la téléphonie mobile</strong>, apparue dans les années 1990. Elle remplace les réseaux analogiques (1G) par des standards numériques comme le <strong>GSM</strong> (Global System for Mobile Communications).</p>
+<p><strong>Points clés :</strong></p>
+<ul class="simple">
+<li><p>Numérique (et non analogique) : appels plus clairs, moins de parasites, chiffrement basique (A5/1, A5/2)</p></li>
+<li><p>Introduction des SMS (textos) et données de base (GPRS/EDGE)</p></li>
+<li><p>Débits typiques : 10–100 kbps</p></li>
+<li><p>Principaux standards : <strong>GSM</strong> (monde), <strong>CDMA</strong> (États-Unis/Asie)</p></li>
+<li><p>Encore utilisée pour voix/SMS, mais remplacée progressivement par la 4G/5G</p></li>
+</ul>
+<p><strong>Résumé :</strong>
+2G = mobile numérique, appels + SMS + données basiques, socle des réseaux mobiles modernes.</p>
+<hr class="docutils" />
+<section id="navigation-rapide">
+<h2>Navigation rapide<a class="headerlink" href="#navigation-rapide" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Menu 2G</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="gsm-basics.html">Bases du GSM : Vue d’ensemble</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#qu-est-ce-que-le-gsm">Qu’est-ce que le GSM ?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#concepts-cles">Concepts clés</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#architecture-gsm">Architecture GSM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#frequences-et-modulation">Fréquences et modulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#securite-sim">Sécurité &amp; SIM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#interface-radio-gsm-pile-de-protocoles">Interface radio GSM &amp; pile de protocoles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#canaux-radio-intervalles-de-temps">Canaux radio &amp; intervalles de temps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#types-de-canaux">Types de canaux</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#pile-de-protocoles">Pile de protocoles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#sequence-dappel-simplifiee">Séquence d’appel (simplifiée)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#donnees-par-paquets">Données par paquets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#quel-est-le-role-de-ss7-dans-gsm">Quel est le rôle de SS7 dans GSM ?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gsm-basics.html#pourquoi-ss7-est-critique-dans-gsm">Pourquoi SS7 est critique dans GSM ?</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="edge.html">Guide d’installation modulaire EGPRS (Osmocom + SDR)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="edge.html#chapitre-1-presentation">Chapitre 1 — Présentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="edge.html#chapitre-2-dependances-systeme">Chapitre 2 — Dépendances système</a></li>
+<li class="toctree-l2"><a class="reference internal" href="edge.html#chapitre-3-sdr-materiel-uhd-bladerf">Chapitre 3 — SDR &amp; Matériel (UHD, BladeRF)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="edge.html#chapitre-4-librairies-osmocom-de-base">Chapitre 4 — Librairies Osmocom de base</a></li>
+<li class="toctree-l2"><a class="reference internal" href="edge.html#chapitre-5-stack-coeur-gsm-edge">Chapitre 5 — Stack cœur GSM/EDGE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="edge.html#chapitre-6-couches-radio-trx-bts">Chapitre 6 — Couches radio (TRX/BTS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="edge.html#chapitre-7-services-outils-additionnels">Chapitre 7 — Services &amp; Outils additionnels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="edge.html#chapitre-8-script-modulaire-bash">Chapitre 8 — Script modulaire (bash)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="edge.html#chapitre-9-resume-bonnes-pratiques">Chapitre 9 — Résumé &amp; Bonnes pratiques</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="osmocombb.html">OsmocomBB</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#quest-ce-quosmocombb">Qu’est-ce qu’OsmocomBB ?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#architecture">Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#materiel-supporte">Matériel supporté</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#cas-dusage-limitations">Cas d’usage &amp; limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#liens-utiles">Liens utiles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#osmocombb-calypso-bts-ubuntu-24-04-c115-c118-c123-pl2303">🛰️ OsmocomBB Calypso BTS – Ubuntu 24.04 (C115/C118/C123 + PL2303)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#materiel-requis">Matériel requis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#dependances-systeme">1. Dépendances système</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#installer-la-toolchain-arm-elf-cross-compiler-calypso">2. Installer la toolchain ARM-elf (cross-compiler Calypso)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#compiler-et-installer-osmocombb">3. Compiler et installer OsmocomBB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#flasher-le-firmware-sur-les-telephones">4. Flasher le firmware sur les téléphones</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#lancer-le-transceiver-et-la-stack-bts">5. Lancer le transceiver et la stack BTS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#optionnel-installer-asterisk-lcr-pour-appels-sip">6. (Optionnel) Installer Asterisk + LCR pour appels SIP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#verifier-le-setup-et-logs">7. Vérifier le setup et logs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#osmocombb-mobile-ms-installation-rapide-ubuntu-24-04">🛰️ **OsmocomBB Mobile (MS) – Installation rapide Ubuntu 24.04</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#prerequis">1. Prérequis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#installer-les-dependances">2. Installer les dépendances</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#installer-la-toolchain-arm-cross-compile-calypso">3. Installer la toolchain ARM (cross-compile Calypso)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#cloner-et-compiler-osmocombb">4. Cloner et compiler OsmocomBB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#flasher-le-firmware-mobile-compal-c123-etc">5. Flasher le firmware Mobile (Compal/C123 etc.)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#configurer-mobile-cfg-sim-plmn-log-etc">6. Configurer <code class="docutils literal notranslate"><span class="pre">mobile.cfg</span></code> (SIM, PLMN, log, etc.)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#optionnel-suivi-gsmtap-dans-wireshark">8. (Optionnel) Suivi GSMTAP dans Wireshark</a></li>
+<li class="toctree-l2"><a class="reference internal" href="osmocombb.html#id1">Liens utiles</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="a51.html">A5/1 — Chiffrement GSM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#principe-de-fonctionnement">Principe de fonctionnement</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#vulnerabilites">Vulnérabilités</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#outils-open-source">Outils open source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#detection-tests">Détection &amp; tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#pour-aller-plus-loin">Pour aller plus loin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#kraken-rainbow-tables-pour-a5-1">Kraken — Rainbow Tables pour A5/1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#behemoth-py-orchestrateur-python-pour-kraken">behemoth.py — Orchestrateur Python pour Kraken</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#resume-usage-terrain">Résumé — Usage terrain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#tuto-kraken-behemoth-py-ubuntu-22-04-24-04">Tuto Kraken + behemoth.py (Ubuntu 22.04/24.04)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#preparer-le-systeme">1. Préparer le système</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#installer-kraken">2. Installer Kraken</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#installer-ou-telecharger-les-rainbow-tables">3. Installer ou télécharger les Rainbow Tables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#installer-behemoth-py">4. Installer behemoth.py</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#utiliser-kraken-manuel-et-avec-behemoth-py">5. Utiliser Kraken (manuel et avec behemoth.py)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#a-utilisation-simple-de-kraken">A. Utilisation simple de Kraken</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#b-utiliser-behemoth-py-pour-des-batchs-mode-pipeline-parallele">B. Utiliser behemoth.py pour des batchs (mode pipeline/parallèle)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#schema-resume">6. Schéma résumé</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#notes-bonnes-pratiques">Notes / Bonnes pratiques</a></li>
+<li class="toctree-l2"><a class="reference internal" href="a51.html#installation-deka-cracker-kraken-opencl">Installation Deka (cracker Kraken OpenCL)</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../sdr/sdr.html" class="btn btn-neutral float-left" title="Différents types de SDR" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="gsm-basics.html" class="btn btn-neutral float-right" title="Bases du GSM : Vue d’ensemble" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

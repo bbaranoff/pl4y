@@ -38,6 +38,27 @@ Les GIFs du screencast d'install sont servis par le Worker sur
 `/m/iso.gif`, `/m/launch.gif`, `/m/console.gif` (cache 24 h) et affichés
 dans les étapes VirtualBox du wiki.
 
+## Documentation unifiée (`/calypso/`, `/sdr/`, `/bbaranoff/`)
+
+Le contenu de **trois dépôts** est rendu, unifié sous le même habillage que la
+page d'accueil, puis servi en **Cloudflare Static Assets** depuis `public/` :
+
+| URL | Source | Chaîne de rendu |
+|---|---|---|
+| `/calypso/` | `~/qemu-calypso` | `full-qmd.sh` → Quarto |
+| `/sdr/` | `~/software-defined-radio` | Sphinx + MyST |
+| `/bbaranoff/` | `~/bbaranoff.github.io` | pandoc (pas de ruby ici) |
+| `/docs/` | — | hub généré |
+
+Le workflow est `node docs/unify.mjs` (voir **[docs/README.md](docs/README.md)**
+pour les étapes, les prérequis et les limites). `public/` est versionné, car le
+builder Cloudflare n'a ni quarto ni sphinx ni pandoc : après avoir modifié un
+dépôt source, relancer le workflow puis committer `public/`.
+
+Le Worker garde la main sur `/` (script brut en CLI, page HTML au navigateur) ;
+les préfixes documentaires partent toujours vers les assets, même pour
+`curl`/`wget`.
+
 Les deux pages proposent un **bascule de thème clair / sombre** (bouton en haut
 à droite) : le **thème clair est le défaut** et le choix est mémorisé dans
 `localStorage` (clé `pl4y-theme`), appliqué avant le premier rendu pour éviter

@@ -1,0 +1,445 @@
+[English](../../en/2G/a51.md)
+
+# A5/1 — Chiffrement GSM
+
+**A5/1** est l’algorithme de chiffrement à flot utilisé dans le GSM pour assurer la confidentialité des communications radio entre le mobile et la station de base (BTS).
+
+## Principe de fonctionnement
+
+- **Chiffrement à flot** avec un état interne de 64 bits (3 registres à décalage LFSR)
+- Initialisé avec la clé **Kc** (calculée à partir de la Ki de la SIM via l’algorithme A3/A8 et l’IMSI de l’abonné)
+- Le chiffrement s’applique en temps réel, bit par bit, sur la voix ou les données
+
+## Vulnérabilités
+
+- **Conception ancienne (années 1980/1990)**
+- Plusieurs attaques connues :
+  - Tables arc-en-ciel (time-memory tradeoff, ex : Kraken/projet A5/1)
+  - Attaques sur les faiblesses des LFSR et synchronisation des registres
+  - Récupération de Kc si suffisamment de keystream est capturé
+
+## Outils open source
+
+- [Kraken](https://opensource.srlabs.de/projects/a51-decrypt)
+- [gr-gsm + Airprobe](https://github.com/ptrkrysik/gr-gsm)
+- **OsmocomBB** : possible d’injecter ou d’extraire des keystreams pour attaques bruteforce
+
+## Détection & tests
+
+- Si la cellule envoie un « Ciphering Indicator », certains téléphones préviennent quand le chiffrement est désactivé
+- La plupart des réseaux modernes désactivent l’A5/1, passent en A5/3 ou désactivent complètement le chiffrement
+
+## Pour aller plus loin
+
+- [A5/1 sur Wikipédia](https://en.wikipedia.org/wiki/A5/1)
+- [Attaques A5/1 (Karsten Nohl, CCC)](https://media.ccc.de/v/27c3-3894-en-breaking_gsm_with_rainbow_tables)
+
+---
+
+**Note légale :**  
+Toute attaque ou rétro-ingénierie d’A5/1 est réservée à la recherche, au pentesting autorisé, ou à la démonstration légale.  
+**L’interception non autorisée est illégale** dans la plupart des pays.
+
+---
+
+* **Kraken** : outil de déchiffrement bruteforce A5/1 (GSM) via tables arc-en-ciel (rainbow tables).
+* **behemoth.py** : script Python (non officiel, communautaire) pour automatiser et paralléliser l’attaque Kraken, notamment sur de grandes infrastructures (ex : cluster, GPU, ou tâches batch).
+
+---
+
+## Kraken — Rainbow Tables pour A5/1
+
+**Kraken** est un outil open-source qui permet de casser le chiffrement **A5/1** utilisé dans le GSM (2G) en utilisant la technique des **tables arc-en-ciel** (“rainbow tables”).
+
+* **But :** Trouver la clé Kc à partir d’un extrait connu de flux chiffré (“known plaintext”).
+
+* **Principe :**
+
+  1. On enregistre des bursts A5/1 (ex : via OsmocomBB ou Airprobe).
+  2. Si l’on connaît une partie du message clair correspondant, on extrait le keystream chiffré.
+  3. On lance Kraken : il compare ce keystream avec ses tables (des téraoctets de pré-calcul), et peut retrouver la clé en quelques secondes/minutes… **si** le keystream se trouve dans les tables.
+  4. Avec la clé Kc, on peut déchiffrer tous les échanges chiffrés de la session GSM (voix, SMS, etc).
+
+* **Limites :**
+
+  * Il faut un keystream de bonne qualité (souvent 64 bits sans erreurs).
+  * Les tables ne couvrent pas *tout* l’espace (proba de réussite \~22–24% par table, jusqu’à \~50–60% avec plusieurs tables).
+  * Sensible à la moindre erreur de réception radio.
+
+**Kraken** fonctionne généralement en ligne de commande avec un fichier binaire de keystream (ex : `.kc`), et pointe vers un dossier de tables rainbow (fichiers `.bin` de plusieurs Go à To).
+
+---
+
+## behemoth.py — Orchestrateur Python pour Kraken
+
+**behemoth.py** est un **wrapper Python** pour faciliter, automatiser et paralléliser l’utilisation de Kraken sur de grandes quantités de keystream, de tables, ou sur des architectures multi-core/GPU/cluster.
+
+* **Fonctions typiques :**
+
+  * Diviser le keystream en blocs, lancer plusieurs instances Kraken en parallèle.
+  * Gérer la distribution de tâches sur plusieurs machines ou cœurs.
+  * Faire de la “batch processing” (attaque automatisée sur beaucoup de captures, ou avec de multiples tables).
+  * Logger, relancer, gérer les timeouts, agréger les résultats.
+  * Support d’infrastructures type cluster/Cloud (ex : orchestrer du Kraken sur 8–16 machines ou plus).
+
+* **Avantage :**
+
+  * Tu gagnes en vitesse (attaque massive, multi-thread, scalable).
+  * Tu peux “industrialiser” le process (pipeline, logs, monitoring).
+
+**Remarque :** behemoth.py n’est pas un projet “officiel” de Kraken, mais une surcouche communautaire, souvent adaptée à l’infrastructure ou au workflow de chaque équipe de recherche ou CTF.
+
+---
+
+## Résumé — Usage terrain
+
+* **Kraken** = brute-force A5/1 sur 2G, avec rainbow tables (\~8 To pour full coverage), single machine.
+* **behemoth.py** = pipeline Python qui orchestre de nombreux Kraken en //, sur batch de captures ou cluster, pour industrialiser la récupération de clés Kc.
+
+---
+
+### Liens utiles
+
+* Kraken (repo original, guides d’utilisation) :
+  [https://opensource.srlabs.de/projects/a51-decrypt](https://opensource.srlabs.de/projects/a51-decrypt)
+  [https://github.com/SCATEu/a51-lookup](https://github.com/SCATEu/a51-lookup) (forks)
+* Exemple de behemoth.py (non maintenu, usage à adapter) :
+  [https://github.com/JPaulMora/behemoth](https://github.com/JPaulMora/behemoth)
+
+1. **Préparer le système**
+2. **Installer Kraken**
+3. **Télécharger/installer les rainbow tables**
+4. **Installer behemoth.py**
+5. **Exemple d’utilisation (simple + batch/cluster)**
+
+---
+
+## Tuto Kraken + behemoth.py (Ubuntu 22.04/24.04)
+
+## 1. Préparer le système
+
+```bash
+sudo apt update
+sudo apt install -y git build-essential cmake python3 python3-pip \
+    libgmp-dev
+```
+
+---
+
+## 2. Installer Kraken
+
+**a) Récupérer le repo**
+
+```bash
+git clone https://github.com/JPaulMora/kraken.git
+cd kraken
+```
+
+**b) Compiler**
+
+```bash
+make
+```
+
+> Tu obtiens l’exécutable `kraken` dans le dossier.
+
+---
+
+## 3. Installer ou télécharger les Rainbow Tables
+
+* **Attention :** Les tables font **plusieurs To** (ex : [tables sur le forum SRLabs](https://opensource.srlabs.de/projects/a51-decrypt/wiki/Rainbow_Tables)).
+* **Décompresse** tout dans un dossier, exemple : `/mnt/kraken_tables/`
+
+---
+
+## 4. Installer behemoth.py
+
+**a) Télécharger le script**
+
+```bash
+cd ~
+git clone https://github.com/JPaulMora/behemoth.git
+cd behemoth
+pip3 install -r requirements.txt  # (si besoin)
+```
+
+**b) Vérifie la config**
+
+* Le script fonctionne avec Python 3.
+* Adapte les chemins vers :
+
+  * L’exécutable `kraken`
+  * Le dossier des tables
+  * Tes fichiers `kc` (keystream à casser)
+
+---
+
+## 5. Utiliser Kraken (manuel et avec behemoth.py)
+
+## A. Utilisation simple de Kraken
+
+1. **Tu dois avoir extrait un keystream (“.kc”)** à partir d’une attaque A5/1 (via OsmocomBB/airprobe, etc).
+
+   * Par ex: `my_capture.kc` contient 64 bits extraits sans erreur.
+
+2. **Lancer Kraken**
+
+   ```bash
+   ./kraken my_capture.kc /mnt/kraken_tables/
+   ```
+
+   * Il affiche la clé trouvée (ou rien si miss).
+
+---
+
+## B. Utiliser behemoth.py pour des batchs (mode pipeline/parallèle)
+
+**Exemple minimal** :
+
+```bash
+python3 behemoth.py -k /chemin/kraken -t /mnt/kraken_tables/ -i dossier_kc/ -j 8
+```
+
+* `-k` : chemin vers exécutable kraken
+* `-t` : dossier rainbow tables
+* `-i` : dossier contenant plusieurs `.kc` (batch)
+* `-j` : nombre de jobs/threads (ex : 8 = 8 CPU en //)
+* Résultat : toutes les clés Kc trouvées sont loguées/fichiers.
+
+**Pour cluster/machines multiples**
+
+* Il existe des modes `--slave`/`--master` pour dispatcher sur plusieurs nodes (voir README du repo).
+
+---
+
+## 6. Schéma résumé
+
+```
+(signal GSM) → extraction keystream (.kc) → Kraken (ou behemoth.py)
+                                       ↳ tables rainbow
+                                       ↳ clé Kc
+```
+
+---
+
+## Notes / Bonnes pratiques
+
+* La qualité du keystream est CRUCIALE (aucune erreur de bit !)
+* Plus tu as de tables, plus tu as de chances (sinon succès partiel).
+* behemoth.py = batch/cluster, Kraken = solo.
+* Sur SSD/NVMe = +rapide.
+
+---
+
+##Liens utiles
+
+* [Kraken](https://github.com/JPaulMora/kraken)
+* [behemoth.py](https://github.com/JPaulMora/behemoth)
+* [Tables arc-en-ciel SRLabs](https://opensource.srlabs.de/projects/a51-decrypt/wiki/Rainbow_Tables)
+* [Guide attaque A5/1 OsmocomBB](https://osmocom.org/projects/baseband/wiki/A5_GSM_decryption)
+
+---
+
+## Installation Deka (cracker Kraken OpenCL)
+
+### 1. Prérequis
+
+* **OS :** Debian Jessie à Bookworm, ou Ubuntu
+* **GPU :** AMD recommandé (Nvidia possible mais demande plus de patchs)
+* **Python 3** (certains scripts nécessitent aussi 2.7)
+* **PyOpenCL**
+* **Disque :** ≥2 To libres pour les tables (SSD/NVMe conseillé)
+* **Paquets :**
+
+```sh
+sudo apt update
+sudo apt install git build-essential python3-pip python3-dev ocl-icd-libopencl1 opencl-headers clinfo
+pip3 install pyopencl
+```
+
+---
+
+### 2. Cloner le code
+
+Fork recommandé (patché pour systèmes récents) :
+
+* [https://github.com/0x7678/typhon-vx/tree/master/kraken](https://github.com/0x7678/typhon-vx/tree/master/kraken)
+
+```sh
+git clone https://github.com/0x7678/typhon-vx.git
+cd typhon-vx/kraken
+```
+
+*(Pour comparer avec les originaux, pas obligatoire) :*
+
+```sh
+git clone http://jenda.hrach.eu/p/deka
+git clone git://git.srlabs.de/kraken
+```
+
+---
+
+### 3. Télécharger les tables Rainbow
+
+* **Taille :** \~1,7 To (40 fichiers `.dlt`)
+* **Torrent / Téléchargement direct :**
+
+  * Projet TMTO SRLabs, chercher “A5/1 tables”
+    [https://opensource.srlabs.de/projects/a51-decrypt](https://opensource.srlabs.de/projects/a51-decrypt)
+  * MD5 checksums :
+    [http://jenda.hrach.eu/f2/tables.txt](http://jenda.hrach.eu/f2/tables.txt)
+* **Autre :** via un contact, ou échange de disques physiques (ex. brmlab à Prague)
+
+*Stocke les tables sur un disque dédié, idéalement en ext4/xfs, ou écris-les directement sur un device bloc pour les meilleures perfs.*
+
+---
+
+### 4. Installer les tables
+
+**Option 1 – Mode fichier (le plus simple, moins performant) :**
+
+```sh
+./TableConvert di /mnt/tables/gsm/100.dlt 100.ins:0 100.idx
+```
+
+* `/mnt/tables/gsm/100.dlt` : fichier table source
+* `100.ins:0` : fichier destination (avec offset)
+* `100.idx` : fichier index destination
+
+**Option 2 – Direct sur device bloc (meilleures performances) :**
+
+* Utilise `install.py` pour écrire les tables directement sur un device brut (triple-vérifie le chemin du device !)
+
+---
+
+### 5. Configurer Deka
+
+Édite `delta_config.h` :
+
+* Indique les bons chemins pour les tables, fichiers d’index et offsets (issus de ton `tables.conf` généré)
+* **ASTUCE :** utilise `/dev/disk/by-uuid/` ou des chemins absolus — **jamais** `/dev/sdX` car l’ordre des devices peut changer au reboot !
+
+```c
+#define TABLE_DEV "/dev/disk/by-uuid/XXXX-YYYY"
+#define TABLE_IDX "/mnt/tables/gsm/100.idx"
+#define TABLE_OFF 0
+```
+
+---
+
+### 6. Générer le kernel OpenCL
+
+* **AMD :** utiliser `genkernel32.sh` (recommandé)
+* **Nvidia :** il faudra peut-être patcher “unsigned long long” → “ulong”
+* **32 ou 64 bits :** génère un `slice.c` spécifique (ajuster aussi vankusconf.h/vankusconf.py si passage en 64 bits)
+
+```sh
+./genkernel32.sh > slice.c
+# ou
+./genkernel64.sh > slice.c
+```
+
+*Si tu obtiens une erreur “unsigned long long”, remplace dans le code par :*
+
+```c
+ulong one = 1;
+mask |= one << i;
+ulong all = 0xFFFFFFFFFFFFFFFF;
+if(diff != all) { ... }
+```
+
+---
+
+### 7. Tuning kernel (vankusconf.py/.h)
+
+* **Kernels concurrents :** (nombre de cores GPU - 1) × petit entier. Exemple : 4095 pour 2048 cores GPU.
+* **QSIZE :** Environ 2× le nombre de fragments traités en parallèle.
+
+---
+
+### 8. Lancer Deka / Kraken
+
+**Démarrage manuel (conseillé pour debug/début) :**
+
+```sh
+python3 paplon.py
+python3 oclvankus.py   # (une fois par device OpenCL ; demande le numéro)
+python3 delta_client.py
+```
+
+**Automatique (prod) :**
+
+```sh
+./init.sh
+```
+
+**PYOPENCL\_CTX :**
+Pour éviter la question du device :
+
+```sh
+export PYOPENCL_CTX="0:0"
+```
+
+---
+
+### 9. Connexion & test de crack
+
+Connexion au serveur Deka (paplon) :
+
+```sh
+telnet localhost 1578
+```
+
+Test avec un burst A5/1 connu :
+
+```sh
+crack 00111000...   # (colle un burst connu)
+# Output attendu :
+# Found 44D85D82BAF275B4 @ 2 #0 (table:412)
+```
+
+---
+
+### 10. Monitoring & tuning perfs
+
+Dans telnet, tape `stats` pour vérifier la taille des files d’attente.
+
+* Si goulot = stockage : passe en SSD/NVMe, device direct, ou async IO.
+* Si goulot = calcul : tune kernel (loop unrolling, itérations, kernels concurrents, etc.)
+
+---
+
+### Récapitulatif express
+
+```sh
+# 1. Dépendances
+sudo apt install git build-essential python3-pip ocl-icd-libopencl1 opencl-headers clinfo
+pip3 install pyopencl
+
+# 2. Cloner le code
+git clone https://github.com/0x7678/typhon-vx.git
+cd typhon-vx/kraken
+
+# 3. Télécharger les tables (~1,7To)
+
+# 4. Installer les tables (TableConvert ou install.py)
+
+# 5. Éditer delta_config.h (chemins absolus/UUID)
+
+# 6. Générer kernel : ./genkernel32.sh > slice.c
+
+# 7. Lancer : paplon.py, oclvankus.py, delta_client.py
+
+# 8. Connexion : telnet localhost 1578, commande "crack"
+
+# 9. Tune (stats, kernel, stockage)
+```
+
+---
+
+**Notes & Astuces**
+
+* Évite de lancer en root sauf nécessité (accès device brut)
+* Scripts et kernels adaptables à volonté (fragments, tuning, debug)
+* Pour le support ou l’optimisation, voir Issues Github, forums SRLabs, brmlab, Discords GSM
+

@@ -1,0 +1,470 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guide d’installation modulaire EGPRS (Osmocom + SDR) &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="OsmocomBB" href="osmocombb.html" />
+    <link rel="prev" title="Bases du GSM : Vue d’ensemble" href="gsm-basics.html" /> 
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+
+<body class="wy-body-for-nav">
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+ 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../en/index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index-fr.html#navigation-sdr">Navigation SDR</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../sdr/index.html">SDR</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">2G : GSM/GPRS/EDGE</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#navigation-rapide">Navigation rapide</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq-fr.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about-fr.html">Qui suis je</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">2G : GSM/GPRS/EDGE</a></li>
+      <li class="breadcrumb-item active">Guide d’installation modulaire EGPRS (Osmocom + SDR)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/fr/2G/edge.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <p><a class="reference internal" href="../../en/2G/edge.html"><span class="std std-doc">English</span></a></p>
+<section id="guide-d-installation-modulaire-egprs-osmocom-sdr">
+<h1>Guide d’installation modulaire EGPRS (Osmocom + SDR)<a class="headerlink" href="#guide-d-installation-modulaire-egprs-osmocom-sdr" title="Link to this heading"></a></h1>
+<section id="chapitre-1-presentation">
+<h2>Chapitre 1 — Présentation<a class="headerlink" href="#chapitre-1-presentation" title="Link to this heading"></a></h2>
+<p>Ce guide décrit l’installation modulaire d’une infrastructure <strong>EGPRS</strong> (GPRS/EDGE) basée sur Osmocom et SDR (USRP, BladeRF).<br />
+Chaque chapitre détaille un module, son rôle, ses dépendances et options.<br />
+Tout peut être scripté pour une intégration Dockerfile ou un déploiement manuel sur Debian/Ubuntu 22.04+.</p>
+</section>
+<hr class="docutils" />
+<section id="chapitre-2-dependances-systeme">
+<h2>Chapitre 2 — Dépendances système<a class="headerlink" href="#chapitre-2-dependances-systeme" title="Link to this heading"></a></h2>
+<p>Commencez par installer tous les outils de build essentiels, bibliothèques, Python et utilitaires de debug :</p>
+<ul class="simple">
+<li><p>Compilation : <code class="docutils literal notranslate"><span class="pre">gcc</span></code>, <code class="docutils literal notranslate"><span class="pre">g++</span></code>, <code class="docutils literal notranslate"><span class="pre">make</span></code>, <code class="docutils literal notranslate"><span class="pre">cmake</span></code>, <code class="docutils literal notranslate"><span class="pre">autoconf</span></code>, <code class="docutils literal notranslate"><span class="pre">automake</span></code>, <code class="docutils literal notranslate"><span class="pre">libtool</span></code>, etc.</p></li>
+<li><p>Libs système : <code class="docutils literal notranslate"><span class="pre">libusb-1.0-0-dev</span></code>, <code class="docutils literal notranslate"><span class="pre">libedit-dev</span></code>, <code class="docutils literal notranslate"><span class="pre">libfftw3-dev</span></code>, <code class="docutils literal notranslate"><span class="pre">liburing-dev</span></code>, …</p></li>
+<li><p>Dev Python : <code class="docutils literal notranslate"><span class="pre">python3-dev</span></code>, <code class="docutils literal notranslate"><span class="pre">python3-pip</span></code>, <code class="docutils literal notranslate"><span class="pre">python3-numpy</span></code>, <code class="docutils literal notranslate"><span class="pre">python3-mako</span></code>, <code class="docutils literal notranslate"><span class="pre">python3-lxml</span></code>, <code class="docutils literal notranslate"><span class="pre">python3-six</span></code>, …</p></li>
+<li><p>Outils additionnels : <code class="docutils literal notranslate"><span class="pre">nano</span></code>, <code class="docutils literal notranslate"><span class="pre">git</span></code>, <code class="docutils literal notranslate"><span class="pre">wget</span></code>, <code class="docutils literal notranslate"><span class="pre">curl</span></code>, <code class="docutils literal notranslate"><span class="pre">tmux</span></code>, <code class="docutils literal notranslate"><span class="pre">doxygen</span></code>, <code class="docutils literal notranslate"><span class="pre">ethtool</span></code>, etc.</p></li>
+</ul>
+<p><strong>Commande d’installation :</strong></p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>apt<span class="w"> </span>update
+apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>&lt;tous-les-paquets-listés&gt;
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="chapitre-3-sdr-materiel-uhd-bladerf">
+<h2>Chapitre 3 — SDR &amp; Matériel (UHD, BladeRF)<a class="headerlink" href="#chapitre-3-sdr-materiel-uhd-bladerf" title="Link to this heading"></a></h2>
+<section id="uhd-usrp-ettus">
+<h3>3.1 — UHD (USRP/Ettus)<a class="headerlink" href="#uhd-usrp-ettus" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>libuhd-dev, uhd-host</strong> : Drivers et outils pour USRP.</p></li>
+<li><p><strong>Images firmware</strong> :</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>/usr/lib/uhd/utils/uhd_images_downloader.py
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><strong>Règle udev</strong> pour détection auto :</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://raw.githubusercontent.com/EttusResearch/uhd/refs/heads/master/host/utils/uhd-usrp.rules<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>cp<span class="w"> </span>uhd-usrp.rules<span class="w"> </span>/etc/udev/rules.d/
+</pre></div>
+</div>
+</section>
+<section id="bladerf-nuand">
+<h3>3.2 — BladeRF (Nuand)<a class="headerlink" href="#bladerf-nuand" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>libbladerf-dev</strong> + build depuis les sources :</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/nuand/BladeRF<span class="w"> </span>/opt/GSM/BladeRF
+<span class="nb">cd</span><span class="w"> </span>/opt/GSM/BladeRF<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>..<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="chapitre-4-librairies-osmocom-de-base">
+<h2>Chapitre 4 — Librairies Osmocom de base<a class="headerlink" href="#chapitre-4-librairies-osmocom-de-base" title="Link to this heading"></a></h2>
+<p>Ces librairies sont la fondation de toute la stack GSM Osmocom.</p>
+<ul class="simple">
+<li><p><strong>libosmocore</strong> : Primitives GSM, timers, gestion protocoles.</p></li>
+<li><p><strong>libosmo-netif</strong> : Interfaces réseau.</p></li>
+<li><p><strong>libosmo-abis</strong> : Support interface Abis (BTS ↔ BSC).</p></li>
+</ul>
+<p><strong>Build de chaque librairie :</strong></p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/&lt;repo&gt;
+<span class="nb">cd</span><span class="w"> </span>&lt;repo&gt;<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+</pre></div>
+</div>
+<p><em>(remplacer <code class="docutils literal notranslate"><span class="pre">&lt;repo&gt;</span></code> par le nom de la librairie)</em></p>
+</section>
+<hr class="docutils" />
+<section id="chapitre-5-stack-coeur-gsm-edge">
+<h2>Chapitre 5 — Stack cœur GSM/EDGE<a class="headerlink" href="#chapitre-5-stack-coeur-gsm-edge" title="Link to this heading"></a></h2>
+<p><strong>Osmocom fournit un module séparé pour chaque composant cœur de réseau :</strong></p>
+<ul class="simple">
+<li><p><strong>osmo-hlr</strong> : Home Location Register (base d’abonnés)</p></li>
+<li><p><strong>osmo-msc</strong> : Mobile Switching Center (appels, SMS, mobilité)</p></li>
+<li><p><strong>osmo-bsc</strong> : Base Station Controller (gestion BTS, handover)</p></li>
+<li><p><strong>osmo-sgsn</strong> : Serving GPRS Support Node (sessions GPRS/EDGE)</p></li>
+<li><p><strong>osmo-ggsn</strong> : Gateway GPRS Support Node (passerelle IP/data)</p></li>
+<li><p><strong>osmo-mgw</strong> : Media Gateway (flux voix/data)</p></li>
+<li><p><strong>osmo-pcu</strong> : Packet Control Unit (gestion trames GPRS/EDGE)</p></li>
+<li><p><strong>libosmo-sigtran</strong> : SIGTRAN/SS7 over IP</p></li>
+<li><p><strong>libsmpp34</strong> : Librairie SMPP (SMS)</p></li>
+<li><p><strong>libgtpnl</strong> : GTP (GPRS Tunneling Protocol pour data mobile)</p></li>
+</ul>
+<p><strong>Exemple de build générique :</strong></p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/&lt;module&gt;
+<span class="nb">cd</span><span class="w"> </span>&lt;module&gt;<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Les options comme <code class="docutils literal notranslate"><span class="pre">--enable-gtp-linux</span></code>, <code class="docutils literal notranslate"><span class="pre">--enable-iu</span></code>, <code class="docutils literal notranslate"><span class="pre">--enable-smpp</span></code>, etc, dépendent du module.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="chapitre-6-couches-radio-trx-bts">
+<h2>Chapitre 6 — Couches radio (TRX/BTS)<a class="headerlink" href="#chapitre-6-couches-radio-trx-bts" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>osmo-trx</strong> : Transceiver SDR (modulation, A5/x, couche radio PHY)</p></li>
+<li><p><strong>osmo-bts</strong> : Interface logicielle pour le TRX (logiciel BTS)</p>
+<ul>
+<li><p>Option : <code class="docutils literal notranslate"><span class="pre">--enable-trx</span></code> pour activer le mode SDR.</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>Build typique :</strong></p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-trx
+<span class="nb">cd</span><span class="w"> </span>osmo-trx<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--with-uhd<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-bts
+<span class="nb">cd</span><span class="w"> </span>osmo-bts<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--enable-trx<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="chapitre-7-services-outils-additionnels">
+<h2>Chapitre 7 — Services &amp; Outils additionnels<a class="headerlink" href="#chapitre-7-services-outils-additionnels" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>osmo-sip-connector</strong> : passerelle GSM ↔ VoIP SIP (pour appels IP)</p></li>
+<li><p><strong>Outils SIM</strong> : <code class="docutils literal notranslate"><span class="pre">pcsc-tools</span></code>, <code class="docutils literal notranslate"><span class="pre">pcscd</span></code>, <code class="docutils literal notranslate"><span class="pre">libpcsclite-dev</span></code></p></li>
+<li><p><strong>iptables</strong>, <strong>tmux</strong>, <strong>nano</strong>, <strong>python3-pip</strong> : utilitaires système</p></li>
+<li><p><strong>python3-requests</strong> : scripts API/réseau</p></li>
+</ul>
+<p><strong>Exemple d’installation :</strong></p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>iptables<span class="w"> </span>tmux<span class="w"> </span>nano<span class="w"> </span>python3-pip<span class="w"> </span>python3-requests
+pip3<span class="w"> </span>install<span class="w"> </span>requests
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="chapitre-8-script-modulaire-bash">
+<h2>Chapitre 8 — Script modulaire (bash)<a class="headerlink" href="#chapitre-8-script-modulaire-bash" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="c1"># Installeur modulaire EGPRS/Osmocom</span>
+<span class="c1"># Construit une stack GSM/EDGE complète avec SDR : USRP, BladeRF, Osmocom core et toutes dépendances.</span>
+<span class="c1"># Auteur : Bastien / bbaranoff (software-defined-radio.com)</span>
+<span class="c1"># Testé sur Ubuntu 22.04+</span>
+
+<span class="nb">set</span><span class="w"> </span>-e
+<span class="nv">N</span><span class="o">=</span><span class="k">$(</span>nproc<span class="k">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">N</span><span class="o">=</span><span class="m">2</span>
+<span class="nv">ROOT</span><span class="o">=</span>/opt/GSM
+
+<span class="c1"># ----------------------------------------</span>
+<span class="c1"># Chapitre 2 — Dépendances système</span>
+<span class="c1"># ----------------------------------------</span>
+install_deps<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==&gt; Installation des paquets système et dépendances de build...&quot;</span>
+<span class="w">    </span>apt<span class="w"> </span>update
+<span class="w">    </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>gcc<span class="w"> </span>g++<span class="w"> </span>make<span class="w"> </span>cmake<span class="w"> </span>autoconf<span class="w"> </span>automake<span class="w"> </span>libtool<span class="w"> </span>pkg-config<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>libedit-dev<span class="w"> </span>libfftw3-dev<span class="w"> </span>libusb-1.0-0-dev<span class="w"> </span>liburing-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>nano<span class="w"> </span>git<span class="w"> </span>wget<span class="w"> </span>curl<span class="w"> </span>tmux<span class="w"> </span>doxygen<span class="w"> </span>ethtool<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>python3<span class="w"> </span>python3-dev<span class="w"> </span>python3-pip<span class="w"> </span>python3-six<span class="w"> </span>python3-mako<span class="w"> </span>python3-lxml<span class="w"> </span>python3-numpy<span class="w"> </span>python3-pybind11<span class="w"> </span>python3-requests<span class="w"> </span>python3-scipy<span class="w"> </span>python3-setuptools<span class="w"> </span>python3-ruamel.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>libpcsclite-dev<span class="w"> </span>pcsc-tools<span class="w"> </span>pcscd<span class="w"> </span>cpufrequtils<span class="w"> </span>libsctp-dev<span class="w"> </span>libconfig++-dev<span class="w"> </span>libconfig-dev<span class="w"> </span>libmbedtls-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>libtalloc-dev<span class="w"> </span>libgnutls28-dev<span class="w"> </span>libmnl-dev<span class="w"> </span>libortp-dev<span class="w"> </span>libdbd-sqlite3<span class="w"> </span>iproute2<span class="w"> </span>iputils-ping<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>libsqlite3-dev<span class="w"> </span>libdbi-dev<span class="w"> </span>libc-ares-dev<span class="w"> </span>libsofia-sip-ua-glib-dev<span class="w"> </span>telnet<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>systemd<span class="w"> </span>systemd-sysv<span class="w"> </span>dbus<span class="w"> </span>dbus-user-session<span class="w"> </span>ccache<span class="w"> </span>libboost-all-dev<span class="w"> </span>libncurses5<span class="w"> </span>libncurses5-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>libusb-1.0-0<span class="w"> </span>libusb-dev<span class="w"> </span>iptables<span class="w"> </span>udev
+<span class="o">}</span>
+
+<span class="c1"># ----------------------------------------</span>
+<span class="c1"># Chapitre 3 — Drivers SDR &amp; Firmware</span>
+<span class="c1"># ----------------------------------------</span>
+
+install_uhd<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==&gt; Installation UHD/USRP et téléchargement images firmware...&quot;</span>
+<span class="w">    </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>libuhd-dev<span class="w"> </span>uhd-host
+<span class="w">    </span>python3<span class="w"> </span>/usr/lib/uhd/utils/uhd_images_downloader.py
+<span class="w">    </span><span class="c1"># Règles udev Ettus USRP</span>
+<span class="w">    </span>wget<span class="w"> </span>-O<span class="w"> </span>/etc/udev/rules.d/uhd-usrp.rules<span class="w"> </span>https://raw.githubusercontent.com/EttusResearch/uhd/refs/heads/master/host/utils/uhd-usrp.rules
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export UHD_MODULE_PATH=/usr/lib/uhd/modules&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/root/.bashrc
+<span class="o">}</span>
+
+install_bladerf<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==&gt; Installation BladeRF et build depuis sources...&quot;</span>
+<span class="w">    </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>libbladerf-dev
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/nuand/BladeRF<span class="w"> </span><span class="nv">$ROOT</span>/BladeRF<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/BladeRF
+<span class="w">    </span>mkdir<span class="w"> </span>-p<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+<span class="w">    </span>cmake<span class="w"> </span>..<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+<span class="o">}</span>
+
+<span class="c1"># ----------------------------------------</span>
+<span class="c1"># Chapitre 4 — Librairies Osmocom de base</span>
+<span class="c1"># ----------------------------------------</span>
+build_osmo_lib<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==&gt; Build des librairies Osmocom : libosmocore, libosmo-netif, libosmo-abis&quot;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span>repo<span class="w"> </span><span class="k">in</span><span class="w"> </span>libosmocore<span class="w"> </span>libosmo-netif<span class="w"> </span>libosmo-abis<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">        </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/<span class="nv">$repo</span><span class="w"> </span><span class="nv">$ROOT</span>/<span class="nv">$repo</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">        </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/<span class="nv">$repo</span>
+<span class="w">        </span>autoreconf<span class="w"> </span>-fi
+<span class="w">        </span>./configure
+<span class="w">        </span>make<span class="w"> </span>-j<span class="nv">$N</span>
+<span class="w">        </span>make<span class="w"> </span>install
+<span class="w">        </span>ldconfig
+<span class="w">    </span><span class="k">done</span>
+<span class="o">}</span>
+
+<span class="c1"># ----------------------------------------</span>
+<span class="c1"># Chapitres 5/6 — Réseau cœur, radio, EDGE</span>
+<span class="c1"># ----------------------------------------</span>
+build_osmo_core<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==&gt; Build Osmocom réseau, radio et modules GPRS...&quot;</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="c1"># HLR (DB abonnés)</span>
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-hlr<span class="w"> </span><span class="nv">$ROOT</span>/osmo-hlr<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-hlr<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span><span class="c1"># Media Gateway</span>
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-mgw<span class="w"> </span><span class="nv">$ROOT</span>/osmo-mgw<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-mgw<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span><span class="c1"># SIGTRAN (SS7 sur IP)</span>
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://gitea.osmocom.org/osmocom/libosmo-sigtran<span class="w"> </span><span class="nv">$ROOT</span>/libosmo-sigtran<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/libosmo-sigtran<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span><span class="c1"># libsmpp34 (SMS)</span>
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/libsmpp34<span class="w"> </span><span class="nv">$ROOT</span>/libsmpp34<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/libsmpp34<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span><span class="c1"># libgtpnl (tunnels GTP)</span>
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/libgtpnl<span class="w"> </span><span class="nv">$ROOT</span>/libgtpnl<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/libgtpnl<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--enable-gtp-linux<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span><span class="c1"># Éléments cœur (ordre : GGSN, SGSN, MSC, BSC, PCU)</span>
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-ggsn<span class="w"> </span><span class="nv">$ROOT</span>/osmo-ggsn<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-ggsn<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--enable-gtp-linux<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-sgsn<span class="w"> </span><span class="nv">$ROOT</span>/osmo-sgsn<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-sgsn<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--enable-iu<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-msc<span class="w"> </span><span class="nv">$ROOT</span>/osmo-msc<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-msc<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--enable-smpp<span class="w"> </span>--enable-iu<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-bsc<span class="w"> </span><span class="nv">$ROOT</span>/osmo-bsc<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-bsc<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--enable-iu<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-pcu<span class="w"> </span><span class="nv">$ROOT</span>/osmo-pcu<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-pcu<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span><span class="c1"># Couches radio : TRX, BTS</span>
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-trx<span class="w"> </span><span class="nv">$ROOT</span>/osmo-trx<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-trx<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--with-uhd<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-bts<span class="w"> </span><span class="nv">$ROOT</span>/osmo-bts<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-bts<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--enable-trx<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+
+<span class="w">    </span><span class="c1"># SIP connector (SIP/VoIP)</span>
+<span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/osmocom/osmo-sip-connector<span class="w"> </span><span class="nv">$ROOT</span>/osmo-sip-connector<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="nv">$ROOT</span>/osmo-sip-connector<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>autoreconf<span class="w"> </span>-fi<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="nv">$N</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>install<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ldconfig
+<span class="o">}</span>
+
+<span class="c1"># ----------------------------------------</span>
+<span class="c1"># Chapitre 7 — Python &amp; utilitaires système</span>
+<span class="c1"># ----------------------------------------</span>
+install_python_utils<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==&gt; Installation dépendances pip et update images UHD...&quot;</span>
+<span class="w">    </span>pip3<span class="w"> </span>install<span class="w"> </span>requests
+<span class="w">    </span><span class="c1"># (Re)télécharge images firmware UHD si besoin</span>
+<span class="w">    </span>python3<span class="w"> </span>/usr/lib/uhd/utils/uhd_images_downloader.py<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="o">}</span>
+
+<span class="c1"># ----------------------------------------</span>
+<span class="c1"># Séquence principale</span>
+<span class="c1"># ----------------------------------------</span>
+main<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span>install_deps
+<span class="w">    </span>install_uhd
+<span class="w">    </span>install_bladerf
+<span class="w">    </span>build_osmo_lib
+<span class="w">    </span>build_osmo_core
+<span class="w">    </span>install_python_utils
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;==&gt; Tous les modules sont installés. Vous pouvez passer à la configuration et aux scripts de run.&quot;</span>
+<span class="o">}</span>
+
+main<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="chapitre-9-resume-bonnes-pratiques">
+<h2>Chapitre 9 — Résumé &amp; Bonnes pratiques<a class="headerlink" href="#chapitre-9-resume-bonnes-pratiques" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Chaque module</strong> est un bloc indépendant, à construire dans l’ordre (libs → cœur → radio → services)</p></li>
+<li><p>Pour EGPRS, l’ordre <strong>BTS/TRX/PCU/SGSN/GGSN</strong> est crucial (le flux data traverse chaque élément)</p></li>
+<li><p><strong>Séparation des modules</strong> = maintenance et debug facilités</p></li>
+<li><p>Toujours vérifier les dépendances système/matériel (drivers USRP, firmware BladeRF, règles udev…)</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="gsm-basics.html" class="btn btn-neutral float-left" title="Bases du GSM : Vue d’ensemble" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="osmocombb.html" class="btn btn-neutral float-right" title="OsmocomBB" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

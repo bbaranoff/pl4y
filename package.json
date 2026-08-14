@@ -6,6 +6,7 @@
   "description": "pl4y.store — Cloudflare Worker servant l'installeur osmo_egprs (bash pour curl/wget, HTML lisible pour navigateur)",
   "scripts": {
     "build": "node build.mjs",
+    "docs": "node docs/unify.mjs",
     "dev": "npm run build && wrangler dev",
     "deploy": "wrangler deploy"
   },

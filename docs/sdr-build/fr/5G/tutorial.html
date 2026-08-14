@@ -1,0 +1,318 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5G SA labo : srsRAN Project + Open5GS (Ubuntu 2024) &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Q&amp;A" href="../faq-fr.html" />
+    <link rel="prev" title="L’évolution 5G : rupture technologique, nouveaux usages" href="evolution.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../en/index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index-fr.html#navigation-sdr">Navigation SDR</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../sdr/index.html">SDR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../2G/index.html">2G : GSM/GPRS/EDGE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">5G : NSA/SA</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#navigation-rapide">Navigation rapide</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../faq-fr.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about-fr.html">Qui suis je</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">5G : NSA/SA</a></li>
+      <li class="breadcrumb-item active">5G SA labo : srsRAN Project + Open5GS (Ubuntu 2024)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/fr/5G/tutorial.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="g-sa-labo-srsran-project-open5gs-ubuntu-2024">
+<h1>5G SA labo : srsRAN Project + Open5GS (Ubuntu 2024)<a class="headerlink" href="#g-sa-labo-srsran-project-open5gs-ubuntu-2024" title="Link to this heading"></a></h1>
+<section id="prerequis">
+<h2>1. Prérequis<a class="headerlink" href="#prerequis" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>OS :</strong> Ubuntu 22.04 ou 24.04 (x86_64)</p></li>
+<li><p><strong>Matériel :</strong> SDR (USRP B200/B210/X300/PlutoSDR/LimeSDR…)
+<em>OU</em> mode simulation (aucun matériel SDR requis)</p></li>
+<li><p><strong>Packages de base :</strong> git, cmake, build-essential, etc.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="installer-open5gs-core-5g">
+<h2>2. Installer Open5GS (Core 5G)<a class="headerlink" href="#installer-open5gs-core-5g" title="Link to this heading"></a></h2>
+<section id="a-dependances">
+<h3>a) Dépendances<a class="headerlink" href="#a-dependances" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>update
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>git<span class="w"> </span>build-essential<span class="w"> </span>meson<span class="w"> </span>ninja-build<span class="w"> </span>python3<span class="w"> </span>python3-pip<span class="w"> </span>python3-setuptools<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>flex<span class="w"> </span>bison<span class="w"> </span>libsctp-dev<span class="w"> </span>libssl-dev<span class="w"> </span>libnghttp2-dev<span class="w"> </span>libmicrohttpd-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>libyaml-dev<span class="w"> </span>libmariadb-dev<span class="w"> </span>libmongoc-dev<span class="w"> </span>libbson-dev<span class="w"> </span>mongodb
+</pre></div>
+</div>
+</section>
+<section id="b-cloner-et-compiler-open5gs">
+<h3>b) Cloner et compiler Open5GS<a class="headerlink" href="#b-cloner-et-compiler-open5gs" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/open5gs/open5gs
+<span class="nb">cd</span><span class="w"> </span>open5gs
+meson<span class="w"> </span>build<span class="w"> </span>--prefix<span class="o">=</span><span class="sb">`</span><span class="nb">pwd</span><span class="sb">`</span>/install
+ninja<span class="w"> </span>-C<span class="w"> </span>build
+ninja<span class="w"> </span>-C<span class="w"> </span>build<span class="w"> </span>install
+</pre></div>
+</div>
+<p><em>(Binaires dans <code class="docutils literal notranslate"><span class="pre">open5gs/install/bin/</span></code>)</em></p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="installer-srsran-project-gnb-ue">
+<h2>3. Installer srsRAN Project (gNB/UE)<a class="headerlink" href="#installer-srsran-project-gnb-ue" title="Link to this heading"></a></h2>
+<section id="id1">
+<h3>a) Dépendances<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>cmake<span class="w"> </span>g++<span class="w"> </span>libsctp-dev<span class="w"> </span>libfftw3-dev<span class="w"> </span>libmbedtls-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>libboost-program-options-dev<span class="w"> </span>libconfig++-dev<span class="w"> </span>pkg-config<span class="w"> </span>python3<span class="w"> </span>python3-pip<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>libzmq3-dev<span class="w"> </span>libpcsclite-dev
+</pre></div>
+</div>
+</section>
+<section id="b-cloner-et-compiler-srsran">
+<h3>b) Cloner et compiler srsRAN<a class="headerlink" href="#b-cloner-et-compiler-srsran" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/srsran/srsRAN_Project.git
+<span class="nb">cd</span><span class="w"> </span>srsRAN_Project
+mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>../
+make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span>
+sudo<span class="w"> </span>make<span class="w"> </span>install
+</pre></div>
+</div>
+<p><em>(Binaires dans <code class="docutils literal notranslate"><span class="pre">/usr/local/bin/</span></code>)</em></p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="configurer-open5gs-core">
+<h2>4. Configurer Open5GS (Core)<a class="headerlink" href="#configurer-open5gs-core" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Tous les fichiers : <code class="docutils literal notranslate"><span class="pre">open5gs/install/etc/open5gs/</span></code></p></li>
+<li><p>Fichiers clés :</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">amf.yaml</span></code> (AMF/core)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">smf.yaml</span></code> (SMF/session)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">upf.yaml</span></code> (UPF/user-plane)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">udm.yaml</span></code>, <code class="docutils literal notranslate"><span class="pre">ausf.yaml</span></code>, etc.</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>Edits minimaux :</strong></p>
+<ul class="simple">
+<li><p>PLMN : <code class="docutils literal notranslate"><span class="pre">mcc:</span> <span class="pre">001</span></code>, <code class="docutils literal notranslate"><span class="pre">mnc:</span> <span class="pre">01</span></code> (ou tes propres valeurs)</p></li>
+<li><p>Dans <code class="docutils literal notranslate"><span class="pre">amf.yaml</span></code> : l’adresse <code class="docutils literal notranslate"><span class="pre">ngap</span></code> doit matcher celle de ton gNB (ex : <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code>)</p></li>
+</ul>
+<section id="ajouter-un-abonne-test-sim">
+<h3>Ajouter un abonné test (SIM)<a class="headerlink" href="#ajouter-un-abonne-test-sim" title="Link to this heading"></a></h3>
+<ul>
+<li><p>Ouvre <code class="docutils literal notranslate"><span class="pre">subscribers.yaml</span></code> ou passe par le <a class="reference external" href="https://github.com/open5gs/open5gs/wiki/WebUI">WebUI Open5GS</a></p></li>
+<li><p>Exemple d’entrée :</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">imsi</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;001010123456789&#39;</span>
+<span class="w">  </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;465B5CE8B199B49FAA5F0A2EE238A6BC&#39;</span>
+<span class="w">  </span><span class="nt">opc</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;E8ED289DEBA952E4283B54E88E6183CA&#39;</span>
+<span class="w">  </span><span class="nt">amf</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;8000&#39;</span>
+<span class="w">  </span><span class="nt">sqn</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;000000000000&#39;</span>
+</pre></div>
+</div>
+</li>
+<li><p>À reporter dans la SIM (physique ou config UE logicielle)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="configurer-srsran-gnb">
+<h2>5. Configurer srsRAN gNB<a class="headerlink" href="#configurer-srsran-gnb" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Fichier : <code class="docutils literal notranslate"><span class="pre">srsran_project/config/gnb.yaml</span></code> <em>(ou <code class="docutils literal notranslate"><span class="pre">gnb.conf</span></code> selon la version)</em></p></li>
+</ul>
+<p>Exemple minimal :</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">plmn</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">mcc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">001</span>
+<span class="w">  </span><span class="nt">mnc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">01</span>
+<span class="nt">amf</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">addr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">127.0.0.1</span><span class="w">   </span><span class="c1"># IP du core Open5GS</span>
+<span class="w">  </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">38412</span>
+<span class="nt">slices</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">sst</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">sd</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0x000001</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Spécifie <code class="docutils literal notranslate"><span class="pre">rf.device_name</span></code> pour ton SDR (si RF)</p></li>
+<li><p>Réseau/interface : ex : <code class="docutils literal notranslate"><span class="pre">ngap.interface_name:</span> <span class="pre">lo</span></code> pour tests locaux</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="configurer-srsran-ue-si-test-en-pur-logiciel">
+<h2>6. Configurer srsRAN UE (si test en pur logiciel)<a class="headerlink" href="#configurer-srsran-ue-si-test-en-pur-logiciel" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Fichier : <code class="docutils literal notranslate"><span class="pre">srsran_project/config/ue.yaml</span></code> <em>(ou <code class="docutils literal notranslate"><span class="pre">ue.conf</span></code>)</em></p></li>
+<li><p>Paramètres : PLMN, key, opc, amf, imei identiques à l’abonné Open5GS.</p></li>
+<li><p>Mode RF ou simulation selon besoin.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="lancer-le-core-open5gs">
+<h2>7. Lancer le Core Open5GS<a class="headerlink" href="#lancer-le-core-open5gs" title="Link to this heading"></a></h2>
+<p>Ouvre <strong>plusieurs terminaux</strong> (ou <code class="docutils literal notranslate"><span class="pre">tmux</span></code>) :</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>open5gs/install/bin/
+sudo<span class="w"> </span>./open5gs-mmed
+sudo<span class="w"> </span>./open5gs-sgwcd
+sudo<span class="w"> </span>./open5gs-smfd
+sudo<span class="w"> </span>./open5gs-amfd
+sudo<span class="w"> </span>./open5gs-upfd
+sudo<span class="w"> </span>./open5gs-ausfd
+sudo<span class="w"> </span>./open5gs-udmd
+sudo<span class="w"> </span>./open5gs-pcfd
+sudo<span class="w"> </span>./open5gs-nrfd
+sudo<span class="w"> </span>./open5gs-bsfd
+sudo<span class="w"> </span>./open5gs-hssd
+</pre></div>
+</div>
+<p>Ou tout-en-un :</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>./open5gs-daemon
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="lancer-le-gnb-srsran">
+<h2>8. Lancer le gNB srsRAN<a class="headerlink" href="#lancer-le-gnb-srsran" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>srsran_gnb<span class="w"> </span>--cfg<span class="w"> </span>srsran_project/config/gnb.yaml
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="optionnel-lancer-le-srsue-ue-5g-sa-logiciel">
+<h2>9. (Optionnel) Lancer le srsUE (UE 5G SA logiciel)<a class="headerlink" href="#optionnel-lancer-le-srsue-ue-5g-sa-logiciel" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>srsran_ue<span class="w"> </span>--cfg<span class="w"> </span>srsran_project/config/ue.yaml
+</pre></div>
+</div>
+<p>Ou utiliser un vrai smartphone 5G + SDR côté réseau.</p>
+</section>
+<hr class="docutils" />
+<section id="supervision">
+<h2>10. Supervision<a class="headerlink" href="#supervision" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Utilise le <strong>WebUI Open5GS</strong> (si installé) pour la gestion des SIM et le monitoring.</p></li>
+<li><p>Surveille les logs (attach, registration, PDU session, etc.).</p></li>
+<li><p>Une fois le UE attaché, fais un <code class="docutils literal notranslate"><span class="pre">ping</span></code> (depuis l’UE ou via l’interface UPF).</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="conseils-de-depannage">
+<h2>Conseils de dépannage<a class="headerlink" href="#conseils-de-depannage" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>PLMN, clés et IP doivent correspondre</strong> partout.</p></li>
+<li><p>Utilise <code class="docutils literal notranslate"><span class="pre">127.0.0.1</span></code> ou une IP locale réelle selon ton cas.</p></li>
+<li><p>Avec du RF : vérifie fréquence/bande/SDR.</p></li>
+<li><p>En simulation pure (“null device”) tu peux tout tester sans SDR.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="liens-utiles">
+<h2>Liens utiles<a class="headerlink" href="#liens-utiles" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://docs.srsran.com/projects/5g/en/latest/">Docs srsRAN Project 5G</a></p></li>
+<li><p><a class="reference external" href="https://open5gs.org/open5gs/docs/">Docs Open5GS</a></p></li>
+<li><p><a class="reference external" href="https://github.com/open5gs/open5gs/wiki/WebUI">WebUI Open5GS</a></p></li>
+<li><p><a class="reference external" href="https://open5gs.org/open5gs/docs/guide-subscription/">Guide abonnés Open5GS</a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="evolution.html" class="btn btn-neutral float-left" title="L’évolution 5G : rupture technologique, nouveaux usages" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../faq-fr.html" class="btn btn-neutral float-right" title="Q&amp;A" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
