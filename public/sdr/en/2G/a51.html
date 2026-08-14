@@ -19,7 +19,7 @@
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="3G : UMTS/HSPA/HSPA+" href="../3G/index.html" />
+    <link rel="next" title="QEMU Calypso — emulating a GSM baseband" href="qemu-calypso.html" />
     <link rel="prev" title="OsmocomBB" href="osmocombb.html" /> 
 
 <!-- pl4y-skin v1 -->
@@ -109,7 +109,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../faq.html">Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq.html">FAQ — Q&amp;A</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../about.html">Who am I</a></li>
 </ul>
 </li>
@@ -147,16 +147,16 @@
   <section id="a5-1-gsm-ciphering">
 <h1>A5/1 — GSM Ciphering<a class="headerlink" href="#a5-1-gsm-ciphering" title="Link to this heading"></a></h1>
 <p><strong>A5/1</strong> is the stream cipher algorithm used in GSM to provide confidentiality for radio communications between the mobile device and the BTS.</p>
-<section id="fonctionnement">
-<h2>1. Fonctionnement<a class="headerlink" href="#fonctionnement" title="Link to this heading"></a></h2>
+<section id="how-it-works">
+<h2>1. How it works<a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p><strong>Stream cipher</strong> with a 64-bit internal state (3 LFSR shift registers)</p></li>
 <li><p>Initialized using the <strong>Kc</strong> key (derived from the SIM’s Ki via the A3/A8 algorithm and the subscriber’s IMSI)</p></li>
 <li><p>Ciphering is applied in real-time, bit by bit, to voice or data</p></li>
 </ul>
 </section>
-<section id="vulnerabilites-connues">
-<h2>2. Vulnérabilités connues<a class="headerlink" href="#vulnerabilites-connues" title="Link to this heading"></a></h2>
+<section id="known-vulnerabilities">
+<h2>2. Known vulnerabilities<a class="headerlink" href="#known-vulnerabilities" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p><strong>Aged design (1980s/1990s)</strong></p></li>
 <li><p>Several known attacks:</p>
@@ -168,8 +168,8 @@
 </li>
 </ul>
 </section>
-<section id="outils-open-source-utiles">
-<h2>3. Outils open-source utiles<a class="headerlink" href="#outils-open-source-utiles" title="Link to this heading"></a></h2>
+<section id="useful-open-source-tools">
+<h2>3. Useful open-source tools<a class="headerlink" href="#useful-open-source-tools" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://github.com/joswr1ght/kraken">Kraken</a></p></li>
 <li><p><a class="reference external" href="https://github.com/ptrkrysik/gr-gsm">gr-gsm</a></p></li>
@@ -179,15 +179,15 @@
 <li><p><strong>OsmocomBB</strong>: possible to inject or dump keystreams for brute-force attacks</p></li>
 </ul>
 </section>
-<section id="demarrage-du-pipeline-et-tests-de-detection">
-<h2>4. Démarrage du pipeline et tests de détection<a class="headerlink" href="#demarrage-du-pipeline-et-tests-de-detection" title="Link to this heading"></a></h2>
+<section id="pipeline-start-up-and-detection-tests">
+<h2>4. Pipeline start-up and detection tests<a class="headerlink" href="#pipeline-start-up-and-detection-tests" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p>If the cell sends a “Ciphering Indicator,” some phones warn when ciphering is off</p></li>
 <li><p>Most modern networks disable A5/1, switch to A5/3, or use no ciphering at all</p></li>
 </ul>
 </section>
-<section id="references-utiles-liens">
-<h2>5. Références utiles (liens)<a class="headerlink" href="#references-utiles-liens" title="Link to this heading"></a></h2>
+<section id="useful-references-links">
+<h2>5. Useful references (links)<a class="headerlink" href="#useful-references-links" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/A5/1">A5/1 on Wikipedia</a></p></li>
 <li><p><a class="reference external" href="https://fahrplan.events.ccc.de/congress/2010/Fahrplan/attachments/1783_101228.27C3.GSM-Sniffing.Nohl_Munaut.pdf">A5/1 Attacks (Karsten Nohl, CCC)</a></p></li>
@@ -198,8 +198,8 @@ Any attack or reverse-engineering of A5/1 is reserved for research, authorized p
 <strong>Unauthorized interception is illegal</strong> in most countries.</p>
 </section>
 <hr class="docutils" />
-<section id="kraken-tables-arc-en-ciel-usage-limites">
-<h2>6. Kraken — tables arc-en-ciel (usage &amp; limites)<a class="headerlink" href="#kraken-tables-arc-en-ciel-usage-limites" title="Link to this heading"></a></h2>
+<section id="kraken-rainbow-tables-use-limits">
+<h2>6. Kraken — rainbow tables (use &amp; limits)<a class="headerlink" href="#kraken-rainbow-tables-use-limits" title="Link to this heading"></a></h2>
 <p><strong>Kraken</strong> is an open-source tool designed to brute-force the <strong>A5/1 cipher</strong> used in GSM (2G) by leveraging <strong>rainbow tables</strong> (precomputed lookup tables).</p>
 <ul class="simple">
 <li><p><strong>Goal:</strong> Recover the session key Kc from a known segment of keystream (known plaintext).</p></li>
@@ -245,15 +245,15 @@ Any attack or reverse-engineering of A5/1 is reserved for research, authorized p
 <p><strong>Note:</strong> behemoth.py is not an “official” part of Kraken, but a community-made tool, often adapted for specific research or CTF team workflows.</p>
 </section>
 <hr class="docutils" />
-<section id="resume-bonnes-pratiques">
-<h2>8. Résumé &amp; bonnes pratiques<a class="headerlink" href="#resume-bonnes-pratiques" title="Link to this heading"></a></h2>
+<section id="summary-best-practices">
+<h2>8. Summary &amp; best practices<a class="headerlink" href="#summary-best-practices" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p><strong>Kraken:</strong> A5/1 brute-force for GSM using rainbow tables (~8 TB for full coverage), on a single machine.</p></li>
 <li><p><strong>behemoth.py:</strong> Python pipeline that orchestrates multiple Kraken runs in parallel (batch, cluster), for industrial-scale Kc recovery.</p></li>
 </ul>
 </section>
-<section id="installation-prerequis-kraken">
-<h2>9. Installation &amp; prérequis (Kraken)<a class="headerlink" href="#installation-prerequis-kraken" title="Link to this heading"></a></h2>
+<section id="installation-prerequisites-kraken">
+<h2>9. Installation &amp; prerequisites (Kraken)<a class="headerlink" href="#installation-prerequisites-kraken" title="Link to this heading"></a></h2>
 <p>For 6 tables… adapt for the 40</p>
 <p>Create logical volumes for indexes (2x40Gb/tables 100Gb&gt;80Gb)</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>vgcreate<span class="w"> </span>indexes<span class="w"> </span>/dev/nvme1n1p1
@@ -427,9 +427,9 @@ Kraken&gt;<span class="w"> </span>
 </div>
 </section>
 <section id="deka-install-kraken-opencl-cracker">
-<h2>10 Deka Install (Kraken OpenCL cracker)<a class="headerlink" href="#deka-install-kraken-opencl-cracker" title="Link to this heading"></a></h2>
-<section id="preparation-du-systeme-et-prerequis">
-<h3>10.1 Préparation du système et prérequis<a class="headerlink" href="#preparation-du-systeme-et-prerequis" title="Link to this heading"></a></h3>
+<h2>10. Deka install (Kraken OpenCL cracker)<a class="headerlink" href="#deka-install-kraken-opencl-cracker" title="Link to this heading"></a></h2>
+<section id="system-preparation-and-prerequisites">
+<h3>10.1 System preparation and prerequisites<a class="headerlink" href="#system-preparation-and-prerequisites" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p><strong>OS:</strong> Debian Jessie up to Bookworm, or Ubuntu</p></li>
 <li><p><strong>GPU:</strong> AMD recommended (Nvidia possible but more patching needed)</p></li>
@@ -448,8 +448,8 @@ pip3<span class="w"> </span>install<span class="w"> </span>pyopencl<span class="
 </div>
 </section>
 <hr class="docutils" />
-<section id="recuperation-du-code">
-<h3>10.2 Récupération du code<a class="headerlink" href="#recuperation-du-code" title="Link to this heading"></a></h3>
+<section id="getting-the-code">
+<h3>10.2 Getting the code<a class="headerlink" href="#getting-the-code" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p><a class="reference external" href="https://jenda.hrach.eu/p/deka">https://jenda.hrach.eu/p/deka</a></p></li>
 </ul>
@@ -693,8 +693,8 @@ gcc -shared libvankus.o libvankus_wrap.o -o _libvankus.so
 </div>
 </section>
 </section>
-<section id="demarrage-du-pipeline-paplon-oclvankus-delta-client">
-<h2>11. Démarrage du pipeline (paplon / oclvankus / delta_client)<a class="headerlink" href="#demarrage-du-pipeline-paplon-oclvankus-delta-client" title="Link to this heading"></a></h2>
+<section id="pipeline-start-up-paplon-oclvankus-delta-client">
+<h2>11. Pipeline start-up (paplon / oclvankus / delta_client)<a class="headerlink" href="#pipeline-start-up-paplon-oclvankus-delta-client" title="Link to this heading"></a></h2>
 <p><strong>Manual startup (best for first time/debug):</strong></p>
 <p>In 3 terminals</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>paplon.py
@@ -732,7 +732,7 @@ crack<span class="w"> </span><span class="c1">#5 took 6232 msec</span>
 <section id="the-attack">
 <h2>12. The attack<a class="headerlink" href="#the-attack" title="Link to this heading"></a></h2>
 <p>Download the capture</p>
-<p><a class="reference internal" href="#vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile"><span class="xref myst">vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile</span></a></p>
+<p>Capture file: <code class="docutils literal notranslate"><span class="pre">vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile</span></code> (record your own with <code class="docutils literal notranslate"><span class="pre">grgsm_capture.py</span></code>).</p>
 <p>Install airprobe (ToDo)</p>
 <p>Install and run wireshark</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>wireshark
@@ -901,7 +901,7 @@ crack #1 took 6249 msec
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="osmocombb.html" class="btn btn-neutral float-left" title="OsmocomBB" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="../3G/index.html" class="btn btn-neutral float-right" title="3G : UMTS/HSPA/HSPA+" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="qemu-calypso.html" class="btn btn-neutral float-right" title="QEMU Calypso — emulating a GSM baseband" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

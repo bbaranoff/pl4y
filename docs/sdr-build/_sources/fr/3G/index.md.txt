@@ -1,7 +1,18 @@
 # 3G : UMTS/HSPA/HSPA+
 
-## Navigation rapide
+La **3G** a démocratisé l'**internet mobile**. Là où la 2G était pensée pour la voix
+et les SMS, la 3G (**UMTS**, puis **HSPA/HSPA+**) est passée au WCDMA sur l'interface
+air et a fait bondir les débits de quelques dizaines de kbps à plusieurs **Mbps** —
+de quoi faire de la visiophonie, du web et les premières applis smartphone.
 
+**Points clés :**
+
+* Interface air : **WCDMA** (CDMA large bande), puis HSPA/HSPA+ pour le haut débit
+* Débits typiques : **384 kbps → 42 Mbps** (HSPA+)
+* Authentification plus robuste que la 2G (mutuelle, USIM) — pas de cassure triviale façon A5/1
+* En extinction partout au profit de la 4G/5G, mais instructive à étudier
+
+## Navigation rapide
 
 ```{toctree}
 :maxdepth: 1

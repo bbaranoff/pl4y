@@ -24,3 +24,5 @@ gsm-basics.md
 edge.md
 osmocombb.md
 a51.md
+qemu-calypso.md
+```

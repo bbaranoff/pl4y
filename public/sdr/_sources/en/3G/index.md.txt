@@ -1,7 +1,18 @@
 # 3G : UMTS/HSPA/HSPA+
 
-## Quick Access
+**3G** brought **mobile internet** to the mainstream. Where 2G was built for voice
+and SMS, 3G (**UMTS**, then **HSPA/HSPA+**) switched to WCDMA on the air interface
+and pushed data rates from tens of kbps into the **multi-Mbps** range — enough for
+video calls, web browsing and the first smartphone apps.
 
+**Key points:**
+
+* Air interface: **WCDMA** (wideband CDMA), later HSPA/HSPA+ for faster data
+* Typical data speeds: **384 kbps → 42 Mbps** (HSPA+)
+* Stronger authentication than 2G (mutual auth, USIM) — no trivial A5/1-style break
+* Being shut down worldwide in favour of 4G/5G, but still instructive to study
+
+## Quick Access
 
 ```{toctree}
 :maxdepth: 1

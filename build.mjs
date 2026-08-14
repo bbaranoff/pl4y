@@ -6,7 +6,7 @@
 // wrangler.toml — donc en local, en CI GitHub Actions et sur Cloudflare
 // Workers Builds, le base64 est toujours a jour.
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
 const SCRIPT = "setup_osmo_egprs.sh";
 const PS_SCRIPT = "setup_osmo_egprs.ps1";
@@ -27,6 +27,22 @@ const launchGifB64 = readFileSync(LAUNCH_GIF).toString("base64");
 const consoleGifB64 = readFileSync(CONSOLE_GIF).toString("base64");
 const tpl = readFileSync(TEMPLATE, "utf8");
 
+// Cartes de documentation : ecrites par docs/unify.mjs, identiques a celles du
+// hub /docs/. Versionnees, car Cloudflare ne rejoue pas unify.mjs au build.
+// Absentes (premier clone, section jamais rendue), la page de garde retombe sur
+// un simple lien vers /docs/ plutot que de casser le build.
+const CARDS = "docs/cards.html";
+const cards = existsSync(CARDS)
+  ? readFileSync(CARDS, "utf8").trimEnd()
+  : `      <a class="hub-card" href="/docs/">
+        <h2>Documentation</h2>
+        <p>Les corpus rendus et unifies (Calypso, osmo_egprs, tests, SDR, cours &amp; CTF).</p>
+        <span class="meta">/docs/</span>
+      </a>`;
+if (!existsSync(CARDS)) {
+  console.warn(`[build] ATTENTION: ${CARDS} absent — lancer \`node docs/unify.mjs\``);
+}
+
 for (const ph of [
   "__SCRIPT_B64__",
   "__PS_SCRIPT_B64__",
@@ -35,6 +51,7 @@ for (const ph of [
   "__ISO_GIF_B64__",
   "__LAUNCH_GIF_B64__",
   "__CONSOLE_GIF_B64__",
+  "__DOC_CARDS__",
 ]) {
   if (!tpl.includes(ph)) {
     console.error(`[build] ERREUR: placeholder ${ph} introuvable dans ${TEMPLATE}`);
@@ -52,7 +69,8 @@ writeFileSync(
     .replace("__DEMO_JPG_B64__", demoB64)
     .replace("__ISO_GIF_B64__", isoGifB64)
     .replace("__LAUNCH_GIF_B64__", launchGifB64)
-    .replace("__CONSOLE_GIF_B64__", consoleGifB64),
+    .replace("__CONSOLE_GIF_B64__", consoleGifB64)
+    .replace("__DOC_CARDS__", cards),
 );
 
 console.log(

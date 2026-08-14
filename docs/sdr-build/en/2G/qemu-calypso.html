@@ -1,0 +1,237 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QEMU Calypso — emulating a GSM baseband &mdash; Software Defined Radio 1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=29a6c3e3"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="3G : UMTS/HSPA/HSPA+" href="../3G/index.html" />
+    <link rel="prev" title="A5/1 — GSM Ciphering" href="a51.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Software Defined Radio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#quick-navigation">Quick Navigation</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../sdr/index.html">SDR</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">2G</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="index.html#quick-navigation">Quick Navigation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../3G/index.html">3G : UMTS/HSPA/HSPA+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../4G/index.html">4G : LTE/LTE+</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../5G/index.html">5G : NSA/SA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../faq.html">FAQ — Q&amp;A</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../about.html">Who am I</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../fr/index-fr.html">Français - SDR Blackbook – Carnet de terrain &amp; hacks</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Software Defined Radio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">English - SDR Blackbook – Field Notes &amp; Hacks</a></li>
+          <li class="breadcrumb-item"><a href="index.html">2G</a></li>
+      <li class="breadcrumb-item active">QEMU Calypso — emulating a GSM baseband</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/en/2G/qemu-calypso.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="qemu-calypso-emulating-a-gsm-baseband">
+<h1>QEMU Calypso — emulating a GSM baseband<a class="headerlink" href="#qemu-calypso-emulating-a-gsm-baseband" title="Link to this heading"></a></h1>
+<blockquote>
+<div><p><em>No C123 on your desk? Boot the baseband in software. Same firmware, same
+osmocom stack, no RF licence — the whole 2G phone side, reproducible on a laptop.</em></p>
+</div></blockquote>
+<p>The Motorola C1xx phones (C118/C123/C121) run a <strong>TI Calypso</strong> baseband: an
+<strong>ARM7TDMI</strong> driving a <strong>C54x DSP</strong> over shared memory. OsmocomBB normally replaces
+that firmware on real hardware. This workflow runs the <em>same</em> firmware inside a
+<strong>QEMU fork</strong> (<a class="reference external" href="https://github.com/bbaranoff/qemu">bbaranoff/qemu</a>) that emulates the
+Calypso SoC — so you can bring up a 2G phone, camp on a cell, do a Location Update,
+send SMS and place a voice call, all in software.</p>
+<p>The full bundle (sources, headers, DSP internals, scripts) is served on
+<strong><a class="reference external" href="https://pl4y.store/calypso/">pl4y.store/calypso/</a></strong>, and the live test snapshot on
+<strong><a class="reference external" href="https://pl4y.store/tests/">pl4y.store/tests/</a></strong>.</p>
+<hr class="docutils" />
+<section id="why-emulate-instead-of-flashing-a-phone">
+<h2>Why emulate instead of flashing a phone?<a class="headerlink" href="#why-emulate-instead-of-flashing-a-phone" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>No hardware hunt.</strong> Calypso handsets are eBay-only and dying. QEMU never wears out.</p></li>
+<li><p><strong>Reproducible.</strong> A crash is a rerun, not a resolder. Every burst is inspectable.</p></li>
+<li><p><strong>Debuggable.</strong> GDB on the ARM, memory watches on the ARM↔DSP mailbox — things you
+simply cannot do on a sealed baseband.</p></li>
+<li><p><strong>Safe &amp; legal.</strong> The radio is a shunt to <code class="docutils literal notranslate"><span class="pre">gr-gsm</span></code>, not an antenna. Nothing is emitted.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="the-pieces">
+<h2>The pieces<a class="headerlink" href="#the-pieces" title="Link to this heading"></a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   +-------------------------------------------------------------+
+   |  QEMU (bbaranoff/qemu) — emulated TI Calypso SoC            |
+   |                                                             |
+   |   ARM7TDMI  &lt;--- shared-memory mailbox ---&gt;  C54x DSP       |
+   |   (osmocom-bb firmware, unmodified)          (L1 / framing) |
+   +----------------------------|--------------------------------+
+                                |  L1CTL over a virtual link
+                                v
+   +-------------------------------------------------------------+
+   |  osmocom network-in-the-box (osmo_egprs)                    |
+   |  osmo-bts  --  osmo-bsc  --  osmo-msc  --  osmo-hlr          |
+   +----------------------------|--------------------------------+
+                                |  IQ / burst shunt
+                                v
+                       gr-gsm  (no real RF)
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><strong>ARM side</strong> runs the unmodified osmocom-bb firmware — the same Layer-1 control it
+would run on a real C123.</p></li>
+<li><p><strong>DSP side</strong> does the GSM framing/correlation. It is <strong>not fully reversed</strong> yet, so
+the heavy signal path is a <strong>shunt</strong> through <code class="docutils literal notranslate"><span class="pre">gr-gsm</span></code> rather than a bit-exact C54x
+emulation. Voice and SMS work; the DSP is a work in progress.</p></li>
+<li><p><strong>osmo_egprs</strong> is the operator side: a full multi-PLMN core in containers, shipped
+as a bootable ISO. See <strong><a class="reference external" href="https://pl4y.store/osmo_egprs/">pl4y.store/osmo_egprs/</a></strong>.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="workflow-from-zero-to-a-call">
+<h2>Workflow — from zero to a call<a class="headerlink" href="#workflow-from-zero-to-a-call" title="Link to this heading"></a></h2>
+<p><strong>1. Get the platform.</strong>
+Grab the <code class="docutils literal notranslate"><span class="pre">osmo_egprs</span></code> ISO (bootable, network-in-the-box) or clone the repos:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/bbaranoff/osmo_egprs
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/bbaranoff/qemu<span class="w">      </span><span class="c1"># the Calypso-aware fork</span>
+</pre></div>
+</div>
+<p><strong>2. Build the QEMU fork.</strong>
+It emulates the Calypso SoC target; build it like any QEMU, then boot the firmware:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>qemu<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./configure<span class="w"> </span>--target-list<span class="o">=</span>arm-softmmu<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span>
+</pre></div>
+</div>
+<p><strong>3. Bring up the network side.</strong>
+Start the osmocom stack (osmo-bts / bsc / msc / hlr). On the ISO this is one launcher;
+from source it’s the standard osmo-* services wired to the same GSMTAP loopback.</p>
+<p><strong>4. Boot the baseband in QEMU.</strong>
+Launch the emulated Calypso with the osmocom-bb firmware. The ARM comes up, hands
+Layer-1 to the DSP shunt, and the phone starts scanning.</p>
+<p><strong>5. Camp on the cell.</strong>
+Watch the L1 sync: FCCH → SCH → BCCH. When the SI reach Layer 3 (the <code class="docutils literal notranslate"><span class="pre">gsm322</span></code>
+state machine), the phone <strong>camps</strong>. This is the first milestone — no camp, no service.</p>
+<p><strong>6. Location Update + TMSI.</strong>
+The phone sends <code class="docutils literal notranslate"><span class="pre">RACH</span></code> → gets an <code class="docutils literal notranslate"><span class="pre">IMM</span> <span class="pre">ASSIGN</span></code> → does a <code class="docutils literal notranslate"><span class="pre">SABM</span></code> on SDCCH → the network
+answers <code class="docutils literal notranslate"><span class="pre">LU</span> <span class="pre">ACCEPT</span></code> and hands a <strong>TMSI</strong>. You’re now attached.</p>
+<p><strong>7. SMS and voice.</strong></p>
+<ul class="simple">
+<li><p><strong>MT/MO SMS</strong> works in <strong>A5/0</strong> and <strong>A5/1</strong>.</p></li>
+<li><p><strong>Voice (TCH/F)</strong> works through the shunt path — established call, real audio.</p></li>
+</ul>
+<p><strong>8. Inspect and verify.</strong>
+Every step is observable: GDB on the ARM, GSMTAP in Wireshark, and the automated
+<strong>pytest</strong> suite whose latest run is published at <strong><a class="reference external" href="https://pl4y.store/tests/">/tests/</a></strong> — pipeline
+coloured by pass ratio, so you see exactly where the chain breaks.</p>
+</section>
+<hr class="docutils" />
+<section id="known-limits-be-honest">
+<h2>Known limits (be honest)<a class="headerlink" href="#known-limits-be-honest" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>The <strong>DSP is not fully reversed</strong> — the signal path is a <code class="docutils literal notranslate"><span class="pre">gr-gsm</span></code> shunt, not a
+cycle-accurate C54x. It’s a POC for voice, not a spec-complete baseband.</p></li>
+<li><p>The interpreter-based C54x path is slow; native front-end acceleration is ongoing.</p></li>
+<li><p>A5/1 works; <strong>authentication</strong> is the current lock for the full A5/1-over-the-air story.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="where-to-dig">
+<h2>Where to dig<a class="headerlink" href="#where-to-dig" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong><a class="reference external" href="https://pl4y.store/calypso/">/calypso/</a></strong> — the full source bundle (ARM↔DSP glue, DSP internals, scripts).</p></li>
+<li><p><strong><a class="reference external" href="https://pl4y.store/osmo_egprs/">/osmo_egprs/</a></strong> — the operator-side platform (Docker, configs, network).</p></li>
+<li><p><strong><a class="reference external" href="https://pl4y.store/tests/">/tests/</a></strong> — the live test snapshot (what passes, what breaks, right now).</p></li>
+<li><p><a class="reference external" href="https://github.com/bbaranoff/qemu">github.com/bbaranoff/qemu</a> — the Calypso-aware fork.</p></li>
+<li><p>See also: <a class="reference internal" href="osmocombb.html"><span class="std std-doc">OsmocomBB</span></a> for the real-hardware path, and <a class="reference internal" href="a51.html"><span class="std std-doc">A5/1</span></a> for the cipher.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="a51.html" class="btn btn-neutral float-left" title="A5/1 — GSM Ciphering" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../3G/index.html" class="btn btn-neutral float-right" title="3G : UMTS/HSPA/HSPA+" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Bastien Baranoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

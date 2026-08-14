@@ -1,1 +1,87 @@
-# Q&A
+# FAQ — Q&A
+
+> _The questions that actually land in my inbox. No fluff, no vendor talk._
+
+---
+
+## Hardware
+
+**What's the cheapest way to start?**
+A ~20 € RTL-SDR dongle (RTL2832U + R820T2). It only receives, but it's enough to
+sniff GSM downlink with `grgsm_livemon`, decode ADS-B, listen to FM, and learn the
+spectrum. You outgrow it fast, but it's the honest entry ticket.
+
+**RTL-SDR vs HackRF vs USRP vs LimeSDR — which one?**
+
+| Device | TX? | Bandwidth | Typical use |
+|---|---|---|---|
+| RTL-SDR | no | 2.4 MS/s | receive-only: GSM sniff, ADS-B, FM, learning |
+| HackRF One | half-duplex | 20 MS/s | replay, wide surveys, TX experiments |
+| LimeSDR / Mini | full-duplex | 30–60 MS/s | run your own 2G/4G cell (osmo, srsRAN) |
+| USRP B200/B210 | full-duplex | 56 MS/s | reference platform, best driver support |
+
+Buy for what you'll actually do: receive-only work → RTL-SDR; running a network →
+LimeSDR or USRP. A HackRF is a great second dongle, a poor only dongle.
+
+**Do I need a phone for OsmocomBB?**
+Yes — a Calypso-based handset (Motorola C1xx: C118/C123/C121, or a Pirelli DP-L10).
+They're the only phones whose baseband firmware you can fully replace. eBay is your
+supplier. You also need a T191-style serial cable (2.5 mm jack ↔ RS-232/USB-TTL).
+
+---
+
+## Legality & ethics
+
+**Is any of this legal?**
+Receiving is generally tolerated; **transmitting on cellular bands is not** unless
+you're in a shielded environment or hold a licence. Running your own BTS radiates —
+do it inside a Faraday cage/box, or on a wired/attenuated loopback. The point of
+this book is understanding the protocols, not jamming your neighbours.
+
+**Can I decrypt calls that aren't mine?**
+No. Cracking A5/1 on traffic you're not authorized to touch is illegal in most
+jurisdictions. The A5/1 chapter exists so you understand *why the cipher leaks* and
+can reproduce the attack on your own test cell.
+
+---
+
+## 2G / GSM
+
+**`grgsm_livemon` shows nothing — no bursts.**
+Walk the checklist: (1) correct ARFCN? scan first with `grgsm_scanner`; (2) PPM
+offset — cheap dongles drift, pass `-p <ppm>` or calibrate against a known FCCH;
+(3) gain too low or clipping; (4) antenna tuned for the band (900/1800 vs 850/1900).
+No signal usually means wrong frequency or wrong gain, not a broken setup.
+
+**A5/1 crack finds no key.**
+Almost always the keystream input: you need the correct known-plaintext burst and
+the right frame number. Verify the burst extraction before blaming Kraken/Deka, and
+check your rainbow-table set is complete (all 40 tables mapped in `tables.conf`).
+
+**Which is the "one true" GSM stack to run?**
+`osmocom` (osmo-bts + osmo-bsc + osmo-msc + osmo-hlr) for a full network in a box;
+OsmocomBB when you want to *be the phone*. They solve different sides of the link.
+
+---
+
+## SDR software
+
+**GNU Radio, gr-gsm, or SDR#?**
+SDR# (Windows) for quick listening. GNU Radio + gr-gsm for anything scriptable and
+reproducible — flowgraphs you can commit and re-run. This book lives in the second world.
+
+**gr-gsm won't build against my GNU Radio.**
+Version skew is the usual culprit: gr-gsm tracks specific GNU Radio 3.8/3.10 ABIs.
+Match them, or use the pinned versions in the install pages rather than distro-latest.
+
+---
+
+## Meta
+
+**Why "blackbook"?**
+Because everything here is meant to run on real gear and be reproducible — field
+notes, not a glossy whitepaper. If a page says something works, it was tested.
+
+**Something's wrong / outdated on a page.**
+Open an issue on [github.com/bbaranoff](https://github.com/bbaranoff). Corrections
+that come with a reproducible command are the fastest way in.

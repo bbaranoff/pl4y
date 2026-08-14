@@ -202,6 +202,17 @@ function renderPage(script, psScript) {
             color:var(--on-accent); }
   .dl-btn.alt:hover { color:var(--on-accent); }
   .dl-box .hint { width:100%; color:var(--muted); font-size:.84rem; margin:.4rem 0 0; }
+  /* Cartes de documentation — memes items que le hub /docs/, injectees par
+     build.mjs depuis docs/cards.html (genere par docs/unify.mjs). */
+  .hub-grid { width:100%; display:grid; gap:.9rem; margin-top:1rem;
+            grid-template-columns:repeat(auto-fit,minmax(17rem,1fr)); }
+  .hub-card { display:block; background:var(--bg-2); border:1px solid var(--border);
+            border-radius:14px; padding:1rem 1.15rem; text-decoration:none; color:var(--fg);
+            box-shadow:var(--shadow); transition:box-shadow .2s ease, transform .2s ease; }
+  .hub-card:hover { box-shadow:var(--shadow-lg); transform:translateY(-2px); color:var(--fg); }
+  .hub-card h2 { margin:0 0 .45rem; border:0; padding:0; font-size:1.02rem; }
+  .hub-card p { color:var(--muted); font-size:.86rem; margin:0 0 .6rem; line-height:1.5; }
+  .hub-card .meta { color:var(--muted); font-size:.74rem; font-family:var(--mono); }
   .dl-box .hint strong { color:var(--fg); }
   footer { color:var(--muted); font-size:.82rem; margin:3rem 0 0;
            border-top:1px solid var(--border); padding:1.1rem 0 2rem; }
@@ -359,6 +370,12 @@ function renderPage(script, psScript) {
   </p>
 
   <div class="dl-box" id="telechargements">
+    <span class="dl-label">&#128279; Acces local &mdash; une fois la VM / le conteneur demarre</span>
+    <a class="dl-btn" href="http://127.0.0.1:8000" target="_blank" rel="noopener">&#128190; ISO &mdash; http://127.0.0.1:8000</a>
+    <a class="dl-btn alt" href="https://172.20.0.11:80" target="_blank" rel="noopener">&#128230; Docker &mdash; https://172.20.0.11:80</a>
+    <p class="hint">Adresses <strong>locales</strong> : elles ne repondent que sur ta machine une fois
+       l'<strong>ISO</strong> bootee (serveur sur <code>127.0.0.1:8000</code>) ou le <strong>conteneur Docker</strong>
+       lance (<code>172.20.0.11:80</code>). Depuis l'exterieur elles ne menent nulle part.</p>
     <span class="dl-label">&#11015; Telechargements &mdash; image ISO bootable</span>
     <a class="dl-btn alt" href="https://mega.nz/file/TSRWkazb#jen3dGoMkrV_83kX0TgeCMTT9bjkxFCDp9ctUXQQkDU" target="_blank" rel="noopener">&#9729;&#65039; MEGA (ISO complete, 1 fichier)</a>
     <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/main" target="_blank" rel="noopener">&#128230; Release GitHub (ISO en parties)</a>
@@ -382,6 +399,9 @@ function renderPage(script, psScript) {
        par ce Worker. <code>/tests/</code> est l'instantane du dernier run pytest du fork
        <code>bbaranoff/qemu</code>, regenere par <code>tests/conftest.py</code>.
        Vue d'ensemble : <a href="/docs/">/docs/</a>.</p>
+    <div class="hub-grid">
+__DOC_CARDS__
+    </div>
   </div>
 
   <nav class="toc">

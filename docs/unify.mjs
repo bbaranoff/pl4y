@@ -629,15 +629,9 @@ function collectReferences() {
 
 /* -------------------------------------------------------------- 5. index --- */
 
-function writeHub(built) {
-  // Une passe ciblee (`node docs/unify.mjs tests`) ne doit pas faire disparaitre
-  // du hub les sections deja publiees : on prend celles construites a l'instant
-  // PLUS celles qui ont deja un rendu dans public/.
-  const shown = Object.entries(SOURCES)
-    .filter(([k, s]) => built.includes(k) || existsSync(join(s.out, "index.html")))
-    .map(([k]) => k);
-
-  const cards = Object.entries(SOURCES)
+// Une carte par section : titre, resume, nombre de pages reellement publiees.
+function docCards(shown) {
+  return Object.entries(SOURCES)
     .filter(([k]) => shown.includes(k))
     .map(([k, s]) => {
       const n = walk(s.out).filter((p) => /\.html?$/i.test(p)).length;
@@ -648,6 +642,22 @@ function writeHub(built) {
       </a>`;
     })
     .join("\n");
+}
+
+function writeHub(built) {
+  // Une passe ciblee (`node docs/unify.mjs tests`) ne doit pas faire disparaitre
+  // du hub les sections deja publiees : on prend celles construites a l'instant
+  // PLUS celles qui ont deja un rendu dans public/.
+  const shown = Object.entries(SOURCES)
+    .filter(([k, s]) => built.includes(k) || existsSync(join(s.out, "index.html")))
+    .map(([k]) => k);
+
+  const cards = docCards(shown);
+
+  // Les memes cartes alimentent la page de garde du Worker (placeholder
+  // __DOC_CARDS__ dans worker.template.js, injecte par build.mjs) : une seule
+  // source, donc des compteurs de pages qui ne divergent jamais du reel.
+  writeFileSync(join(DOCS, "cards.html"), cards + "\n");
 
   const html = `<!DOCTYPE html>
 <html lang="fr">

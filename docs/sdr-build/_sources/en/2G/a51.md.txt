@@ -2,13 +2,13 @@
 
 **A5/1** is the stream cipher algorithm used in GSM to provide confidentiality for radio communications between the mobile device and the BTS.
 
-## 1. Fonctionnement
+## 1. How it works
 
 - **Stream cipher** with a 64-bit internal state (3 LFSR shift registers)
 - Initialized using the **Kc** key (derived from the SIM’s Ki via the A3/A8 algorithm and the subscriber’s IMSI)
 - Ciphering is applied in real-time, bit by bit, to voice or data
 
-## 2. Vulnérabilités connues
+## 2. Known vulnerabilities
 
 - **Aged design (1980s/1990s)**
 - Several known attacks:
@@ -16,7 +16,7 @@
   - Attacks on LFSR weaknesses and register synchronization
   - Kc recovery if enough keystream is captured
 
-## 3. Outils open-source utiles
+## 3. Useful open-source tools
 
 - [Kraken](https://github.com/joswr1ght/kraken)
 - [gr-gsm](https://github.com/ptrkrysik/gr-gsm)
@@ -26,12 +26,12 @@
 
 - **OsmocomBB**: possible to inject or dump keystreams for brute-force attacks
 
-## 4. Démarrage du pipeline et tests de détection
+## 4. Pipeline start-up and detection tests
 
 - If the cell sends a “Ciphering Indicator,” some phones warn when ciphering is off
 - Most modern networks disable A5/1, switch to A5/3, or use no ciphering at all
 
-## 5. Références utiles (liens)
+## 5. Useful references (links)
 
 - [A5/1 on Wikipedia](https://en.wikipedia.org/wiki/A5/1)
 - [A5/1 Attacks (Karsten Nohl, CCC)](https://fahrplan.events.ccc.de/congress/2010/Fahrplan/attachments/1783_101228.27C3.GSM-Sniffing.Nohl_Munaut.pdf)
@@ -44,7 +44,7 @@ Any attack or reverse-engineering of A5/1 is reserved for research, authorized p
 
 ---
 
-## 6. Kraken — tables arc-en-ciel (usage & limites)
+## 6. Kraken — rainbow tables (use & limits)
 
 **Kraken** is an open-source tool designed to brute-force the **A5/1 cipher** used in GSM (2G) by leveraging **rainbow tables** (precomputed lookup tables).
 
@@ -88,12 +88,12 @@ Kraken is typically used via command line with a binary keystream file (`.kc`) a
 
 ---
 
-## 8. Résumé & bonnes pratiques
+## 8. Summary & best practices
 
 * **Kraken:** A5/1 brute-force for GSM using rainbow tables (\~8 TB for full coverage), on a single machine.
 * **behemoth.py:** Python pipeline that orchestrates multiple Kraken runs in parallel (batch, cluster), for industrial-scale Kc recovery.
 
-## 9. Installation & prérequis (Kraken)
+## 9. Installation & prerequisites (Kraken)
 For 6 tables... adapt for the 40
 
 Create logical volumes for indexes (2x40Gb/tables 100Gb>80Gb)
@@ -291,9 +291,9 @@ crack #0 took 2858 msec
 Kraken> 
 ```
 
-## 10 Deka Install (Kraken OpenCL cracker)
+## 10. Deka install (Kraken OpenCL cracker)
 
-### 10.1 Préparation du système et prérequis
+### 10.1 System preparation and prerequisites
 
 * **OS:** Debian Jessie up to Bookworm, or Ubuntu
 * **GPU:** AMD recommended (Nvidia possible but more patching needed)
@@ -314,7 +314,7 @@ pip3 install pyopencl torch pyopencl pocl
 
 ---
 
-### 10.2 Récupération du code
+### 10.2 Getting the code
 
 * [https://jenda.hrach.eu/p/deka](https://jenda.hrach.eu/p/deka)
 
@@ -576,7 +576,7 @@ gcc -shared libvankus.o libvankus_wrap.o -o _libvankus.so
 
 ```
 
-## 11. Démarrage du pipeline (paplon / oclvankus / delta\_client)
+## 11. Pipeline start-up (paplon / oclvankus / delta\_client)
 
 **Manual startup (best for first time/debug):**
 
@@ -623,7 +623,7 @@ export PYOPENCL_CTX="0:0"
 
 Download the capture
 
-[vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile](vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile)
+Capture file: `vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile` (record your own with `grgsm_capture.py`).
 
 Install airprobe (ToDo)
 

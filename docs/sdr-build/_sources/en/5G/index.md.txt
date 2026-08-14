@@ -1,7 +1,19 @@
 # 5G : NSA/SA
 
-## Quick Access
+**5G** comes in two flavours. **NSA** (Non-Standalone) bolts a 5G radio onto an
+existing 4G LTE core — fast to deploy, and the reason early "5G" phones still lean on
+LTE for signalling. **SA** (Standalone) is a full 5G core (5GC), unlocking low latency,
+network slicing and massive IoT. New Radio (**NR**) uses flexible numerology and can
+run from sub-6 GHz up to millimetre-wave.
 
+**Key points:**
+
+* **NSA** = 5G radio + 4G core (transitional); **SA** = end-to-end 5G
+* New Radio (**NR**): scalable subcarrier spacing, sub-6 GHz to mmWave
+* Peak rates in the **Gbps** range, latency down to a few ms
+* A known attack surface at the edge: **NSA redirection** back down to LTE/EDGE
+
+## Quick Access
 
 ```{toctree}
 :maxdepth: 1

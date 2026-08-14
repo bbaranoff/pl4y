@@ -1,7 +1,20 @@
 # 5G : NSA/SA
 
-## Navigation rapide
+La **5G** existe en deux saveurs. La **NSA** (Non-Standalone) greffe une radio 5G sur
+un cœur 4G LTE existant — rapide à déployer, et la raison pour laquelle les premiers
+téléphones « 5G » s'appuient encore sur la LTE pour la signalisation. La **SA**
+(Standalone) repose sur un cœur 5G complet (5GC), débloquant faible latence, network
+slicing et IoT massif. La New Radio (**NR**) utilise une numérologie flexible, du
+sub-6 GHz jusqu'aux ondes millimétriques.
 
+**Points clés :**
+
+* **NSA** = radio 5G + cœur 4G (transitoire) ; **SA** = 5G de bout en bout
+* New Radio (**NR**) : espacement de sous-porteuses variable, sub-6 GHz à mmWave
+* Débits crête de l'ordre du **Gbps**, latence de quelques ms
+* Une surface d'attaque connue en périphérie : la **redirection NSA** vers LTE/EDGE
+
+## Navigation rapide
 
 ```{toctree}
 :maxdepth: 1

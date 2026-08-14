@@ -1,0 +1,118 @@
+# QEMU Calypso — emulating a GSM baseband
+
+> _No C123 on your desk? Boot the baseband in software. Same firmware, same
+> osmocom stack, no RF licence — the whole 2G phone side, reproducible on a laptop._
+
+The Motorola C1xx phones (C118/C123/C121) run a **TI Calypso** baseband: an
+**ARM7TDMI** driving a **C54x DSP** over shared memory. OsmocomBB normally replaces
+that firmware on real hardware. This workflow runs the *same* firmware inside a
+**QEMU fork** ([bbaranoff/qemu](https://github.com/bbaranoff/qemu)) that emulates the
+Calypso SoC — so you can bring up a 2G phone, camp on a cell, do a Location Update,
+send SMS and place a voice call, all in software.
+
+The full bundle (sources, headers, DSP internals, scripts) is served on
+**[pl4y.store/calypso/](https://pl4y.store/calypso/)**, and the live test snapshot on
+**[pl4y.store/tests/](https://pl4y.store/tests/)**.
+
+---
+
+## Why emulate instead of flashing a phone?
+
+* **No hardware hunt.** Calypso handsets are eBay-only and dying. QEMU never wears out.
+* **Reproducible.** A crash is a rerun, not a resolder. Every burst is inspectable.
+* **Debuggable.** GDB on the ARM, memory watches on the ARM↔DSP mailbox — things you
+  simply cannot do on a sealed baseband.
+* **Safe & legal.** The radio is a shunt to `gr-gsm`, not an antenna. Nothing is emitted.
+
+---
+
+## The pieces
+
+```
+   +-------------------------------------------------------------+
+   |  QEMU (bbaranoff/qemu) — emulated TI Calypso SoC            |
+   |                                                             |
+   |   ARM7TDMI  <--- shared-memory mailbox --->  C54x DSP       |
+   |   (osmocom-bb firmware, unmodified)          (L1 / framing) |
+   +----------------------------|--------------------------------+
+                                |  L1CTL over a virtual link
+                                v
+   +-------------------------------------------------------------+
+   |  osmocom network-in-the-box (osmo_egprs)                    |
+   |  osmo-bts  --  osmo-bsc  --  osmo-msc  --  osmo-hlr          |
+   +----------------------------|--------------------------------+
+                                |  IQ / burst shunt
+                                v
+                       gr-gsm  (no real RF)
+```
+
+* **ARM side** runs the unmodified osmocom-bb firmware — the same Layer-1 control it
+  would run on a real C123.
+* **DSP side** does the GSM framing/correlation. It is **not fully reversed** yet, so
+  the heavy signal path is a **shunt** through `gr-gsm` rather than a bit-exact C54x
+  emulation. Voice and SMS work; the DSP is a work in progress.
+* **osmo_egprs** is the operator side: a full multi-PLMN core in containers, shipped
+  as a bootable ISO. See **[pl4y.store/osmo_egprs/](https://pl4y.store/osmo_egprs/)**.
+
+---
+
+## Workflow — from zero to a call
+
+**1. Get the platform.**
+Grab the `osmo_egprs` ISO (bootable, network-in-the-box) or clone the repos:
+
+```bash
+git clone https://github.com/bbaranoff/osmo_egprs
+git clone https://github.com/bbaranoff/qemu      # the Calypso-aware fork
+```
+
+**2. Build the QEMU fork.**
+It emulates the Calypso SoC target; build it like any QEMU, then boot the firmware:
+
+```bash
+cd qemu && ./configure --target-list=arm-softmmu && make -j$(nproc)
+```
+
+**3. Bring up the network side.**
+Start the osmocom stack (osmo-bts / bsc / msc / hlr). On the ISO this is one launcher;
+from source it's the standard osmo-\* services wired to the same GSMTAP loopback.
+
+**4. Boot the baseband in QEMU.**
+Launch the emulated Calypso with the osmocom-bb firmware. The ARM comes up, hands
+Layer-1 to the DSP shunt, and the phone starts scanning.
+
+**5. Camp on the cell.**
+Watch the L1 sync: FCCH → SCH → BCCH. When the SI reach Layer 3 (the `gsm322`
+state machine), the phone **camps**. This is the first milestone — no camp, no service.
+
+**6. Location Update + TMSI.**
+The phone sends `RACH` → gets an `IMM ASSIGN` → does a `SABM` on SDCCH → the network
+answers `LU ACCEPT` and hands a **TMSI**. You're now attached.
+
+**7. SMS and voice.**
+* **MT/MO SMS** works in **A5/0** and **A5/1**.
+* **Voice (TCH/F)** works through the shunt path — established call, real audio.
+
+**8. Inspect and verify.**
+Every step is observable: GDB on the ARM, GSMTAP in Wireshark, and the automated
+**pytest** suite whose latest run is published at **[/tests/](https://pl4y.store/tests/)** — pipeline
+coloured by pass ratio, so you see exactly where the chain breaks.
+
+---
+
+## Known limits (be honest)
+
+* The **DSP is not fully reversed** — the signal path is a `gr-gsm` shunt, not a
+  cycle-accurate C54x. It's a POC for voice, not a spec-complete baseband.
+* The interpreter-based C54x path is slow; native front-end acceleration is ongoing.
+* A5/1 works; **authentication** is the current lock for the full A5/1-over-the-air story.
+
+---
+
+## Where to dig
+
+* **[/calypso/](https://pl4y.store/calypso/)** — the full source bundle (ARM↔DSP glue, DSP internals, scripts).
+* **[/osmo_egprs/](https://pl4y.store/osmo_egprs/)** — the operator-side platform (Docker, configs, network).
+* **[/tests/](https://pl4y.store/tests/)** — the live test snapshot (what passes, what breaks, right now).
+* [github.com/bbaranoff/qemu](https://github.com/bbaranoff/qemu) — the Calypso-aware fork.
+* See also: [OsmocomBB](osmocombb.md) for the real-hardware path, and [A5/1](a51.md) for the cipher.
