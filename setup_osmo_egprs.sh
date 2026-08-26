@@ -42,7 +42,7 @@ FORCE_UPDATE="${FORCE_UPDATE:-0}"
 # Ref git du fork QEMU (emulation Calypso), heritee par le build (build.sh).
 QEMU_REF="${QEMU_REF:-test}"
 export QEMU_REF
-DOCKER_IMAGE="bastienbaranoff/free-bb"
+DOCKER_IMAGE="bastienbaranoff/ms_bts_norf_gsm"
 DOCKER_TAG="osmocom-nitb"
 
 # Fichier de conf Linphone dont on veut desactiver les ports d'ecoute SIP.
