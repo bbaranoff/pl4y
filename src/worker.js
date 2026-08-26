@@ -497,7 +497,7 @@ iwr -useb pl4y.store | iex</code></pre>
     <tr><th>Mode</th><th>Effet</th></tr>
     <tr><td><code>build</code></td><td>Construit l'image Docker localement (<code>build.sh --no-cache</code>, ~15-20 min).</td></tr>
     <tr><td><code>build-iso</code></td><td>Construit une ISO bootable (<code>build-iso.sh</code>). <strong>Ne fonctionne pas sous Windows</strong> (hote Linux requis).</td></tr>
-    <tr><td><code>download</code></td><td>Recupere l'image pre-construite <code>bastienbaranoff/free-bb</code> (rapide).</td></tr>
+    <tr><td><code>download</code></td><td>Recupere l'image pre-construite <code>bastienbaranoff/norf_gsm</code> (rapide).</td></tr>
     <tr><td><code>start</code></td><td>Lance <code>start.sh</code> sur une image deja prete.</td></tr>
   </table>
   <p>Pour sauter le menu : <code>OSMO_MODE=download</code> (PowerShell :
