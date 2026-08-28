@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Lab GSM multi-opérateur — `osmo_egprs` &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+<!-- pl4y-sectnav v1 -->
+<nav class="pl4y-sect" aria-label="Sommaire de la section">
+  <div class="pl4y-sect-head">bbaranoff.github.io</div>
+    <details class="pl4y-sect-grp">
+      <summary>Accueil <span class="n">5</span></summary>
+      <ul>
+      <li><a href="../../index.html">Bastien Baranoff — SDR &amp;
+Cybersécurité</a></li>
+      <li><a href="../../GSM_lab.html">Bundled Page</a></li>
+      <li><a href="../../privacy.html">Privacy</a></li>
+      <li><a href="../../README.html">bbaranoff.github.io</a></li>
+      <li><a href="../../whoami.html">Who am I ?</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Projets <span class="n">6</span></summary>
+      <ul>
+      <li><a href="../../projects/index.html">Projets</a></li>
+      <li><a href="../../projects/0-abstract_radio.html">Abstract — Attaques sur les protocoles
+radio</a></li>
+      <li><a href="../../projects/cryptanalyse.html">Cryptanalyse — TEA1 &amp; DST80</a></li>
+      <li><a href="../../projects/qemu-calypso.html">QEMU-Calypso</a></li>
+      <li><a href="../../projects/radio_stuff.html">LoRa — Traqueur GPS via LoRaWAN</a></li>
+      <li><a href="../../projects/telco.html">Redirection LTE / 5G-NSA → 2G</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp" open>
+      <summary>Cours <span class="n">13</span></summary>
+      <ul>
+      <li><a href="../index.html">Cours</a></li>
+      <li><a href="../methodes/index.html">Méthodes</a></li>
+      <li><a href="index.html">Télécom &amp;amp; SDR</a></li>
+      <li><a href="../methodes/1-Agile.html">Methodes Agiles</a></li>
+      <li><a href="../methodes/2-Agile-TP.html">TP Agile</a></li>
+      <li><a href="../methodes/3-UML.html">Introduction à l'UML</a></li>
+      <li><a href="../methodes/4-UML-TP.html">UML Travaux Pratiques</a></li>
+      <li><a href="../methodes/5-Git.html">Introduction à GIT</a></li>
+      <li><a href="../methodes/6-Git-TP.html">Git Travaux Pratiques</a></li>
+      <li><a href="1-Lab-GSM-multiPLMN.html" aria-current="page">Lab GSM multi-opérateur — osmo_egprs</a></li>
+      <li><a href="2-QEMU-Calypso.html">Émulation du baseband Calypso —
+qemu-calypso</a></li>
+      <li><a href="3-GSM-etape-par-etape.html">Cours GSM — l'attachement d'un mobile, étape par
+étape</a></li>
+      <li><a href="4-A5-1-cracking.html">Casser A5/1 — de la capture au Kc, à la
+main</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>CTF <span class="n">3</span></summary>
+      <ul>
+      <li><a href="../../ctf/aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d/index.html">archive aaf4c61d…</a></li>
+      <li><a href="../../ctf/index.html">Password Protected</a></li>
+      <li><a href="../../ctf/ctf.html">Capture the flag</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Infos <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../infos/index.html">Informations gathered</a></li>
+      <li><a href="../../infos/README.html">show my ip</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>archives <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../archives/index.html">Archives</a></li>
+      <li><a href="../../archives/To_Do.html">To Do : Build the portfolio</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>exemples <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../exemples/index.html">Exemples</a></li>
+      <li><a href="../../exemples/gsm-lab-wallpaper.html">GSM Lab — Wallpaper</a></li>
+      </ul>
+    </details>
+</nav>
+
+  <header class="title-block">
+    <h1>Lab GSM multi-opérateur — `osmo_egprs`</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#objectifs-pédagogiques"
+id="toc-objectifs-pédagogiques">Objectifs pédagogiques</a></li>
+<li><a href="#architecture-dun-plmn" id="toc-architecture-dun-plmn">1.
+Architecture d’un PLMN</a></li>
+<li><a href="#interconnexion-multi-opérateur"
+id="toc-interconnexion-multi-opérateur">2. Interconnexion
+multi-opérateur</a>
+<ul>
+<li><a href="#plan-dadressage-ss7-itu-14-bits-zone.network.node"
+id="toc-plan-dadressage-ss7-itu-14-bits-zone.network.node">Plan
+d’adressage SS7 (ITU 14 bits <code>zone.network.node</code>)</a></li>
+</ul></li>
+<li><a href="#mise-en-route" id="toc-mise-en-route">3. Mise en route</a>
+<ul>
+<li><a href="#séquence-de-démarrage-ordre-critique"
+id="toc-séquence-de-démarrage-ordre-critique">Séquence de démarrage
+(ordre critique)</a></li>
+</ul></li>
+<li><a href="#explorer-le-réseau" id="toc-explorer-le-réseau">4.
+Explorer le réseau</a>
+<ul>
+<li><a href="#accès-aux-conteneurs-tmux"
+id="toc-accès-aux-conteneurs-tmux">Accès aux conteneurs (tmux)</a></li>
+<li><a href="#interfaces-vty-telnet-dans-le-conteneur"
+id="toc-interfaces-vty-telnet-dans-le-conteneur">Interfaces VTY (telnet
+dans le conteneur)</a></li>
+<li><a href="#commandes-vty-essentielles"
+id="toc-commandes-vty-essentielles">Commandes VTY essentielles</a></li>
+<li><a href="#wireshark" id="toc-wireshark">Wireshark</a></li>
+</ul></li>
+<li><a href="#sms-et-voix" id="toc-sms-et-voix">5. SMS et voix</a></li>
+<li><a href="#ran-virtuel-brancher-un-baseband-émulé"
+id="toc-ran-virtuel-brancher-un-baseband-émulé">6. RAN virtuel :
+brancher un baseband émulé</a></li>
+<li><a href="#diagnostic-résoudre-les-prohib"
+id="toc-diagnostic-résoudre-les-prohib">7. Diagnostic — résoudre les
+<code>PROHIB</code></a></li>
+</ul>
+  </nav>
+  <main>
+<blockquote>
+<p>Module pratique : monter un <strong>réseau GSM multi-opérateur
+complet</strong>, interconnecté en <strong>SS7 sur IP</strong>,
+entièrement conteneurisé avec Docker. Code : <a
+href="https://github.com/bbaranoff/osmo_egprs">github.com/bbaranoff/osmo_egprs</a></p>
+</blockquote>
+<pre class="tip"><code>
+Ce lab reproduit ce qu&#39;un opérateur mobile 2G fait réellement : cœur de réseau
+Osmocom (BTS/BSC/MSC/HLR/MGW), signalisation SS7 entre opérateurs, SMS et voix —
+et même un **baseband émulé** (voir [module 8](2-QEMU-Calypso.md)). Aucun matériel
+radio n&#39;est nécessaire.
+</code></pre>
+<p><strong>🎥 PoC — osmo_egprs</strong></p>
+<iframe src="https://www.youtube.com/embed/wDtq5AQ6RM8" title="PoC" width="560" height="315" style="width:min(560px,100%);aspect-ratio:16/9;height:auto;border:0;border-radius:10px;margin:.4rem 0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy">
+</iframe>
+<h2 id="objectifs-pédagogiques">Objectifs pédagogiques</h2>
+<ul>
+<li>Comprendre l’architecture d’un <strong>PLMN</strong> (Public Land
+Mobile Network) 2G.</li>
+<li>Câbler la <strong>signalisation SS7/M3UA</strong> entre plusieurs
+opérateurs.</li>
+<li>Provisionner des abonnés (IMSI, MSISDN, Ki) dans un
+<strong>HLR</strong>.</li>
+<li>Observer une <strong>Location Update</strong>, une
+<strong>authentification COMP128v1</strong>, un <strong>chiffrement
+A5/1</strong>, des <strong>SMS</strong> et un <strong>appel
+voix</strong> de bout en bout.</li>
+<li>Lire la signalisation dans <strong>Wireshark</strong> (M3UA, SCCP,
+GSM MAP, GSMTAP).</li>
+</ul>
+<hr />
+<h2 id="architecture-dun-plmn">1. Architecture d’un PLMN</h2>
+<p>Chaque opérateur simulé repose sur la pile Osmocom standard, tous les
+composants dans un seul conteneur Docker, communiquant par
+<code>127.0.0.1</code>.</p>
+<pre class="mermaid"><code>flowchart LR
+    UE --&gt; BTS
+    BTS --&gt;|Abis/IP| BSC
+    BSC --&gt;|SCCP via STP| MSC
+    MSC --&gt;|GSUP| HLR
+    MSC --&gt;|MGCP| MGW
+    MSC --&gt;|MNCC| Asterisk</code></pre>
+<p>Le <strong>STP</strong> local sert de hub de signalisation
+intra-PLMN.</p>
+<h2 id="interconnexion-multi-opérateur">2. Interconnexion
+multi-opérateur</h2>
+<p>C’est le cœur du projet : <em>N</em> opérateurs (1 à 9), chacun avec
+son cœur de réseau dans un conteneur dédié, reliés par un
+<strong>Inter-STP central</strong> qui route la signalisation M3UA/SCCP
+entre eux. Le projet automatise ce qui se fait habituellement à la main
+— l’auteur le résume comme un <strong>« DHCP pour SS7 »</strong>.</p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph op1[&quot;Conteneur osmo-operator-1&quot;]
+        BSC_A[&quot;BSC 1.23.3&quot;] --&gt;|127.0.0.1:2905| STP_A[&quot;STP 1.23.2&quot;]
+        MSC_A[&quot;MSC 1.23.1&quot;] --&gt;|127.0.0.1:2905| STP_A
+    end
+    subgraph op2[&quot;Conteneur osmo-operator-2&quot;]
+        BSC_B[&quot;BSC 2.23.3&quot;] --&gt;|127.0.0.1:2905| STP_B[&quot;STP 2.23.2&quot;]
+        MSC_B[&quot;MSC 2.23.1&quot;] --&gt;|127.0.0.1:2905| STP_B
+    end
+    INTER[&quot;Inter-STP 0.23.0&quot;]
+    STP_A &lt;--&gt;|&quot;RCTX 150 / :2908&quot;| INTER
+    STP_B &lt;--&gt;|&quot;RCTX 250 / :2908&quot;| INTER</code></pre>
+<p>Toutes les valeurs qui dépendent de <em>N</em> (point codes, routing
+contexts, ARFCN, adresses IP, trunks SIP, tables SMS) sont
+<strong>générées au démarrage</strong> — aucun fichier n’est écrit en
+dur pour un nombre fixe d’opérateurs.</p>
+<h3 id="plan-dadressage-ss7-itu-14-bits-zone.network.node">Plan
+d’adressage SS7 (ITU 14 bits <code>zone.network.node</code>)</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Nœud</th>
+<th>Point Code</th>
+<th>Formule</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Inter-STP</td>
+<td><code>0.23.0</code></td>
+<td>fixe</td>
+</tr>
+<tr class="even">
+<td>MSC opérateur <em>N</em></td>
+<td><code>N.23.1</code></td>
+<td>zone = <em>N</em></td>
+</tr>
+<tr class="odd">
+<td>STP opérateur <em>N</em></td>
+<td><code>N.23.2</code></td>
+<td>zone = <em>N</em></td>
+</tr>
+<tr class="even">
+<td>BSC opérateur <em>N</em></td>
+<td><code>N.23.3</code></td>
+<td>zone = <em>N</em></td>
+</tr>
+</tbody>
+</table>
+<p>Le routing context <strong>inter</strong> <code>N×100+50</code> est
+le plus critique : il relie le STP de chaque opérateur à
+l’Inter-STP.</p>
+<hr />
+<h2 id="mise-en-route">3. Mise en route</h2>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/bbaranoff/osmo_egprs</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> osmo_egprs</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ./tools/make-docker-image.sh    <span class="co"># build de l&#39;image Docker (une seule fois)</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ./start.sh                      <span class="co"># choisir &quot;bridge&quot;, saisir N opérateurs</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ./provision_hlr.sh              <span class="co"># provisionner les abonnés de test</span></span></code></pre></div>
+<p>Arrêt : <code>sudo ./start.sh stop</code>.</p>
+<h3 id="séquence-de-démarrage-ordre-critique">Séquence de démarrage
+(ordre critique)</h3>
+<pre><code>./start.sh  [bridge]
+ ├── saisie N opérateurs + MCC/MNC/nom
+ ├── création du réseau gsm-inter (172.20.0.0/24)
+ ├── génération osmo-stp-interop.cfg
+ ├── lancement de l&#39;Inter-STP  (DOIT écouter :2908 AVANT les opérateurs)
+ └── pour chaque opérateur N :
+      ├── substitution des templates (point codes, RCTX, ARFCN…)
+      ├── docker run sur gsm-inter @ 172.20.0.(10+N)
+      └── services via run.sh + tmux</code></pre>
+<p>L’Inter-STP doit être à l’écoute <strong>avant</strong> que les STP
+opérateurs tentent de s’y connecter, sinon on obtient une route
+<code>PROHIB</code> (voir Diagnostic).</p>
+<hr />
+<h2 id="explorer-le-réseau">4. Explorer le réseau</h2>
+<h3 id="accès-aux-conteneurs-tmux">Accès aux conteneurs (tmux)</h3>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> docker exec <span class="at">-ti</span> osmo-operator-1 tmux attach        <span class="co"># STP/MSC/HLR/BSC/BTS/SMSC</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> docker exec <span class="at">-ti</span> osmo-inter-stp  tmux attach <span class="at">-t</span> stp <span class="co"># l&#39;Inter-STP</span></span></code></pre></div>
+<h3 id="interfaces-vty-telnet-dans-le-conteneur">Interfaces VTY (telnet
+dans le conteneur)</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Port</th>
+<th>Composant</th>
+<th></th>
+<th>Port</th>
+<th>Composant</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>4239</td>
+<td>OsmoSTP</td>
+<td></td>
+<td>4254</td>
+<td>OsmoMSC</td>
+</tr>
+<tr class="even">
+<td>4242</td>
+<td>OsmoBSC</td>
+<td></td>
+<td>4258</td>
+<td>OsmoHLR</td>
+</tr>
+<tr class="odd">
+<td>4243</td>
+<td>OsmoMGW</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="commandes-vty-essentielles">Commandes VTY essentielles</h3>
+<pre><code># STP (4239) — diagnostic SS7
+show cs7 instance 0 asp        # état des ASP (ACTIVE / DOWN)
+show cs7 instance 0 route      # table de routage — PROHIB ?
+
+# HLR (4258)
+subscriber imsi 001010000000001 show
+show gsup-clients
+
+# MSC (4254) — envoyer un SMS de test
+subscriber msisdn 10001 sms sender msisdn 10002 send Bonjour</code></pre>
+<h3 id="wireshark">Wireshark</h3>
+<p>Lancé automatiquement sur le bridge Docker. Filtres utiles :</p>
+<pre><code>m3ua                  # trafic M3UA
+sccp                  # messages SCCP
+gsm_map               # messages MAP
+gsmtap                # trafic radio (interface Um)
+sctp.srcport == 2908  # vers/depuis l&#39;Inter-STP</code></pre>
+<hr />
+<h2 id="sms-et-voix">5. SMS et voix</h2>
+<p><strong>SMS inter-opérateur</strong> :
+<code>sms-interop-relay.py</code> surveille le log MO du SMSC, parse le
+TPDU GSM 03.40, consulte <code>sms-routing.conf</code> (longest-prefix
+match) et relaie en TCP:7890 vers l’opérateur cible, qui résout le
+MSISDN → IMSI par le VTY du HLR avant de délivrer le SMS MT.</p>
+<p><strong>Voix inter-opérateur</strong> : chaque MSC parle MNCC à un
+Asterisk local ; les Asterisk des opérateurs sont reliés par des
+<strong>trunks SIP</strong> sur le backbone Docker. Le dialplan route
+sur le premier chiffre du numéro composé (convention : chiffre
+<em>N</em> = opérateur <em>N</em>).</p>
+<hr />
+<h2 id="ran-virtuel-brancher-un-baseband-émulé">6. RAN virtuel :
+brancher un baseband émulé</h2>
+<p>Le lab intègre un <strong>mode PHY <code>qemu</code></strong> qui
+remplace le SDR par un <strong>baseband Calypso entièrement
+émulé</strong> — le <a href="2-QEMU-Calypso.html">module 8</a> lui est
+consacré.</p>
+<table>
+<colgroup>
+<col style="width: 48%" />
+<col style="width: 24%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>PHY_MODE</code></th>
+<th>Pile</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>faketrx</code> (défaut)</td>
+<td><code>fake_trx</code> → <code>trxcon</code> →
+<code>mobile</code></td>
+<td>multi-MS, rapide</td>
+</tr>
+<tr class="even">
+<td><code>virtphy</code></td>
+<td><code>osmo-bts-virtual</code> ↔︎ <code>virtphy</code> ↔︎
+<code>mobile</code></td>
+<td>multi-MS via multicast</td>
+</tr>
+<tr class="odd">
+<td><code>qemu</code></td>
+<td><code>osmo-bts-trx</code> ↔︎ <code>bridge.py</code> ↔︎ QEMU Calypso ↔︎
+<code>mobile</code></td>
+<td><strong>baseband émulé (ARM7 + DSP)</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="diagnostic-résoudre-les-prohib">7. Diagnostic — résoudre les
+<code>PROHIB</code></h2>
+<table>
+<colgroup>
+<col style="width: 27%" />
+<col style="width: 43%" />
+<col style="width: 29%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symptôme</th>
+<th>Cause probable</th>
+<th>Correctif</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Route <code>0.0.0/0</code> en <code>PROHIB</code></td>
+<td>Inter-STP pas démarré / mauvaise IP</td>
+<td>vérifier <code>INTER_STP_IP</code> et l’IP backbone</td>
+</tr>
+<tr class="even">
+<td>Pas de routes dynamiques</td>
+<td>MSC/BSC ne se connectent pas au STP</td>
+<td>les ASP doivent pointer sur <code>127.0.0.1</code></td>
+</tr>
+<tr class="odd">
+<td>ASP <code>DOWN</code> sur l’Inter-STP</td>
+<td>race condition Docker</td>
+<td><code>docker restart</code> de l’opérateur</td>
+</tr>
+</tbody>
+</table>
+<pre class="warning"><code>
+L&#39;ordre de démarrage est la première cause d&#39;échec : l&#39;Inter-STP écoute sur
+`127.0.0.1:2905` immédiatement, mais le lien inter-conteneur n&#39;existe qu&#39;après
+`docker network connect`. En cas de doute, redémarrer l&#39;opérateur fautif.
+</code></pre>
+<hr />
+<p><em>Suite du module : <a href="2-QEMU-Calypso.html">8 — Émulation du
+baseband Calypso (QEMU-Calypso)</a>.</em></p>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

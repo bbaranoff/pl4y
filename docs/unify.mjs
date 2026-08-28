@@ -43,6 +43,24 @@ const HOME = process.env.HOME || "/root";
 const FORCE = process.env.FORCE === "1";
 const VENV = process.env.PL4Y_VENV || join(HOME, ".env");
 
+// Resolution d'un depot source. Les depots sont des VOISINS de celui-ci :
+//   ~/pl4y/            <- ce depot
+//   ~/software-defined-radio/
+//   ~/bbaranoff.github.io/
+// On cherche donc d'abord `../<nom>` (relatif au depot, donc valable quel que
+// soit l'utilisateur ou le point de montage : clone dans /srv, CI, conteneur),
+// puis $HOME/<nom> en repli pour les configurations ou les depots ne sont pas
+// ranges cote a cote. Une variable d'environnement par section a le dernier mot
+// (ex. PL4Y_SRC_SDR=/chemin/vers/software-defined-radio).
+const SIBLINGS = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
+function sourceDir(key, ...parts) {
+  const env = process.env[`PL4Y_SRC_${key.toUpperCase()}`];
+  if (env) return env;
+  const sibling = join(SIBLINGS, ...parts);
+  if (existsSync(sibling)) return sibling;
+  return join(HOME, ...parts);
+}
+
 // Cloudflare Workers Static Assets : 25 MiB max par fichier. On coupe a 20 pour
 // garder de la marge (et parce qu'aucun media du site n'a besoin d'etre plus gros).
 const MAX_ASSET = 20 * 1024 * 1024;
@@ -56,6 +74,23 @@ const NOISE = [
   /(^|\/)Gemfile(\.lock)?$/, /(^|\/)webpack\.config\.js$/, /(^|\/)Makefile$/,
   /(^|\/)_config\.yml$/, /(^|\/)\.gitignore$/, /(^|\/)LICENSE$/,
   /(^|\/)[^/]*\.gemspec$/, /(^|\/)google[0-9a-f]+\.html$/,
+  // Cache de build Sphinx : `.doctrees/` (1,3 Mo de pickles de l'etat interne)
+  // et `.buildinfo`. Sphinx les ecrit A COTE du HTML quand la sortie et le
+  // cache partagent un repertoire, donc la copie les emportait et ils
+  // finissaient servis publiquement, `environment.pickle` compris.
+  /(^|\/)\.doctrees(\/|$)/, /(^|\/)\.buildinfo$/,
+  // `_site/` : la sortie Jekyll du depot source (elle figure dans son propre
+  // .gitignore). C'est un DOUBLON complet de l'arbre, rendu avec l'ancien theme
+  // Jekyll — exactement ce que ce workflow remplace. Sans ce filtre, chaque
+  // page existait deux fois (/bbaranoff/ctf/x.html et /bbaranoff/_site/ctf/x.html)
+  // et le site pesait 50 Mo de trop.
+  /(^|\/)_site(\/|$)/,
+  // Fichiers vides nommes "0.2" / "=0.2" : artefacts d'un `pip install x >=0.2`
+  // ou le shell a pris `>=0.2` pour une redirection. Sans interet, et publies
+  // tels quels comme des "medias".
+  /(^|\/)=?[0-9]+(\.[0-9]+)*$/,
+  // Machinerie R / readthedocs tiree de bbaranoff.github.io/cours.
+  /(^|\/)\.Rhistory$/, /(^|\/)\.Rbuildignore$/, /(^|\/)\.readthedocs\.yaml$/,
 ];
 
 const log = (s) => console.log(s);
@@ -88,7 +123,7 @@ const SOURCES = {
       "Bundle complet du depot <code>qemu-calypso</code> : documentation, tests, " +
       "headers, sources C du DSP C54x, scripts Python et shell — chaque fichier " +
       "dans son bloc de code, avec filtre et recherche plein-texte.",
-    src: join(HOME, "qemu-calypso"),
+    src: sourceDir("calypso", "qemu-calypso"),
     out: join(PUBLIC, "calypso"),
     build: buildCalypso,
   },
@@ -97,7 +132,7 @@ const SOURCES = {
     blurb:
       "La documentation <strong>software-defined-radio.com</strong> : 2G / 3G / 4G / 5G " +
       "et SDR, en francais et en anglais (Sphinx + MyST).",
-    src: join(HOME, "software-defined-radio"),
+    src: sourceDir("sdr", "software-defined-radio"),
     out: join(PUBLIC, "sdr"),
     build: buildSdr,
   },
@@ -106,7 +141,7 @@ const SOURCES = {
     blurb:
       "Le contenu de <strong>bbaranoff.github.io</strong> : cours (Agile, UML, Git), " +
       "projets radio (IMSI catcher, chiffrement, LoRa, ADS-B), CTF et jeux.",
-    src: join(HOME, "bbaranoff.github.io"),
+    src: sourceDir("bbaranoff", "bbaranoff.github.io"),
     out: join(PUBLIC, "bbaranoff"),
     build: buildBbaranoff,
   },
@@ -116,7 +151,7 @@ const SOURCES = {
       "Bundle complet du depot <code>osmo_egprs</code> : la plateforme multi-PLMN " +
       "(Docker, configs Osmocom, reseau, helpers, scripts de lancement) — meme " +
       "rendu que le bundle Calypso, chaque fichier dans son bloc de code.",
-    src: join(HOME, "osmo_egprs"),
+    src: sourceDir("osmo_egprs", "osmo_egprs"),
     out: join(PUBLIC, "osmo_egprs"),
     build: buildEgprs,
   },
@@ -126,7 +161,7 @@ const SOURCES = {
       "Le rapport de test genere par <code>tests/conftest.py</code> dans le fork " +
       "<strong>qemu</strong> : statut global, pipeline GSM colorie par taux de " +
       "reussite, detail par test — plus les diagrammes et la timeline bruts.",
-    src: join(HOME, "qemu", "tests"),
+    src: sourceDir("tests", "qemu", "tests"),
     out: join(PUBLIC, "tests"),
     build: buildTests,
   },
@@ -319,13 +354,25 @@ function pruneEmptyPages(work) {
   return titles;
 }
 
-// Le _quarto.yml genere vise le theme "sketchy" et execute les blocs de code :
-// on passe sur un theme neutre (le skin pl4y fait le reste) et on coupe
-// l'execution, qui exigerait Jupyter et casse le rendu.
+// Le _quarto.yml genere vise le theme "sketchy" et execute les blocs de code.
+//
+// On GARDE sketchy : c'est le theme de tout pl4y.store, et le skin (pl4y-doc.css)
+// est ecrit pour prolonger sa grammaire, pas pour la recouvrir. Le rabattre sur
+// "cosmo" — ce que faisait cette fonction — donnait a /calypso/ un socle
+// Bootstrap neutre la ou /osmo_egprs/ avait le vrai trait : deux sections du
+// meme site rendues differemment.
+// La seule chose qu'on coupe, c'est l'execution des blocs de code : elle
+// exigerait Jupyter et casse le rendu.
+//
+// Repli : si sketchy.css n'a pas ete depose a cote du config (bundler plus
+// ancien), on retire la ligne `css:` plutot que de laisser quarto echouer sur
+// un fichier absent — le theme bootswatch seul suffit alors.
 function patchQuartoConfig(p) {
   if (!existsSync(p)) return;
   let y = readFileSync(p, "utf8");
-  y = y.replace(/^ {4}theme: \[sketchy\]\n {4}css: sketchy\.css\n/m, "    theme: [cosmo]\n");
+  if (!existsSync(join(dirname(p), "sketchy.css"))) {
+    y = y.replace(/^ {4}css: sketchy\.css\n/m, "");
+  }
   if (!/^execute:/m.test(y)) y = y.replace(/^format:/m, "execute:\n  enabled: false\n  freeze: false\n\nformat:");
   writeFileSync(p, y);
 }
@@ -369,6 +416,12 @@ function buildBbaranoff(s) {
   const mdStems = new Set(mdFiles.map((r) => r.replace(/\.md$/i, "")));
   const keptHtml = htmlFiles.filter((r) => !mdStems.has(r.replace(/\.html?$/i, "")));
 
+  // On repart d'un repertoire VIDE. Un `mkdirSync` seul laissait survivre les
+  // pages dont la source avait disparu : `To_Do.html` restait publie longtemps
+  // apres que `To_Do.md` ait ete deplace dans `archives/`, et d'anciens
+  // repertoires parasites tenaient indefiniment. Le rendu est integral et
+  // rapide (pandoc, ~50 pages), donc rien ne justifie un rendu incremental.
+  rmSync(s.out, { recursive: true, force: true });
   mkdirSync(s.out, { recursive: true });
   let n = 0;
   for (const rel of mdFiles) {

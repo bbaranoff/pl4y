@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Cryptanalyse — TEA1 &amp; DST80 &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+<!-- pl4y-sectnav v1 -->
+<nav class="pl4y-sect" aria-label="Sommaire de la section">
+  <div class="pl4y-sect-head">bbaranoff.github.io</div>
+    <details class="pl4y-sect-grp">
+      <summary>Accueil <span class="n">5</span></summary>
+      <ul>
+      <li><a href="../index.html">Bastien Baranoff — SDR &amp;
+Cybersécurité</a></li>
+      <li><a href="../GSM_lab.html">Bundled Page</a></li>
+      <li><a href="../privacy.html">Privacy</a></li>
+      <li><a href="../README.html">bbaranoff.github.io</a></li>
+      <li><a href="../whoami.html">Who am I ?</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp" open>
+      <summary>Projets <span class="n">6</span></summary>
+      <ul>
+      <li><a href="index.html">Projets</a></li>
+      <li><a href="0-abstract_radio.html">Abstract — Attaques sur les protocoles
+radio</a></li>
+      <li><a href="cryptanalyse.html" aria-current="page">Cryptanalyse — TEA1 &amp; DST80</a></li>
+      <li><a href="qemu-calypso.html">QEMU-Calypso</a></li>
+      <li><a href="radio_stuff.html">LoRa — Traqueur GPS via LoRaWAN</a></li>
+      <li><a href="telco.html">Redirection LTE / 5G-NSA → 2G</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Cours <span class="n">13</span></summary>
+      <ul>
+      <li><a href="../cours/index.html">Cours</a></li>
+      <li><a href="../cours/methodes/index.html">Méthodes</a></li>
+      <li><a href="../cours/telco/index.html">Télécom &amp;amp; SDR</a></li>
+      <li><a href="../cours/methodes/1-Agile.html">Methodes Agiles</a></li>
+      <li><a href="../cours/methodes/2-Agile-TP.html">TP Agile</a></li>
+      <li><a href="../cours/methodes/3-UML.html">Introduction à l'UML</a></li>
+      <li><a href="../cours/methodes/4-UML-TP.html">UML Travaux Pratiques</a></li>
+      <li><a href="../cours/methodes/5-Git.html">Introduction à GIT</a></li>
+      <li><a href="../cours/methodes/6-Git-TP.html">Git Travaux Pratiques</a></li>
+      <li><a href="../cours/telco/1-Lab-GSM-multiPLMN.html">Lab GSM multi-opérateur — osmo_egprs</a></li>
+      <li><a href="../cours/telco/2-QEMU-Calypso.html">Émulation du baseband Calypso —
+qemu-calypso</a></li>
+      <li><a href="../cours/telco/3-GSM-etape-par-etape.html">Cours GSM — l'attachement d'un mobile, étape par
+étape</a></li>
+      <li><a href="../cours/telco/4-A5-1-cracking.html">Casser A5/1 — de la capture au Kc, à la
+main</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>CTF <span class="n">3</span></summary>
+      <ul>
+      <li><a href="../ctf/aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d/index.html">archive aaf4c61d…</a></li>
+      <li><a href="../ctf/index.html">Password Protected</a></li>
+      <li><a href="../ctf/ctf.html">Capture the flag</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Infos <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../infos/index.html">Informations gathered</a></li>
+      <li><a href="../infos/README.html">show my ip</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>archives <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../archives/index.html">Archives</a></li>
+      <li><a href="../archives/To_Do.html">To Do : Build the portfolio</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>exemples <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../exemples/index.html">Exemples</a></li>
+      <li><a href="../exemples/gsm-lab-wallpaper.html">GSM Lab — Wallpaper</a></li>
+      </ul>
+    </details>
+</nav>
+
+  <header class="title-block">
+    <h1>Cryptanalyse — TEA1 &amp; DST80</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#tea1-brute-force-de-clé-opencl"
+id="toc-tea1-brute-force-de-clé-opencl">TEA1 — brute-force de clé
+(OpenCL)</a>
+<ul>
+<li><a href="#principe-attaque-à-texte-clair-connu-kpa"
+id="toc-principe-attaque-à-texte-clair-connu-kpa">Principe — attaque à
+texte clair connu (KPA)</a></li>
+<li><a href="#utilisation" id="toc-utilisation">Utilisation</a></li>
+<li><a href="#impact-limites" id="toc-impact-limites">Impact &amp;
+limites</a></li>
+</ul></li>
+<li><a href="#dst80-reversing-brute-force-opencl"
+id="toc-dst80-reversing-brute-force-opencl">DST80 — reversing &amp;
+brute-force (OpenCL)</a>
+<ul>
+<li><a href="#pourquoi-cest-cassable"
+id="toc-pourquoi-cest-cassable">Pourquoi c’est cassable</a>
+<ul>
+<li><a href="#stratégie-en-paliers-méthode-iacr"
+id="toc-stratégie-en-paliers-méthode-iacr">Stratégie en paliers (méthode
+IACR)</a></li>
+</ul></li>
+<li><a href="#scripts" id="toc-scripts">Scripts</a></li>
+<li><a href="#utilisation-1" id="toc-utilisation-1">Utilisation</a>
+<ul>
+<li><a href="#générateur-de-signature"
+id="toc-générateur-de-signature">Générateur de signature</a></li>
+<li><a href="#récupération-des-constantes-numéro-de-série-connu"
+id="toc-récupération-des-constantes-numéro-de-série-connu">Récupération
+des constantes (numéro de série connu)</a></li>
+</ul></li>
+</ul></li>
+</ul>
+  </nav>
+  <main>
+<blockquote>
+<p>Deux chiffrements du monde réel ramenés à un <strong>brute-force GPU
+pratique</strong> : <strong>TEA1</strong> (radio professionnelle TETRA)
+et <strong>DST80</strong> (clés de voiture / RFID). Voir aussi <a
+href="../cours/telco/4-A5-1-cracking.html">Casser A5/1</a> et la <a
+href="0-abstract_radio.html">vue d’ensemble des attaques radio</a>.</p>
+</blockquote>
+<pre class="danger"><code>
+**Cadre légal.** Ces outils sont fournis à des fins **éducatives et de recherche en
+cybersécurité**. Intercepter ou décoder des communications, ou cloner un
+transpondeur, **sans autorisation** est illégal dans la plupart des juridictions.
+L&#39;utilisateur est seul responsable de l&#39;usage qu&#39;il en fait.
+</code></pre>
+<hr />
+<h1 id="tea1-brute-force-de-clé-opencl">TEA1 — brute-force de clé
+(OpenCL)</h1>
+<p>Outil de recherche de clé pour <strong>TEA1</strong>, l’un des
+chiffrements de la radio professionnelle <strong>TETRA</strong>. Il
+exploite la puissance parallèle du <strong>GPU</strong> via
+<strong>OpenCL</strong> pour parcourir l’intégralité de l’espace de clé
+<strong>32 bits</strong> en un temps record. Dépôt : <a
+href="https://github.com/bbaranoff/tea1-cracker"><code>tea1-cracker</code></a>.</p>
+<h2 id="principe-attaque-à-texte-clair-connu-kpa">Principe — attaque à
+texte clair connu (KPA)</h2>
+<p>TEA1 est un chiffrement <strong>de flux</strong> :
+<code>chiffré = clair ⊕ keystream</code>. Si l’on dispose d’un fragment
+du flux chiffré <strong>et</strong> que l’on connaît (ou devine) le
+clair correspondant, on isole le <strong>keystream</strong> ; le cracker
+teste alors les clés candidates jusqu’à reproduire ce keystream.</p>
+<ul>
+<li><strong>Reconstruction de l’IV</strong> — <code>build_iv</code>
+reconstitue le vecteur d’initialisation à partir des paramètres de trame
+(timeslot, frame number, direction…).</li>
+<li><strong>Parallélisation GPU</strong> — l’espace de clés est découpé
+en <em>batches</em> ; le kernel OpenCL teste des milliers de clés
+simultanément.</li>
+<li><strong>Validation 64 bits</strong> — au lieu de 32 bits, le script
+vérifie <strong>64 bits</strong> de keystream pour éliminer les
+collisions (« fausses alertes ») et garantir que la clé trouvée est
+l’unique bonne clé.</li>
+</ul>
+<h2 id="utilisation">Utilisation</h2>
+<p>Prérequis : un <strong>GPU compatible OpenCL</strong>, Python 3
+(<code>pyopencl</code>, <code>numpy</code>).</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> crack_tea1.py <span class="op">&lt;</span>TN<span class="op">&gt;</span> <span class="op">&lt;</span>HN<span class="op">&gt;</span> <span class="op">&lt;</span>MN<span class="op">&gt;</span> <span class="op">&lt;</span>FN<span class="op">&gt;</span> <span class="op">&lt;</span>SN<span class="op">&gt;</span> <span class="op">&lt;</span>Direction<span class="op">&gt;</span> <span class="op">&lt;</span>Keystream_Hex<span class="op">&gt;</span></span></code></pre></div>
+<ul>
+<li><code>TN</code> <code>HN</code> <code>MN</code> <code>FN</code>
+<code>SN</code> — numéros de trames et slots (Time / Hyper / Macro /
+Frame numbers).</li>
+<li><code>Direction</code> — <code>0</code> (uplink) ou <code>1</code>
+(downlink).</li>
+<li><code>Keystream_Hex</code> — les 16 premiers caractères hexadécimaux
+du keystream extrait.</li>
+</ul>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> tea1_opencl_crack.py 1 110 30 06 1 0 0BE7FE9AE1EA459F866919C9E2EA1E11A77A4493D658A419...</span></code></pre></div>
+<h2 id="impact-limites">Impact &amp; limites</h2>
+<ul>
+<li><strong>Vitesse</strong> — tout l’espace 32 bits en quelques
+<strong>minutes</strong> (voire secondes) sur un GPU milieu de gamme,
+contre plusieurs heures sur CPU.</li>
+<li><strong>Sécurité</strong> — avec seulement ~<strong>32 bits</strong>
+d’entropie effective (faiblesse de classe <em>backdoor</em>,
+cf. <em>TETRA:BURST</em>), TEA1 ne résiste pas à une analyse
+computationnelle moderne.</li>
+<li><strong>Limite</strong> — il faut identifier au moins <strong>8
+octets</strong> de clair connu (en-têtes LLC / IP) pour extraire le
+keystream.</li>
+</ul>
+<hr />
+<h1 id="dst80-reversing-brute-force-opencl">DST80 — reversing &amp;
+brute-force (OpenCL)</h1>
+<p><strong>🎥 PoC — TEA1</strong></p>
+<iframe src="https://www.youtube.com/embed/39nY4-2f3ts" title="PoC" width="560" height="315" style="width:min(560px,100%);aspect-ratio:16/9;height:auto;border:0;border-radius:10px;margin:.4rem 0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy">
+</iframe>
+<p>Récupération des clés <strong>TI DST80</strong> (<em>Digital
+Signature Transponder</em> — immobiliseurs et clés mains-libres
+automobile / RFID) via <strong>OpenCL</strong>. Démontre comment des
+faiblesses d’architecture et des <strong>constantes
+constructeur</strong> ramènent la marge théorique de <strong>80
+bits</strong> à un brute-force <strong>pratique</strong>. Dépôt : <a
+href="https://github.com/bbaranoff/dst80_reversing"><code>dst80_reversing</code></a>
+— d’après <a
+href="https://tches.iacr.org/index.php/TCHES/article/view/8546"><em>Dismantling
+DST80</em> (Wouters et al., IACR TCHES 2020)</a>.</p>
+<h2 id="pourquoi-cest-cassable">Pourquoi c’est cassable</h2>
+<p>La clé de 80 bits est scindée en deux moitiés de 40 bits —
+<strong>KL</strong> (Key Left) et <strong>KR</strong> (Key Right). Mais
+l’entropie réellement déployée est bien moindre :</p>
+<ul>
+<li><strong>Contrainte de symétrie</strong> — souvent
+<code>KR = complément inversé de KL</code> : l’espace est <strong>divisé
+par deux</strong>.</li>
+<li><strong>Constantes constructeur</strong> — sur les 80 bits,
+~<strong>32 bits</strong> sont des constantes fixes propres au
+fabricant.</li>
+<li><strong>Espace réduit</strong> — en combinant, la complexité tombe à
+~<strong>2³²</strong> (selon les constantes connues).</li>
+</ul>
+<h3 id="stratégie-en-paliers-méthode-iacr">Stratégie en paliers (méthode
+IACR)</h3>
+<ol type="1">
+<li><strong>Constantes inconnues</strong> — sur un GPU d’entrée (RTX
+3050 Ti), retrouver une clé complète avec un octet inconnu prend
+~<strong>300 min (5 h)</strong>.</li>
+<li><strong>Constantes connues</strong> — l’espace tombe à ~<strong>1
+min</strong>.</li>
+<li><strong>Changement de constructeur</strong> — on ré-extrait les
+constantes <strong>une</strong> fois, puis retour à ~1 min par clé.</li>
+</ol>
+<p><strong>Matériel</strong> — GPU OpenCL (NVIDIA / AMD / Intel) ; testé
+sur RTX 3050 Ti à ~<strong>35 Mkeys/s</strong>.</p>
+<h2 id="scripts">Scripts</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Fichier</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>dst80_fast.py</code></td>
+<td>recherche rapide avec octet constructeur fixe
+(<code>0x2f</code>)</td>
+</tr>
+<tr class="even">
+<td><code>dst80_constructor.py</code></td>
+<td>passe deux octets constructeur (<code>m2</code>, <code>m1</code>) en
+arguments</td>
+</tr>
+<tr class="odd">
+<td><code>dst80_reverse.py</code></td>
+<td>recherche pleine (jusqu’à 5 octets) pour identifier les constantes
+inconnues</td>
+</tr>
+<tr class="even">
+<td><code>dst80_constants.py</code></td>
+<td>récupère les <strong>constantes constructeur</strong> à partir d’un
+<strong>numéro de série</strong> connu — espace 2²⁴</td>
+</tr>
+<tr class="odd">
+<td><code>generate.py</code></td>
+<td>générateur de <strong>signature 24 bits</strong> (dérive KR depuis
+KL)</td>
+</tr>
+<tr class="even">
+<td><code>*.cl</code></td>
+<td>kernels OpenCL (simulation du chiffre DST80)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="utilisation-1">Utilisation</h2>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-r</span> requirements.txt</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># recherche rapide (suffixe constructeur connu 0x2f)</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> dst80_fast.py <span class="op">&lt;</span>c1<span class="op">&gt;</span> <span class="op">&lt;</span>t1<span class="op">&gt;</span> <span class="op">&lt;</span>c2<span class="op">&gt;</span> <span class="op">&lt;</span>t2<span class="op">&gt;</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># octets constructeur connus (ex. d1 2f)</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> dst80_constructor.py <span class="op">&lt;</span>c1<span class="op">&gt;</span> <span class="op">&lt;</span>t1<span class="op">&gt;</span> <span class="op">&lt;</span>c2<span class="op">&gt;</span> <span class="op">&lt;</span>t2<span class="op">&gt;</span> d1 2f</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co"># découverte pleine (5 octets variables)</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> dst80_reverse.py <span class="op">&lt;</span>c1<span class="op">&gt;</span> <span class="op">&lt;</span>t1<span class="op">&gt;</span> <span class="op">&lt;</span>c2<span class="op">&gt;</span> <span class="op">&lt;</span>t2<span class="op">&gt;</span> 4228250625</span></code></pre></div>
+<h3 id="générateur-de-signature">Générateur de signature</h3>
+<p><code>generate.py</code> calcule la <strong>réponse 24 bits</strong>
+d’un défi DST80, en dérivant automatiquement <strong>KR</strong> depuis
+<strong>KL</strong> (<code>KR</code> = inverse octet par octet de
+<code>KL</code>) :</p>
+<pre class="text"><code>python generate.py --kl 0xdeadbeef00 --challenge 0xcafebabe00
+  Key Left (KL)    0xdeadbeef00
+  Key Right (KR)   0xff10415221
+  Challenge        0xcafebabe00
+  SIGNATURE (RES)  0xaeecc2</code></pre>
+<p>Récupération de clé à <strong>deux défis</strong> (RTX 4090, ~26 s
+sur 2³²) :</p>
+<pre class="text"><code>python dst80_reverse.py 0xcafebabe00 0xaeecc2 0xcafebabe01 0x6a1bfc 4228250625
+Bruteforcing with GPU : NVIDIA GeForce RTX 4090 Laptop GPU
+100%|██████████████████████| 4228250625/4228250625 [00:26&lt;00:00, 157150855 keys/s]
+1 MATCH TROUVÉ : kl=0xdeadbeef00, kr=0xff10415221</code></pre>
+<h3 id="récupération-des-constantes-numéro-de-série-connu">Récupération
+des constantes (numéro de série connu)</h3>
+<p><code>dst80_constants.py</code> est l’étape d’<strong>extraction des
+constantes</strong> de l’attaque en paliers — la contrepartie logicielle
+d’un dump par <em>firmware glitching</em>. Contrairement aux autres
+scripts, il ne suppose <strong>pas</strong> la diagonale
+<code>KR = revcomp(KL)</code> : il prend le <strong>numéro de
+série</strong> du transpondeur (lisible publiquement) comme entrée fixe
+et brute-force uniquement les <strong>constantes constructeur</strong>,
+dérivant KL et KR via <code>derive_keys(serial, c0, c1, c2)</code>.
+Comme l’entropie d’un schéma dérivé du numéro de série vit entièrement
+dans ces constantes, l’espace s’effondre à <strong>2²⁴</strong> (~0,1 s
+sur RTX 4090). Une fois les constantes connues, tout transpondeur du
+même constructeur se calcule <strong>directement</strong> depuis son
+numéro de série — plus aucun brute-force.</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> dst80_constants.py <span class="op">&lt;</span>serial<span class="op">&gt;</span> <span class="op">&lt;</span>c1<span class="op">&gt;</span> <span class="op">&lt;</span>t1<span class="op">&gt;</span> <span class="op">&lt;</span>c2<span class="op">&gt;</span> <span class="op">&lt;</span>t2<span class="op">&gt;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># espace par défaut : 2^24 (3 octets de constante) — passer 4294967296 pour 2^32</span></span></code></pre></div>
+<pre class="warning"><code>
+**Vous devez fournir la dérivation.** Le bloc `derive_keys()` de
+`dst80_constants.cl` est livré comme **placeholder illustratif** et ne correspond à
+aucun constructeur réel. Remplacez-le par la vraie fonction de diversification de
+clé rétro-conçue du fabricant cible (Wouters et al., *Dismantling DST80*, IACR TCHES
+2020) avant tout usage sur des captures réelles. Validez d&#39;abord le harnais de bout
+en bout : générez deux paires défi/réponse depuis un numéro de série + des
+constantes connus, puis confirmez que le script retrouve **exactement** ces
+constantes.
+</code></pre>
+<p><strong>🎥 PoC — DST80</strong></p>
+<iframe src="https://www.youtube.com/embed/aXoWpTccLAk" title="PoC" width="560" height="315" style="width:min(560px,100%);aspect-ratio:16/9;height:auto;border:0;border-radius:10px;margin:.4rem 0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy">
+</iframe>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Cours GSM — l'attachement d'un mobile, étape par
+étape &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+<!-- pl4y-sectnav v1 -->
+<nav class="pl4y-sect" aria-label="Sommaire de la section">
+  <div class="pl4y-sect-head">bbaranoff.github.io</div>
+    <details class="pl4y-sect-grp">
+      <summary>Accueil <span class="n">5</span></summary>
+      <ul>
+      <li><a href="../../index.html">Bastien Baranoff — SDR &amp;
+Cybersécurité</a></li>
+      <li><a href="../../GSM_lab.html">Bundled Page</a></li>
+      <li><a href="../../privacy.html">Privacy</a></li>
+      <li><a href="../../README.html">bbaranoff.github.io</a></li>
+      <li><a href="../../whoami.html">Who am I ?</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Projets <span class="n">6</span></summary>
+      <ul>
+      <li><a href="../../projects/index.html">Projets</a></li>
+      <li><a href="../../projects/0-abstract_radio.html">Abstract — Attaques sur les protocoles
+radio</a></li>
+      <li><a href="../../projects/cryptanalyse.html">Cryptanalyse — TEA1 &amp; DST80</a></li>
+      <li><a href="../../projects/qemu-calypso.html">QEMU-Calypso</a></li>
+      <li><a href="../../projects/radio_stuff.html">LoRa — Traqueur GPS via LoRaWAN</a></li>
+      <li><a href="../../projects/telco.html">Redirection LTE / 5G-NSA → 2G</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp" open>
+      <summary>Cours <span class="n">13</span></summary>
+      <ul>
+      <li><a href="../index.html">Cours</a></li>
+      <li><a href="../methodes/index.html">Méthodes</a></li>
+      <li><a href="index.html">Télécom &amp;amp; SDR</a></li>
+      <li><a href="../methodes/1-Agile.html">Methodes Agiles</a></li>
+      <li><a href="../methodes/2-Agile-TP.html">TP Agile</a></li>
+      <li><a href="../methodes/3-UML.html">Introduction à l'UML</a></li>
+      <li><a href="../methodes/4-UML-TP.html">UML Travaux Pratiques</a></li>
+      <li><a href="../methodes/5-Git.html">Introduction à GIT</a></li>
+      <li><a href="../methodes/6-Git-TP.html">Git Travaux Pratiques</a></li>
+      <li><a href="1-Lab-GSM-multiPLMN.html">Lab GSM multi-opérateur — osmo_egprs</a></li>
+      <li><a href="2-QEMU-Calypso.html">Émulation du baseband Calypso —
+qemu-calypso</a></li>
+      <li><a href="3-GSM-etape-par-etape.html" aria-current="page">Cours GSM — l'attachement d'un mobile, étape par
+étape</a></li>
+      <li><a href="4-A5-1-cracking.html">Casser A5/1 — de la capture au Kc, à la
+main</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>CTF <span class="n">3</span></summary>
+      <ul>
+      <li><a href="../../ctf/aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d/index.html">archive aaf4c61d…</a></li>
+      <li><a href="../../ctf/index.html">Password Protected</a></li>
+      <li><a href="../../ctf/ctf.html">Capture the flag</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Infos <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../infos/index.html">Informations gathered</a></li>
+      <li><a href="../../infos/README.html">show my ip</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>archives <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../archives/index.html">Archives</a></li>
+      <li><a href="../../archives/To_Do.html">To Do : Build the portfolio</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>exemples <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../exemples/index.html">Exemples</a></li>
+      <li><a href="../../exemples/gsm-lab-wallpaper.html">GSM Lab — Wallpaper</a></li>
+      </ul>
+    </details>
+</nav>
+
+  <header class="title-block">
+    <h1>Cours GSM — l'attachement d'un mobile, étape par étape</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#la-chaîne-complète-dun-coup-dœil"
+id="toc-la-chaîne-complète-dun-coup-dœil">La chaîne complète, d’un coup
+d’œil</a>
+<ul>
+<li><a href="#état-par-étape-shunt-vs-natif"
+id="toc-état-par-étape-shunt-vs-natif">État par étape — shunt vs
+natif</a></li>
+</ul></li>
+<li><a href="#rappels-de-couche-physique-gsm"
+id="toc-rappels-de-couche-physique-gsm">Rappels de couche physique
+GSM</a></li>
+<li><a href="#étape-1-synchro-fb-frequency-burst"
+id="toc-étape-1-synchro-fb-frequency-burst">Étape 1 — Synchro FB
+(Frequency Burst)</a></li>
+<li><a href="#étape-2-synchro-sb-sch-synchronization-burst"
+id="toc-étape-2-synchro-sb-sch-synchronization-burst">Étape 2 — Synchro
+SB / SCH (Synchronization Burst)</a></li>
+<li><a href="#étape-3-system-information-bcch"
+id="toc-étape-3-system-information-bcch">Étape 3 — System Information
+(BCCH)</a></li>
+<li><a href="#étape-4-camp-sélection-de-cellule-c1-c2-c3"
+id="toc-étape-4-camp-sélection-de-cellule-c1-c2-c3">Étape 4 — Camp
+(sélection de cellule C1 / C2 / C3)</a></li>
+<li><a href="#étape-5-accès-rach-channel-request"
+id="toc-étape-5-accès-rach-channel-request">Étape 5 — Accès RACH
+(CHANNEL REQUEST)</a></li>
+<li><a href="#étape-6-canal-dédié-immediate-assignment-sdcch"
+id="toc-étape-6-canal-dédié-immediate-assignment-sdcch">Étape 6 — Canal
+dédié (Immediate Assignment → SDCCH)</a></li>
+<li><a href="#étape-7-authentification-comp128v1"
+id="toc-étape-7-authentification-comp128v1">Étape 7 — Authentification
+(COMP128v1)</a></li>
+<li><a href="#étape-8-chiffrement-a51"
+id="toc-étape-8-chiffrement-a51">Étape 8 — Chiffrement A5/1</a></li>
+<li><a href="#étape-9-location-update-accept-tmsi"
+id="toc-étape-9-location-update-accept-tmsi">Étape 9 — Location Update
+Accept (+ TMSI)</a></li>
+<li><a href="#étape-10-appel-voix-tchf"
+id="toc-étape-10-appel-voix-tchf">Étape 10 — Appel voix (TCH/F)</a></li>
+<li><a href="#étape-11-sms-mo-mt" id="toc-étape-11-sms-mo-mt">Étape 11 —
+SMS (MO / MT)</a></li>
+<li><a href="#synthèse" id="toc-synthèse">Synthèse</a></li>
+</ul>
+  </nav>
+  <main>
+<blockquote>
+<p>De la <strong>synchro radio</strong> au <strong>premier appel
+voix</strong>, chaque étape que franchit un téléphone GSM pour
+s’attacher à un réseau. Pour chacune : ce qui est
+<strong>nécessaire</strong>, puis <strong>deux cadres</strong> — la
+version <strong><code>shunt_legit</code></strong> (l’hôte démodule) et
+la version <strong>DSP natif</strong> (le vrai baseband Calypso), telles
+que <a href="2-QEMU-Calypso.html">qemu-calypso</a> les mesure.</p>
+</blockquote>
+<pre class="tip"><code>
+Ce cours suit la séquence réelle mesurée sur le banc `shunt_legit` du 2026-08-24 :
+`synchro FB → synchro SB → sysinfo → camp → RACH → canal dédié → authentification
+→ chiffrement A5/1 → Location Update → appel voix → SMS`. À droite de chaque
+étape, l&#39;état du **mode natif**, où le DSP fait lui-même le travail.
+</code></pre>
+<div class="gsmviz">
+<style>
+.gsmviz{--gv-bg0:#0c0e1a;--gv-bg1:#151a34;--gv-panel:#181d38;--gv-panel2:#212748;--gv-ink:#eef1ff;--gv-mut:#9aa0c8;--gv-mut2:#6f76a6;--gv-line:rgba(255,255,255,.09);--gv-cyan:#33e1d0;--gv-violet:#8b7cff;--gv-pink:#ff5d84;--gv-amber:#f5b74a;--gv-green:#5ce6a1;--gv-mono:ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+  margin:26px 0 32px;padding:clamp(18px,2.6vw,30px);border-radius:20px;color:var(--gv-ink);
+  background:radial-gradient(900px 480px at 88% -20%,rgba(139,124,255,.18),transparent 60%),radial-gradient(760px 420px at 4% 120%,rgba(51,225,208,.14),transparent 60%),linear-gradient(160deg,var(--gv-bg0),var(--gv-bg1));
+  border:1px solid var(--gv-line);box-shadow:0 30px 90px -44px rgba(0,0,0,.75),inset 0 1px 0 rgba(255,255,255,.05);position:relative;overflow:hidden}
+.gsmviz::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.45;background-image:linear-gradient(var(--gv-line) 1px,transparent 1px),linear-gradient(90deg,var(--gv-line) 1px,transparent 1px);background-size:38px 38px;mask:radial-gradient(120% 120% at 50% 0,#000 28%,transparent 76%)}
+.gsmviz *{box-sizing:border-box}
+.gsmviz .gv-head{display:flex;align-items:center;gap:12px;position:relative;margin-bottom:6px}
+.gsmviz .gv-dot{width:11px;height:11px;border-radius:50%;background:var(--gv-cyan);box-shadow:0 0 18px var(--gv-cyan)}
+.gsmviz .gv-eyebrow{font:600 10px/1 var(--gv-mono);letter-spacing:.3em;text-transform:uppercase;color:var(--gv-mut)}
+.gsmviz .gv-title{font:800 clamp(20px,3.4vw,30px)/1.05 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;letter-spacing:-.02em;margin:6px 0 2px;position:relative}
+.gsmviz .gv-title b{background:linear-gradient(92deg,var(--gv-cyan),var(--gv-violet) 60%,var(--gv-pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+.gsmviz .gv-sub{color:var(--gv-mut);font:500 13px/1.5 -apple-system,sans-serif;max-width:70ch;position:relative}
+.gsmviz .gv-bread{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:20px 0 6px;position:relative}
+.gsmviz .gv-pill{font:600 10px/1 var(--gv-mono);letter-spacing:.05em;color:var(--gv-mut);border:1px solid var(--gv-line);background:rgba(255,255,255,.02);border-radius:8px;padding:8px 11px;white-space:nowrap}
+.gsmviz .gv-pill b{color:var(--gv-ink)}
+.gsmviz .gv-pill.on{color:var(--gv-cyan);border-color:rgba(51,225,208,.4)}
+.gsmviz .gv-arr{color:var(--gv-mut2);font:700 12px/1 var(--gv-mono)}
+.gsmviz .gv-sec{margin-top:22px;position:relative}
+.gsmviz .gv-lab{font:600 10px/1 var(--gv-mono);letter-spacing:.22em;text-transform:uppercase;color:var(--gv-mut);margin-bottom:11px}
+.gsmviz .gv-frame{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.gsmviz .gv-ts{border-radius:9px;padding:12px 6px 10px;text-align:center;background:linear-gradient(180deg,var(--gv-panel2),var(--gv-panel));border:1px solid var(--gv-line);transition:transform .18s}
+.gsmviz .gv-ts:hover{transform:translateY(-3px)}
+.gsmviz .gv-ts .n{font:700 12px/1 var(--gv-mono);color:var(--gv-mut)}
+.gsmviz .gv-ts .t{font:600 8px/1.3 var(--gv-mono);color:var(--gv-mut2);margin-top:6px;letter-spacing:.04em}
+.gsmviz .gv-ts.act{background:linear-gradient(180deg,rgba(139,124,255,.34),rgba(51,225,208,.10));border-color:rgba(139,124,255,.55)}
+.gsmviz .gv-ts.act .n{color:var(--gv-ink)}.gsmviz .gv-ts.act .t{color:var(--gv-cyan)}
+.gsmviz .gv-axis{display:flex;justify-content:space-between;color:var(--gv-mut2);font:500 10px/1 var(--gv-mono);margin-top:9px}
+.gsmviz .gv-burst{display:flex;height:54px;border-radius:9px;overflow:hidden;border:1px solid var(--gv-line)}
+.gsmviz .gv-seg{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:700 10px/1 var(--gv-mono);color:#0c0e1a;min-width:0;padding:2px;text-align:center}
+.gsmviz .gv-seg small{font:600 8px/1 var(--gv-mono);opacity:.72}
+.gsmviz .gv-seg.tail{background:#3a4170;color:var(--gv-mut)}
+.gsmviz .gv-seg.data{background:linear-gradient(180deg,var(--gv-cyan),#1fb9ab)}
+.gsmviz .gv-seg.steal{background:var(--gv-pink)}
+.gsmviz .gv-seg.train{background:linear-gradient(180deg,var(--gv-violet),#6a5bff);color:#fff}
+.gsmviz .gv-seg.guard{background:repeating-linear-gradient(45deg,#2a2f52,#2a2f52 6px,#232848 6px,#232848 12px);color:var(--gv-mut)}
+.gsmviz .gv-cap{color:var(--gv-mut2);font:500 11px/1.5 var(--gv-mono);margin-top:10px}
+.gsmviz .gv-cap b{color:var(--gv-pink)}
+@media(max-width:620px){.gsmviz .gv-frame{grid-template-columns:repeat(4,1fr)}.gsmviz .gv-ts .t{display:none}.gsmviz .gv-seg small{display:none}.gsmviz .gv-seg{font-size:8px}}
+</style>
+<div class="gv-head">
+<span class="gv-dot"></span><span class="gv-eyebrow">Interface Um ·
+couche physique</span>
+</div>
+<div class="gv-title">
+GSM <b>Timeslots &amp; Bursts</b>
+</div>
+<div class="gv-sub">
+Le temps est découpé en trames TDMA de 8 slots ; chaque slot porte un
+burst de 156,25 bits. C’est le terrain de jeu partagé par l’ARM et le
+DSP du baseband Calypso.
+</div>
+<div class="gv-bread">
+<p><span class="gv-pill">Hyperframe <b>2 715 648</b></span><span
+class="gv-arr">›</span> <span class="gv-pill">Superframe
+<b>1326</b></span><span class="gv-arr">›</span> <span
+class="gv-pill">Multitrame <b>51 / 26</b></span><span
+class="gv-arr">›</span> <span class="gv-pill on">Trame TDMA <b>8
+slots</b></span><span class="gv-arr">›</span> <span
+class="gv-pill">Timeslot <b>577 µs</b></span><span
+class="gv-arr">›</span> <span class="gv-pill">Burst <b>156,25
+bits</b></span></p>
+</div>
+<div class="gv-sec">
+<div class="gv-lab">
+Trame TDMA · 8 timeslots · 4,615 ms
+</div>
+<div class="gv-frame">
+<pre><code>&lt;div class=&quot;gv-ts act&quot;&gt;&lt;div class=&quot;n&quot;&gt;TS0&lt;/div&gt;&lt;div class=&quot;t&quot;&gt;FCCH·SCH·BCCH&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-ts&quot;&gt;&lt;div class=&quot;n&quot;&gt;TS1&lt;/div&gt;&lt;div class=&quot;t&quot;&gt;SDCCH&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-ts&quot;&gt;&lt;div class=&quot;n&quot;&gt;TS2&lt;/div&gt;&lt;div class=&quot;t&quot;&gt;TCH/F&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-ts&quot;&gt;&lt;div class=&quot;n&quot;&gt;TS3&lt;/div&gt;&lt;div class=&quot;t&quot;&gt;TCH/F&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-ts&quot;&gt;&lt;div class=&quot;n&quot;&gt;TS4&lt;/div&gt;&lt;div class=&quot;t&quot;&gt;TCH/F&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-ts&quot;&gt;&lt;div class=&quot;n&quot;&gt;TS5&lt;/div&gt;&lt;div class=&quot;t&quot;&gt;TCH/F&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-ts&quot;&gt;&lt;div class=&quot;n&quot;&gt;TS6&lt;/div&gt;&lt;div class=&quot;t&quot;&gt;TCH/F&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-ts&quot;&gt;&lt;div class=&quot;n&quot;&gt;TS7&lt;/div&gt;&lt;div class=&quot;t&quot;&gt;PDCH&lt;/div&gt;&lt;/div&gt;</code></pre>
+</div>
+<div class="gv-axis">
+<span>0 µs</span><span>1 burst = 577 µs</span><span>4615 µs</span>
+</div>
+</div>
+<div class="gv-sec">
+<div class="gv-lab">
+Normal Burst · 156,25 bits
+</div>
+<div class="gv-burst">
+<pre><code>&lt;div class=&quot;gv-seg tail&quot; style=&quot;flex:3&quot;&gt;3&lt;small&gt;tail&lt;/small&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-seg data&quot; style=&quot;flex:57&quot;&gt;57&lt;small&gt;data&lt;/small&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-seg steal&quot; style=&quot;flex:1&quot;&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-seg train&quot; style=&quot;flex:26&quot;&gt;26&lt;small&gt;training&lt;/small&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-seg steal&quot; style=&quot;flex:1&quot;&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-seg data&quot; style=&quot;flex:57&quot;&gt;57&lt;small&gt;data&lt;/small&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-seg tail&quot; style=&quot;flex:3&quot;&gt;3&lt;small&gt;tail&lt;/small&gt;&lt;/div&gt;
+&lt;div class=&quot;gv-seg guard&quot; style=&quot;flex:8.25&quot;&gt;8.25&lt;small&gt;guard&lt;/small&gt;&lt;/div&gt;</code></pre>
+</div>
+<div class="gv-cap">
+tail 3 · data 57 · <b>stealing 1</b> · midamble 26 · <b>stealing 1</b> ·
+data 57 · tail 3 · guard 8,25 — le <b>FCCH</b> (étape 1) est un burst de
+zéros ; le <b>SCH</b> (étape 2) porte le BSIC dans son midamble.
+</div>
+</div>
+</div>
+<h2 id="la-chaîne-complète-dun-coup-dœil">La chaîne complète, d’un coup
+d’œil</h2>
+<pre class="mermaid"><code>flowchart TD
+    A[&quot;1 · Synchro FB&lt;br/&gt;fréquence&quot;] --&gt; B[&quot;2 · Synchro SB / SCH&lt;br/&gt;temps + BSIC&quot;]
+    B --&gt; C[&quot;3 · System Information&lt;br/&gt;BCCH&quot;]
+    C --&gt; D[&quot;4 · Camp&lt;br/&gt;C1 / C2 / C3&quot;]
+    D --&gt; E[&quot;5 · Accès RACH&lt;br/&gt;CHANNEL REQUEST&quot;]
+    E --&gt; F[&quot;6 · Canal dédié&lt;br/&gt;Immediate Assignment → SDCCH&quot;]
+    F --&gt; G[&quot;7 · Authentification&lt;br/&gt;COMP128v1&quot;]
+    G --&gt; H[&quot;8 · Chiffrement&lt;br/&gt;A5/1&quot;]
+    H --&gt; I[&quot;9 · Location Update Accept&lt;br/&gt;+ TMSI&quot;]
+    I --&gt; J[&quot;10 · Appel voix&lt;br/&gt;TCH/F&quot;]
+    I --&gt; K[&quot;11 · SMS&lt;br/&gt;MO / MT&quot;]</code></pre>
+<h3 id="état-par-étape-shunt-vs-natif">État par étape — shunt vs
+natif</h3>
+<table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Étape</th>
+<th style="text-align: center;"><code>shunt_legit</code></th>
+<th style="text-align: center;">DSP natif</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Synchro FB</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅ <em>(résolu 2026-08-24)</em></td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Synchro SB / SCH</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">🔧 <em>mur actuel</em></td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>System Information</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">⬜</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Camp (C3)</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">⬜</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Accès RACH</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">⬜</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Canal dédié (SDCCH)</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">⬜</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>Authentification</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">⬜</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>Chiffrement A5/1</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">⬜</td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>Location Update Accept</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">⬜</td>
+</tr>
+<tr class="even">
+<td>10</td>
+<td>Appel voix TCH/F</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">⬜</td>
+</tr>
+<tr class="odd">
+<td>11</td>
+<td>SMS MO / MT</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">⬜</td>
+</tr>
+</tbody>
+</table>
+<p>✅ mesuré · 🔧 en cours · ⬜ bloqué en aval du mur SCH (natif)</p>
+<hr />
+<h2 id="rappels-de-couche-physique-gsm">Rappels de couche physique
+GSM</h2>
+<p>Avant la première étape, le socle. Le GSM 900/1800 découpe le temps
+en <strong>trames TDMA</strong> de 8 slots, et empile ces trames en
+multitrames.</p>
+<pre class="mermaid"><code>flowchart TD
+    HF[&quot;Hyperframe · 2 715 648 trames TDMA (~3h28)&quot;] --&gt; SF[&quot;Superframe · 1326 trames&quot;]
+    SF --&gt; M51[&quot;Multitrame 51 (contrôle)&lt;br/&gt;FCCH · SCH · BCCH · CCCH · SDCCH&quot;]
+    SF --&gt; M26[&quot;Multitrame 26 (trafic)&lt;br/&gt;TCH · SACCH&quot;]
+    M51 --&gt; TF[&quot;Trame TDMA · 8 timeslots (4,615 ms)&quot;]
+    M26 --&gt; TF
+    TF --&gt; TS[&quot;Timeslot · 1 burst (577 µs)&quot;]</code></pre>
+<p>Chaque <strong>timeslot</strong> transporte un <em>burst</em> de
+156,25 bits. Les canaux logiques sont multiplexés sur ces slots :</p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph Diffusion[&quot;Canaux de diffusion (downlink)&quot;]
+        FCCH[&quot;FCCH · fréquence&quot;]
+        SCH[&quot;SCH · synchro + BSIC&quot;]
+        BCCH[&quot;BCCH · System Info&quot;]
+    end
+    subgraph Commun[&quot;Canaux communs&quot;]
+        RACH[&quot;RACH · accès (uplink)&quot;]
+        AGCH[&quot;AGCH · assignation (downlink)&quot;]
+        PCH[&quot;PCH · paging&quot;]
+    end
+    subgraph Dedie[&quot;Canaux dédiés&quot;]
+        SDCCH[&quot;SDCCH · signalisation&quot;]
+        TCH[&quot;TCH/F · voix&quot;]
+        SACCH[&quot;SACCH · mesures&quot;]
+    end
+    Diffusion --&gt; Commun --&gt; Dedie</code></pre>
+<p>Dans le baseband Calypso, cette couche 1 est justement ce que se
+partagent l’<strong>ARM</strong> (ordonnancement, protocole) et le
+<strong>DSP</strong> (démodulation, corrélation) :</p>
+<pre class="mermaid"><code>flowchart LR
+    RF[&quot;RF downlink&lt;br/&gt;I/Q&quot;] --&gt; DSP[&quot;DSP C54x&lt;br/&gt;corrélation FB/SB, égalisation, Viterbi&quot;]
+    DSP &lt;--&gt;|&quot;API RAM 0xFFD00000&quot;| ARM[&quot;ARM7&lt;br/&gt;L1 osmocom-bb : FBSB, RACH, mesures&quot;]
+    ARM --&gt;|&quot;L1CTL&quot;| L23[&quot;Layer 2/3&lt;br/&gt;mobile : RR / MM / CC / SMS&quot;]</code></pre>
+<hr />
+<h2 id="étape-1-synchro-fb-frequency-burst">Étape 1 — Synchro FB
+(Frequency Burst)</h2>
+<p><strong>Ce qui est nécessaire.</strong> Le mobile ne connaît a priori
+ni la fréquence exacte de la cellule ni sa base de temps. Le
+<strong>FCCH</strong> émet un <em>Frequency Burst</em> : un burst de
+tout-zéros qui, après modulation GMSK, produit une <strong>sinusoïde
+pure</strong> à <code>+67,7 kHz</code> de la porteuse. Le détecter cale
+l’<strong>AFC</strong> (correction de fréquence) et donne un premier
+point d’ancrage temporel.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant BTS
+    participant MS as MS (L1)
+    BTS-&gt;&gt;MS: FCCH (Frequency Burst = ton pur)
+    MS-&gt;&gt;MS: corrélation → offset de fréquence (AFC)
+    MS-&gt;&gt;MS: estime la position TDMA grossière
+    Note over MS: prêt à chercher le SCH</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit` (l&#39;hôte démodule).** ✅ Le FB est produit côté hôte et
+présenté à l&#39;ARM par intercept de lecture. Le corrélateur `corr_iq.py` doit
+répondre `FCCH @1SPS PROPRE` (`dphi = +1,00 × π/2`). Compté **11** fois sur le run
+de référence. Le firmware ARM tourne pour de vrai — mais le DSP est court-circuité.
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ✅ **Résolu le 2026-08-24.** C&#39;est désormais le **vrai DSP
+mask-ROM** qui acquiert le FB : `FBDET-WR 0x0000 -&gt; 0x0001` mesuré **437 fois**,
+toutes écrites par la ROM à `PC=0x79e4`, **sans aucune injection**. L&#39;ARM reçoit
+des `FB1 (…): TOA=39, Power=-52dBm, Angle=-1Hz` réels et variables, calcule son
+`fn_offset` et appelle `Synchronize_TDMA`.
+</code></pre>
+<hr />
+<h2 id="étape-2-synchro-sb-sch-synchronization-burst">Étape 2 — Synchro
+SB / SCH (Synchronization Burst)</h2>
+<p><strong>Ce qui est nécessaire.</strong> Une fois la fréquence calée,
+le <strong>SCH</strong> livre la synchro <strong>fine</strong> : le
+numéro de trame (FN) réduit et le <strong>BSIC</strong> (Base Station
+Identity Code). Sans SCH décodé, impossible de savoir <em>quand</em> on
+est dans l’hyperframe, donc impossible de lire le BCCH.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant BTS
+    participant MS as MS (L1)
+    BTS-&gt;&gt;MS: SCH (Synchronization Burst)
+    MS-&gt;&gt;MS: égalisation + décodage → BSIC + FN réduit
+    MS-&gt;&gt;MS: verrouillage de la base de temps TDMA
+    Note over MS: FN connu → peut lire le BCCH</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ Le SB est décodé par gr-gsm côté hôte. Mesuré
+**22** fois : `=&gt; SB 0x0125011c: BSIC=7 fn=3805`. La base de temps est verrouillée,
+la lecture du BCCH peut commencer.
+</code></pre>
+<pre class="danger"><code>
+**Cadre 2 — DSP natif.** 🔧 **C&#39;est le mur actuel.** La tâche SB s&#39;exécute, mesure
+un TOA plausible, écrit ses slots — mais `a_sch[0] = 0x8100`
+(`B_BLUD | B_SCH_CRC`), donc `prim_fbsb.c:181` abandonne, et surtout `a_sch[3]`
+sort **`0xf8d8`, constant sur 21/21 écritures** alors que 10 contenus de burst
+distincts lui ont été présentés. *Un décodeur dont la sortie ne dépend pas de
+l&#39;entrée ne décode pas.* Hypothèse principale : on alimente la **sortie** du
+démodulateur (`data[0x2a00]`) au lieu de son **entrée**. Tant que cette étape n&#39;est
+pas franchie, tout ce qui suit reste ⬜ en natif.
+</code></pre>
+<hr />
+<h2 id="étape-3-system-information-bcch">Étape 3 — System Information
+(BCCH)</h2>
+<p><strong>Ce qui est nécessaire.</strong> Le <strong>BCCH</strong>
+diffuse en clair les <em>System Information</em> (SI 1 à 4 notamment) :
+identité de cellule (LAI = MCC/MNC/LAC + CI), paramètres de sélection
+(seuils C1/C2), organisation des canaux communs, voisines. Le mobile en
+a besoin pour décider s’il peut camper.</p>
+<pre class="mermaid"><code>flowchart LR
+    BCCH[&quot;BCCH&quot;] --&gt; SI1[&quot;SI 1 · fréquences RACH&quot;]
+    BCCH --&gt; SI2[&quot;SI 2 · voisines BCCH&quot;]
+    BCCH --&gt; SI3[&quot;SI 3 · LAI, paramètres cellule&quot;]
+    BCCH --&gt; SI4[&quot;SI 4 · sélection, CBCH&quot;]</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ **16** System Information lues, dont
+`New SYSTEM INFORMATION 4 (lai=001-01-1)`. Le mobile connaît la cellule.
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ⬜ En attente : les SI transitent par le CCCH, dont le
+décodage dépend de la synchro SCH (étape 2). Le test spécifique du natif est
+`native_twl`, qui *donne* la synchro au DSP pour poser la seule question « le DSP
+traite-t-il le SI ? » — critère : au moins une écriture `WATCH-ACD
+DSP-opcode-write` de son propre opcode.
+</code></pre>
+<hr />
+<h2 id="étape-4-camp-sélection-de-cellule-c1-c2-c3">Étape 4 — Camp
+(sélection de cellule C1 / C2 / C3)</h2>
+<p><strong>Ce qui est nécessaire.</strong> Le mobile évalue la
+<strong>qualité</strong> de la cellule : <code>C1</code> (critère de
+réception minimal, dérivé du RXLEV), <code>C2</code> (reselection) et
+vérifie <code>C3</code>. Si le compte est bon, il <strong>campe</strong>
+— état <code>C3 camped normally</code> — et devient joignable.</p>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; Recherche
+    Recherche --&gt; Mesure: FB+SB+BCCH OK
+    Mesure --&gt; Camp: C1&gt;0 et C2/C3 OK
+    Camp --&gt; [*]: cell selection state = C3 camped normally
+    Mesure --&gt; Recherche: critère non tenu</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ **15** — `Going to camping (normal) ARFCN
+514(DCS)`, puis `cell selection state: C3 camped normally`. Le **RXLEV serving** est
+mesuré (`RLA_C -53 dBm`, C1/C2 &gt; 0).
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ⬜ Le **RXLEV serving est déjà ✅ en natif**, mais le camp
+(C3) reste bloqué tant que le SCH n&#39;est pas décodé (étape 2). La brique manque en
+amont, pas ici.
+</code></pre>
+<hr />
+<h2 id="étape-5-accès-rach-channel-request">Étape 5 — Accès RACH
+(CHANNEL REQUEST)</h2>
+<p><strong>Ce qui est nécessaire.</strong> Pour parler au réseau, le
+mobile émet un burst d’accès sur le <strong>RACH</strong> (uplink) : un
+<code>CHANNEL REQUEST</code> court, avec une cause d’établissement (ici
+<em>Location Update</em>) et une référence aléatoire. Il applique le
+<strong>slotted-ALOHA</strong> — retransmission après un délai aléatoire
+en cas de collision.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant MS
+    participant BTS
+    MS-&gt;&gt;BTS: RACH · CHANNEL REQUEST (cause=LU, ref aléatoire)
+    Note over MS,BTS: si collision → backoff aléatoire → retransmission
+    BTS--&gt;&gt;MS: (traité en étape 6)</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ **3** — `CHANNEL REQUEST: 00 (Location Update with
+NECI)`. L&#39;uplink du mobile émulé atteint la BTS.
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ⬜ En aval du mur SCH.
+</code></pre>
+<hr />
+<h2 id="étape-6-canal-dédié-immediate-assignment-sdcch">Étape 6 — Canal
+dédié (Immediate Assignment → SDCCH)</h2>
+<p><strong>Ce qui est nécessaire.</strong> La BTS répond sur
+l’<strong>AGCH</strong> par un <code>IMMEDIATE ASSIGNMENT</code> qui
+déplace le mobile de l’accès commun vers un <strong>SDCCH</strong> — un
+canal dédié où va se dérouler toute la signalisation (auth, chiffrement,
+LU).</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant MS
+    participant BTS
+    participant BSC
+    MS-&gt;&gt;BTS: RACH (étape 5)
+    BTS-&gt;&gt;BSC: CHANNEL REQUIRED
+    BSC-&gt;&gt;BTS: CHANNEL ACTIVATION (SDCCH)
+    BTS-&gt;&gt;MS: AGCH · IMMEDIATE ASSIGNMENT (SDCCH/TS)
+    Note over MS,BSC: le dialogue passe désormais sur le SDCCH</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ **7** établissements de canal dédié. Le SDCCH est
+monté, la signalisation de couche 3 peut commencer.
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ⬜ En aval du mur SCH.
+</code></pre>
+<hr />
+<h2 id="étape-7-authentification-comp128v1">Étape 7 — Authentification
+(COMP128v1)</h2>
+<p><strong>Ce qui est nécessaire.</strong> Le réseau défie le mobile :
+il envoie un <code>AUTHENTICATION REQUEST</code> avec un
+<strong>RAND</strong> de 128 bits. La SIM calcule
+<code>A3/A8(RAND, Ki)</code> — ici <strong>COMP128v1</strong> — et
+renvoie <strong>SRES</strong> (32 bits) dans
+<code>AUTHENTICATION RESPONSE</code>, tout en dérivant la clé de session
+<strong>Kc</strong> (64 bits) utilisée ensuite pour le chiffrement.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant MS
+    participant MSC
+    participant HLR
+    MSC-&gt;&gt;HLR: demande de tuples (GSUP)
+    HLR--&gt;&gt;MSC: RAND / SRES / Kc (A3A8 = COMP128v1, Ki)
+    MSC-&gt;&gt;MS: AUTHENTICATION REQUEST (RAND)
+    MS-&gt;&gt;MS: SRES, Kc = COMP128v1(RAND, Ki)
+    MS-&gt;&gt;MSC: AUTHENTICATION RESPONSE (SRES)
+    Note over MSC: SRES attendu == SRES reçu ?</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ **3** cycles `AUTHENTICATION REQUEST/RESPONSE`,
+`gsup:rx:auth_tuples = 10`, `algo 2G = COMP128v1`,
+`Ki = 00112233445566778899aabbccdd0101`. La **signature COMP128v1 est lisible dans
+le Kc** : `f7 3a 48 77 98 59 5c 00` — l&#39;octet final nul et les deux bits de poids
+faible du précédent à zéro trahissent les **54 bits utiles sur 64** (faiblesse
+connue de COMP128v1).
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ⬜ En aval du mur SCH.
+</code></pre>
+<hr />
+<h2 id="étape-8-chiffrement-a51">Étape 8 — Chiffrement A5/1</h2>
+<p><strong>Ce qui est nécessaire.</strong> Muni de <strong>Kc</strong>,
+le réseau ordonne le chiffrement de la voie radio :
+<code>CIPHERING MODE COMMAND (algo=A5/1)</code>. Le mobile bascule sa
+couche 1 en A5/1 et confirme par <code>CIPHERING MODE COMPLETE</code>. À
+partir de là, l’air est chiffré.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant MS
+    participant BSC
+    BSC-&gt;&gt;MS: CIPHERING MODE COMMAND (sc=1, algo=A5/1)
+    MS-&gt;&gt;MS: active A5/1 avec Kc (dérivé étape 7)
+    MS-&gt;&gt;BSC: CIPHERING MODE COMPLETE
+    Note over MS,BSC: voie radio chiffrée</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ **7 × `CIPHERING MODE COMMAND (sc=1, algo=A5/1
+cr=1)`** + 7 × `COMPLETE`. Côté BSC : `encryption a5 1`. Le chiffrement est bien
+actif sur l&#39;interface air.
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ⬜ En aval du mur SCH.
+</code></pre>
+<hr />
+<h2 id="étape-9-location-update-accept-tmsi">Étape 9 — Location Update
+Accept (+ TMSI)</h2>
+<p><strong>Ce qui est nécessaire.</strong> Signalisation authentifiée et
+chiffrée, le réseau accepte l’enregistrement :
+<code>LOCATION UPDATING ACCEPT</code>, met à jour le VLR/HLR et réalloue
+un <strong>TMSI</strong> (identité temporaire) pour ne plus exposer
+l’IMSI en clair.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant MS
+    participant MSC
+    participant HLR
+    MS-&gt;&gt;MSC: LOCATION UPDATING REQUEST
+    MSC-&gt;&gt;HLR: UPDATE LOCATION (GSUP)
+    HLR--&gt;&gt;MSC: INSERT SUBSCRIBER DATA / ACK
+    MSC-&gt;&gt;MS: LOCATION UPDATING ACCEPT (lai=001-01-1)
+    MSC-&gt;&gt;MS: TMSI REALLOCATION COMMAND
+    MS-&gt;&gt;MSC: TMSI REALLOCATION COMPLETE</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ **1** — `LOCATION UPDATING ACCEPT (lai=001-01-1)`,
+TMSI réalloué (ex. `0719E3FE`). Le mobile est **enregistré** et joignable.
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ⬜ En aval du mur SCH. C&#39;est l&#39;étape charnière : en natif,
+c&#39;est elle qui **expire** (`T3211`) quand on lance par la mauvaise porte, faute de
+la chaîne complète.
+</code></pre>
+<hr />
+<h2 id="étape-10-appel-voix-tchf">Étape 10 — Appel voix (TCH/F)</h2>
+<p><strong>Ce qui est nécessaire.</strong> Pour la voix, le réseau
+bascule le mobile sur un <strong>TCH/F</strong> (Traffic Channel
+Full-rate). La signalisation d’appel <strong>CC</strong> (Call Control)
+déroule <code>SETUP → CALL PROCEEDING → ALERTING → CONNECT</code>, puis
+le codec plein débit (<strong>FR</strong>) transporte l’audio via
+RTP/MGW.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant A as 10001 (appelant)
+    participant NET as MSC / MGW
+    participant B as 10002 (appelé)
+    A-&gt;&gt;NET: SETUP
+    NET-&gt;&gt;B: SETUP
+    B-&gt;&gt;NET: CALL CONFIRMED
+    B-&gt;&gt;NET: ALERTING
+    NET-&gt;&gt;A: ALERTING
+    B-&gt;&gt;NET: CONNECT
+    NET-&gt;&gt;A: CONNECT
+    A-&gt;&gt;NET: CONNECT ACK
+    Note over A,B: état ACTIVE · audio codec FR (GAPK)</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ Appel **10001 ↔ 10002** abouti — les machines à
+états CC des deux côtés atteignent `ACTIVE`, audio **GAPK codec `fr`** dans les
+deux sens. Les deux abonnés sont sur **deux cellules distinctes** (un QEMU Calypso,
+un faketrx) : c&#39;est un vrai appel inter-cellules.
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ⬜ En aval du mur SCH.
+</code></pre>
+<hr />
+<h2 id="étape-11-sms-mo-mt">Étape 11 — SMS (MO / MT)</h2>
+<p><strong>Ce qui est nécessaire.</strong> Le SMS voyage sur la
+signalisation (SDCCH/SACCH), pas sur un canal voix. <strong>MO</strong>
+(Mobile Originated) : le mobile émet un <code>SMS-SUBMIT</code> remonté
+au SMSC ; <strong>MT</strong> (Mobile Terminated) : le SMSC pousse un
+<code>SMS-DELIVER</code> vers le mobile. Chaque sens est acquitté
+(<code>CP-ACK</code>, <code>RP-ACK</code>).</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant MS
+    participant MSC
+    participant SMSC
+    Note over MS,SMSC: MO — mobile → réseau
+    MS-&gt;&gt;MSC: CP-DATA (SMS-SUBMIT)
+    MSC-&gt;&gt;SMSC: MO-forwardSM
+    SMSC--&gt;&gt;MSC: RP-ACK
+    MSC--&gt;&gt;MS: CP-ACK
+    Note over MS,SMSC: MT — réseau → mobile
+    SMSC-&gt;&gt;MSC: MT-forwardSM (SMS-DELIVER)
+    MSC-&gt;&gt;MS: CP-DATA
+    MS--&gt;&gt;MSC: RP-ACK</code></pre>
+<pre class="note"><code>
+**Cadre 1 — `shunt_legit`.** ✅ Les **deux sens, 0 erreur**. La boîte de réception
+du mobile (`~/.osmocom/bb/sms.txt`) contient bien les messages MO et MT.
+</code></pre>
+<pre class="warning"><code>
+**Cadre 2 — DSP natif.** ⬜ En aval du mur SCH.
+</code></pre>
+<hr />
+<h2 id="synthèse">Synthèse</h2>
+<pre class="mermaid"><code>flowchart LR
+    subgraph SHUNT[&quot;shunt_legit — ✅ de bout en bout&quot;]
+        direction TB
+        s1[&quot;FB&quot;] --&gt; s2[&quot;SB&quot;] --&gt; s3[&quot;SI&quot;] --&gt; s4[&quot;camp&quot;] --&gt; s5[&quot;RACH&quot;] --&gt; s6[&quot;SDCCH&quot;] --&gt; s7[&quot;auth&quot;] --&gt; s8[&quot;A5/1&quot;] --&gt; s9[&quot;LU&quot;] --&gt; s10[&quot;voix + SMS&quot;]
+    end
+    subgraph NATIF[&quot;DSP natif — la frontière du réel&quot;]
+        direction TB
+        n1[&quot;FB ✅&lt;br/&gt;2026-08-24&quot;] --&gt; n2[&quot;SB / SCH 🔧&lt;br/&gt;mur actuel&quot;] --&gt; n3[&quot;reste ⬜&quot;]
+    end</code></pre>
+<p>Le mode <code>shunt_legit</code> <strong>prouve la pile
+complète</strong> (le firmware ARM tourne réellement), mais gr-gsm
+démodule : il ne dit rien du DSP. Le mode <code>native</code>
+<strong>dit la vérité sur l’acquisition</strong> — et il vient de
+franchir le <strong>FB</strong>. La prochaine victoire, c’est le
+<strong>SCH</strong>.</p>
+<hr />
+<p><em>Modules liés : <a href="1-Lab-GSM-multiPLMN.html">7 — Lab GSM
+multi-opérateur</a> · <a href="2-QEMU-Calypso.html">8 — Émulation du
+baseband Calypso</a>.</em></p>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

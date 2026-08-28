@@ -3,6 +3,695 @@ title: "4 - Sources - partie 4"
 ---
 
 
+## `hw/arm/calypso/calypso_iota.c` {#f-hw-arm-calypso-calypso-iota-c}
+
+::: {.file-meta}
+[.c]{.tag} 101 lignes - 3,4KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_iota.c"}
+/*
+ * TWL3025 / IOTA model — implementation.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#include "qemu/osdep.h"
+#include <stdio.h>
+#include <string.h>
+#include "hw/arm/calypso/calypso_iota.h"
+
+#include "hw/arm/calypso/calypso_debug.h"
+#define IOTA_LOG(fmt, ...) \
+    do { if (calypso_debug_enabled("IOTA")) \
+        fprintf(stderr, "[iota] " fmt "\n", ##__VA_ARGS__); } while (0)
+
+/* Pending BDLENA windows queued by the TPU sequencer, waiting for a
+ * matching downlink burst to arrive on the BSP. Sized for one full TDMA
+ * frame's worth of slots so successive armings on different TNs queue up
+ * cleanly. */
+#define IOTA_PENDING_MAX 32
+
+static struct {
+    uint8_t  last_byte;     /* most recent TSP byte */
+    bool     bdl_ena;       /* current state of BDLENA pin */
+    bool     bul_ena;       /* current state of BULENA pin */
+    uint32_t bdl_pulses;    /* total BDLENA rising edges */
+    uint32_t writes_seen;
+    /* Pending pulses: each holds the TN the L1 armed for. */
+    uint8_t  pending_tn[IOTA_PENDING_MAX];
+    int      pending_head, pending_tail;
+} iota;
+
+static int iota_pending_count(void)
+{
+    int n = iota.pending_tail - iota.pending_head;
+    if (n < 0) n += IOTA_PENDING_MAX;
+    return n;
+}
+
+static void iota_pending_push(uint8_t tn)
+{
+    if (iota_pending_count() >= IOTA_PENDING_MAX - 1) {
+        IOTA_LOG("WARN pending queue full, dropping oldest");
+        iota.pending_head = (iota.pending_head + 1) % IOTA_PENDING_MAX;
+    }
+    iota.pending_tn[iota.pending_tail] = tn;
+    iota.pending_tail = (iota.pending_tail + 1) % IOTA_PENDING_MAX;
+}
+
+void calypso_iota_init(void)
+{
+    memset(&iota, 0, sizeof(iota));
+    IOTA_LOG("init");
+}
+
+void calypso_iota_tsp_write(uint8_t data, uint8_t expected_tn)
+{
+    bool prev_bdl = iota.bdl_ena;
+    bool prev_bul = iota.bul_ena;
+
+    iota.last_byte = data;
+    iota.bdl_ena   = !!(data & IOTA_TSP_BDLENA);
+    iota.bul_ena   = !!(data & IOTA_TSP_BULENA);
+    iota.writes_seen++;
+
+    if (!prev_bdl && iota.bdl_ena) {
+        iota.bdl_pulses++;
+        iota_pending_push(expected_tn);
+        if (iota.bdl_pulses <= 10 || (iota.bdl_pulses % 100) == 0) {
+            IOTA_LOG("BDLENA rising edge #%u tn=%u pending=%d",
+                     iota.bdl_pulses, expected_tn, iota_pending_count());
+        }
+    }
+    if (prev_bul != iota.bul_ena && iota.writes_seen <= 10) {
+        IOTA_LOG("BULENA -> %d (data=0x%02x)", iota.bul_ena, data);
+    }
+}
+
+bool calypso_iota_bdl_ena(void)            { return iota.bdl_ena; }
+uint32_t calypso_iota_bdl_ena_pulses(void) { return iota.bdl_pulses; }
+
+bool calypso_iota_take_bdl_pulse(uint8_t tn)
+{
+    /* Walk the pending queue from oldest to newest looking for a TN
+     * match. Newer pending pulses past the matched one stay queued. */
+    int n = iota_pending_count();
+    for (int i = 0; i < n; i++) {
+        int idx = (iota.pending_head + i) % IOTA_PENDING_MAX;
+        if (iota.pending_tn[idx] == tn) {
+            /* Consume: shift everything from head..idx forward by 1 */
+            for (int j = i; j > 0; j--) {
+                int dst = (iota.pending_head + j) % IOTA_PENDING_MAX;
+                int src = (iota.pending_head + j - 1) % IOTA_PENDING_MAX;
+                iota.pending_tn[dst] = iota.pending_tn[src];
+            }
+            iota.pending_head = (iota.pending_head + 1) % IOTA_PENDING_MAX;
+            return true;
+        }
+    }
+    return false;
+}
+
+```
+
+## `hw/arm/calypso/calypso_layer1.c` {#f-hw-arm-calypso-calypso-layer1-c}
+
+::: {.file-meta}
+[.c]{.tag} 181 lignes - 7,7KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_layer1.c"}
+/*
+ * calypso_layer1.c — HLE L1 model for the Calypso DSP (CALYPSO_L1=c).
+ *
+ * Scaffold fonctionnel intermédiaire (PAS l'endgame ; le revival LLE reste le but
+ * faithful, gardé vivant derrière CALYPSO_L1 off). Modélise le L1 du DSP en C,
+ * cadencé par calypso_tdma_tick. Lit l'I/Q en DARAM 0x2a00, écrit ses résultats
+ * dans l'API RAM où l'ARM (osmocom-bb, inchangé) les lit.
+ *
+ * ÉTAPE 1 — détecteur FB/FCCH RÉEL (pas de forcing) :
+ *   Filtre adapté au ton FCCH (+fc/4 → incrément de phase +22.5°/sample @4 SPS) :
+ *       C = Σ z[n]·exp(-j·n·inc) ;  M = |C|² / (N·E)
+ *   Ton pur (FCCH) → M≈1 ; bruit/GMSK data → M≈1/N. Discrimine VRAIMENT (le ratio
+ *   différentiel R était émoussé à 4 SPS). Auto-alignant : M ne pique qu'aux trames
+ *   FCCH (observées à fn%51≈7-8, offset fixe du multiframe BTS) → la trame de lock
+ *   devient l'ancre, l'offset n'a pas à être connu.
+ *   Valeurs DÉRIVÉES (pas cannées) : d_fb_det (détection réelle), snr (∝ cohérence M,
+ *   >AFC_SNR_THRESHOLD=2560 quand locké), angle (résidu meanInc−nominal ≈0 → AFC
+ *   stable, comme le ANGLE=0 du shunt mais CALCULÉ), pm (dérivé de E full-scale),
+ *   toa (on-time, le bsp livre le burst aligné).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#include "qemu/osdep.h"
+#include "hw/arm/calypso/calypso_layer1.h"
+#include <math.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+/* --- offsets data[] (DSP word) / dsp_ram (ARM word) --- */
+#define L1_DARAM_IQ      0x2a00      /* 148 paires int16 I/Q entrelacées */
+#define L1_IQ_PAIRS      148
+#define L1_NDB_D_FB_DET  0x08F8      /* ndb->d_fb_det */
+#define L1_NDB_D_FB_MODE 0x08F9      /* ndb->d_fb_mode (0=wideband 1=narrow) */
+#define L1_NDB_A_SYNC    0x08FA      /* a_sync_demod[0]=TOA [1]=PM [2]=ANGLE [3]=SNR */
+#define WP0_TASK_MD      (0x0008/2)
+#define WP1_TASK_MD      (0x0030/2)
+#define D_DSP_PAGE_WORD  (0x01A8/2)
+
+#define FB_DSP_TASK      5
+#define SB_DSP_TASK      6
+
+/* incrément de phase nominal du ton FCCH : +fc/4 = +1625/24 kHz à 4 SPS
+ * (fs=4×270.833k) → 2π·67708/1083333 = +22.5°/sample. */
+#define L1_FCCH_INC_DEG  22.5
+#define L1_FCCH_M_THRESH 0.40        /* M_data≈1/148≈0.007, M_fcch≈1 → seuil large */
+#define L1_E_MIN         1.0e6       /* énergie min pour considérer un burst présent */
+#define AFC_SNR_THRESHOLD 2560       /* afc.h : 2.5 dB en fx6.10 */
+
+/* @BEQUILLE — L1  (CALYPSO_L1=c*, defaut absent)
+ *   masque  : le DSP entier. calypso_l1_c_active() rend substitutes() vrai
+ *             (calypso_dsp_shunt.c) -> un modele L1 haut-niveau en C remplace la
+ *             couche 1 et gate les c54x_run natifs.
+ *   retirer : quand le DSP emule tient la couche 1. Variable posee dans aucun
+ *             profil livre : candidate au retrait pur et simple.
+ */
+int calypso_l1_c_active(void)
+{
+    static int v = -1;
+    if (v < 0) {
+        const char *e = getenv("CALYPSO_L1");
+        v = (e && e[0] == 'c') ? 1 : 0;
+    }
+    return v;
+}
+
+/* Latch du d_task_md écrit par l'ARM : le poll tick-time rate le transient
+ * (write puis consommé au write-time, vu par calypso_fbsb). Mis à jour depuis
+ * calypso_dsp_write (calypso_trx.c) à chaque écriture de la tâche. */
+static uint16_t g_l1_task_md = 0;
+void calypso_layer1_on_task_write(uint16_t md)
+{
+    g_l1_task_md = md;
+}
+
+struct fb_res {
+    int      found;
+    double   M, meanInc_deg, energy;
+    int16_t  toa, pm, angle, snr;
+};
+
+/* Détecteur FCCH : filtre adapté au ton +fc/4 + résidu de fréquence. */
+static struct fb_res l1_fb_detect(C54xState *dsp)
+{
+    struct fb_res r = { 0 };
+    const double inc = L1_FCCH_INC_DEG * M_PI / 180.0;
+    const double rcos = cos(-inc), rsin = sin(-inc);  /* rotator exp(-j·inc) */
+
+    double Cre = 0, Cim = 0, E = 0;     /* C = Σ z[n]·exp(-j n inc) */
+    double pr = 1.0, pim = 0.0;          /* phasor p_n = exp(-j n inc), p_0 = 1 */
+    double sre = 0, sim = 0;             /* Σ d[n] (différentiel) pour meanInc */
+    double prevI = (double)(int16_t)dsp->data[L1_DARAM_IQ + 0];
+    double prevQ = (double)(int16_t)dsp->data[L1_DARAM_IQ + 1];
+
+    for (int n = 0; n < L1_IQ_PAIRS; n++) {
+        double I = (double)(int16_t)dsp->data[L1_DARAM_IQ + 2 * n];
+        double Q = (double)(int16_t)dsp->data[L1_DARAM_IQ + 2 * n + 1];
+        /* filtre adapté : C += z · p */
+        Cre += I * pr - Q * pim;
+        Cim += I * pim + Q * pr;
+        E   += I * I + Q * Q;
+        /* avance phasor : p *= exp(-j inc) */
+        double npr  = pr * rcos - pim * rsin;
+        double npim = pr * rsin + pim * rcos;
+        pr = npr; pim = npim;
+        /* différentiel d[n] = z[n]·conj(z[n-1]) (diagnostic / résidu) */
+        if (n > 0) {
+            sre += I * prevI + Q * prevQ;
+            sim += Q * prevI - I * prevQ;
+        }
+        prevI = I; prevQ = Q;
+    }
+
+    r.energy      = E;
+    r.M           = (E > 0.0) ? (Cre * Cre + Cim * Cim) / ((double)L1_IQ_PAIRS * E) : 0.0;
+    r.meanInc_deg = (sre != 0.0 || sim != 0.0) ? atan2(sim, sre) * 180.0 / M_PI : 0.0;
+    r.found       = (r.M >= L1_FCCH_M_THRESH && E >= L1_E_MIN);
+
+    if (r.found) {
+        /* angle : résidu de fréquence (meanInc − nominal), ≈0 pour I/Q propre →
+         * freq_diff = ANGLE_TO_FREQ(angle) ≈ 0 → AFC ne chasse pas. DÉRIVÉ. */
+        double resid_deg = r.meanInc_deg - L1_FCCH_INC_DEG;
+        double a = resid_deg * 32.0;                 /* échelle fx provisoire (à calibrer) */
+        r.angle = (int16_t)(a >  32767 ?  32767 : a < -32768 ? -32768 : a);
+        /* snr : croît avec la cohérence M ; >2560 (AFC_SNR_THRESHOLD) quand locké. */
+        double snr = r.M * (double)0x7000;
+        r.snr = (int16_t)(snr > 32767 ? 32767 : snr);
+        /* pm : dérivé — l'I/Q est full-scale Q15 (rxlev fort). Lu >>3 par
+         * read_fb_result → 0x7000>>3 = 0xE00. */
+        r.pm = 0x7000;
+        /* toa : le bsp livre le burst aligné sur la fenêtre → on-time.
+         * read_fb_result fait toa-=23, donc 23 → 0 (on-time). */
+        r.toa = 23;
+    }
+    return r;
+}
+
+void calypso_layer1_tick(C54xState *dsp, uint16_t *dsp_ram, uint32_t fn)
+{
+    if (!dsp || !dsp_ram) {
+        return;
+    }
+
+    uint16_t page = dsp_ram[D_DSP_PAGE_WORD] & 1;
+    uint16_t md_poll = page ? dsp_ram[WP1_TASK_MD] : dsp_ram[WP0_TASK_MD];
+    /* latch prioritaire (le poll rate le transient task=5) */
+    uint16_t md = g_l1_task_md ? g_l1_task_md : md_poll;
+
+    struct fb_res r = l1_fb_detect(dsp);
+
+    /* log riche (calibration du seuil + visu de l'auto-alignement) */
+    static unsigned logn = 0;
+    if (logn++ < 5000) {
+        fprintf(stderr,
+                "[L1c] fn=%u m51=%u md=%u(poll=%u) M=%.3f meanInc=%.1f E=%.2e det=%d\n",
+                fn, fn % 51, md, md_poll, r.M, r.meanInc_deg, r.energy, r.found);
+    }
+
+    /* écriture firmware UNIQUEMENT quand le FB est demandé (évite des d_fb_det
+     * parasites hors recherche). NDB page-less → pas de souci de page. */
+    if (md == FB_DSP_TASK) {
+        if (r.found) {
+            dsp->data[L1_NDB_A_SYNC + 0] = (uint16_t)r.toa;
+            dsp->data[L1_NDB_A_SYNC + 1] = (uint16_t)r.pm;     /* lu >>3 par l'ARM */
+            dsp->data[L1_NDB_A_SYNC + 2] = (uint16_t)r.angle;
+            dsp->data[L1_NDB_A_SYNC + 3] = (uint16_t)r.snr;
+            dsp->data[L1_NDB_D_FB_DET]   = 1;
+            static unsigned fbn = 0;
+            if (fbn++ < 200) {
+                fprintf(stderr, "[L1c-FB] FOUND fn=%u m51=%u M=%.3f meanInc=%.1f "
+                        "resid=%.1f -> d_fb_det=1 toa=%d pm=0x%04x ang=%d snr=%d\n",
+                        fn, fn % 51, r.M, r.meanInc_deg,
+                        r.meanInc_deg - L1_FCCH_INC_DEG,
+                        r.toa, (uint16_t)r.pm, r.angle, r.snr);
+            }
+        } else {
+            dsp->data[L1_NDB_D_FB_DET] = 0;
+        }
+    }
+}
+
+```
+
+## `hw/arm/calypso/calypso_mailbox.c` {#f-hw-arm-calypso-calypso-mailbox-c}
+
+::: {.file-meta}
+[.c]{.tag} 377 lignes - 14KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_mailbox.c"}
+/*
+ * calypso_mailbox.c — moniteur COMPLET de la mailbox ARM <-> DSP
+ *
+ * Voir calypso_mailbox.h pour le pourquoi. Configuration :
+ *
+ *   CALYPSO_MAILBOX=1|all     tout le flux de la fenêtre mailbox (0x0800..0x0FFF)
+ *   CALYPSO_MAILBOX=w         écritures seulement (les deux sens)
+ *   CALYPSO_MAILBOX=r         lectures seulement
+ *   CALYPSO_MAILBOX_CELLS=0x098b,0x43d8,...   AJOUTE des cellules hors mailbox
+ *                             (reprend l'idée de CALYPSO_WATCH_WR_ADDR, qu'il
+ *                             remplace : ici les deux sens et les deux côtés)
+ *   CALYPSO_MAILBOX_ONLY=1    ne trace QUE les cellules de _CELLS
+ *   CALYPSO_MAILBOX_FILE=...  défaut $CALYPSO_LOG_DIR/mailbox.log, sinon
+ *                             /tmp/calypso/logs/mailbox.log
+ *   CALYPSO_MAILBOX_MAX=N     garde-fou (défaut 5 000 000 lignes, 0 = illimité)
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#include "calypso_mailbox.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int calypso_mbx_actif = -1;   /* -1 = à initialiser au premier accès */
+
+static FILE    *g_f;
+static int      g_init;
+static int      g_ecr = 1, g_lec = 1;      /* écritures / lectures */
+static int      g_only;                    /* 1 = seulement _CELLS */
+static uint16_t g_cells[32];
+static int      g_ncells;
+/* [2026-08-22] PLAGES arbitraires : la fenetre API seule laissait des regions
+ * entieres du modele hors de portee (la reference de correlation 0x2cea.., le
+ * tampon de burst 0x2a00.., le scratch-pad 0x0060..). 32 cellules unitaires ne
+ * suffisaient pas pour une region de 128 mots. */
+static struct { uint16_t lo, hi; } g_ranges[16];
+static int      g_nranges;
+static unsigned long g_n, g_max = 5000000UL;
+
+/* Repliement PAR CELLULE — journaliser au CHANGEMENT, pas au non-consécutif.
+ *
+ * [2026-07-29, seconde version] La première repliait les événements CONSÉCUTIFS
+ * identiques. Ça ne replie rien : la boucle de fond du DSP interroge DEUX
+ * cellules en alternance (`0xde86 ld *(0x098c)` puis `0xddfd ld *(0x098d)`),
+ * donc jamais deux lignes de suite identiques. Résultat mesuré : 291 Mo et
+ * 3 690 446 lignes en quelques minutes, et QEMU tué.
+ *
+ * La bonne sémantique est par cellule : une lecture qui rend la MÊME valeur au
+ * MÊME PC ne porte aucune information neuve, même si d'autres accès s'intercalent.
+ * On garde donc, pour chaque mot, la dernière valeur journalisée et le contexte ;
+ * on n'écrit qu'au changement, en résumant la série précédente par « x N ».
+ * Les écritures sont toujours journalisées : elles sont rares et chacune est un
+ * événement.  CALYPSO_MAILBOX_BRUT=1 désactive tout le repliement. */
+static int       g_brut;
+static uint16_t *g_dval;      /* dernière valeur journalisée, par mot */
+static uint32_t *g_dctx;      /* dernier contexte journalisé, par mot */
+static uint32_t *g_drep;      /* longueur de la série en cours, par mot */
+static uint8_t  *g_dvu;       /* ce mot a-t-il déjà été journalisé ? */
+static uint8_t  *g_dsens;     /* sens du dernier événement journalisé */
+
+/* Noms des cellules qui reviennent sans cesse dans le diagnostic. Une trace
+ * lisible évite de re-chercher « 0x08fa c'était quoi déjà » à chaque lecture. */
+static const char *mbx_nom(uint16_t m)
+{
+    switch (m) {
+    case 0x0804: return "d_task_md/wp0";
+    case 0x0818: return "d_task_md/wp1";
+    case 0x0828: return "d_task_d/rp0";
+    case 0x0829: return "d_burst_d/rp0";
+    case 0x083C: return "d_task_d/rp1";
+    case 0x083D: return "d_burst_d/rp1";
+    case 0x0810: return "d_ctrl_system";
+    /* [2026-07-29] 0x08E2 etait libelle « d_dsp_page » : faux de +14 mots.
+     * NDB+0 = 0x08D4 = d_dsp_page ; NDB+14 = 0x08E2 = d_dsp_state (l'ARM y
+     * ecrit 3 = C_DSP_IDLE3 depuis dsp.c:215). Voir calypso_fbsb.h. */
+    case 0x08D4: return "d_dsp_page";
+    case 0x08D5: return "d_error_status";
+    case 0x08E2: return "d_dsp_state";
+    case 0x08F8: return "d_fb_det";
+    case 0x08F9: return "d_fb_mode";
+    case 0x08FA: return "a_sync[TOA]";
+    case 0x08FB: return "a_sync[PM]";
+    case 0x08FC: return "a_sync[ANGLE]";
+    case 0x08FD: return "a_sync[SNR]";
+    case 0x098A: return "d_backgnd_en";
+    case 0x098B: return "d_backgnd_?b";
+    case 0x098C: return "d_backgnd_st";
+    case 0x098D: return "d_backgnd_?d";
+    case 0x098E: return "tab_handlers";
+    case 0x0FFF: return "d_task_word";
+    case 0x43D8: return "slot_handler";
+    default:     return "";
+    }
+}
+
+static void mbx_ecrire(CalypsoMbxSens sens, uint16_t mot, uint16_t val,
+                       uint16_t avant, uint32_t ctx, uint32_t fn, uint32_t insn,
+                       unsigned long rep);
+
+void calypso_mbx_init(void)
+{
+    const char *e;
+
+    if (g_init) {
+        return;
+    }
+    g_init = 1;
+
+    e = getenv("CALYPSO_MAILBOX");
+    if (!e || !*e || !strcmp(e, "0")) {
+        calypso_mbx_actif = 0;        /* éteint : coût nul sur les chemins chauds */
+        return;
+    }
+    if (!strcmp(e, "w") || !strcmp(e, "W")) {
+        g_lec = 0;
+    } else if (!strcmp(e, "r") || !strcmp(e, "R")) {
+        g_ecr = 0;
+    }
+
+    e = getenv("CALYPSO_MAILBOX_CELLS");
+    if (e && *e) {
+        const char *p = e;
+        while (*p && g_ncells < 32) {
+            char *fin = NULL;
+            long v;
+            while (*p == ',' || *p == ' ') {
+                p++;
+            }
+            if (!*p) {
+                break;
+            }
+            v = strtol(p, &fin, 0);
+            if (fin == p) {
+                break;                /* rien de lisible : on arrête là */
+            }
+            g_cells[g_ncells++] = (uint16_t)v;
+            p = fin;
+        }
+    }
+    /* [2026-08-22] CALYPSO_MAILBOX_RANGES=lo-hi,lo-hi,... (bornes INCLUSES).
+     * Meme analyse tolerante que _CELLS : on s arrete au premier illisible
+     * plutot que de deviner. Les bornes sont remises dans l ordre si besoin. */
+    e = getenv("CALYPSO_MAILBOX_RANGES");
+    if (e && *e) {
+        const char *p = e;
+        while (*p && g_nranges < 16) {
+            char *fin = NULL;
+            long lo, hi;
+            while (*p == ',' || *p == ' ') {
+                p++;
+            }
+            if (!*p) {
+                break;
+            }
+            lo = strtol(p, &fin, 0);
+            if (fin == p) {
+                break;
+            }
+            p = fin;
+            if (*p == '-' || *p == ':') {
+                p++;
+                hi = strtol(p, &fin, 0);
+                if (fin == p) {
+                    break;
+                }
+                p = fin;
+            } else {
+                hi = lo;              /* une borne seule = une cellule */
+            }
+            if (lo > hi) { long t = lo; lo = hi; hi = t; }
+            g_ranges[g_nranges].lo = (uint16_t)lo;
+            g_ranges[g_nranges].hi = (uint16_t)hi;
+            g_nranges++;
+        }
+    }
+
+    e = getenv("CALYPSO_MAILBOX_ONLY");
+    g_only = (e && *e == '1');
+
+    e = getenv("CALYPSO_MAILBOX_BRUT");
+    g_brut = (e && *e == '1');
+
+    e = getenv("CALYPSO_MAILBOX_MAX");
+    if (e && *e) {
+        g_max = strtoul(e, NULL, 0);
+    }
+
+    e = getenv("CALYPSO_MAILBOX_FILE");
+    if (!e || !*e) {
+        static char def[512];
+        /* Le dépôt exporte LOG_DIR (paths.env) ; CALYPSO_LOG_DIR n'existe pas —
+         * première version de ce code : mauvais nom, le fichier serait toujours
+         * tombé dans le repli. On accepte les deux, LOG_DIR fait foi. */
+        const char *d = getenv("LOG_DIR");
+        if (!d || !*d) d = getenv("CALYPSO_LOG_DIR");
+        snprintf(def, sizeof(def), "%s/mailbox.log",
+                 (d && *d) ? d : "/tmp/calypso/logs");
+        e = def;
+    }
+    g_f = fopen(e, "w");
+    if (!g_f) {
+        fprintf(stderr, "[mbx] ouverture impossible : %s — moniteur INACTIF\n", e);
+        calypso_mbx_actif = 0;
+        return;
+    }
+    /* Tampon PLEIN et large. En _IOLBF chaque ligne était un appel système :
+     * 3,7 M de write() ont suffi à mettre QEMU à genoux. On vide périodiquement
+     * (voir mbx_ecrire) pour qu'un arrêt brutal ne perde qu'une fenêtre. */
+    setvbuf(g_f, NULL, _IOFBF, 1 << 20);
+
+    g_dval = calloc(0x10000, sizeof(*g_dval));
+    g_dctx = calloc(0x10000, sizeof(*g_dctx));
+    g_drep = calloc(0x10000, sizeof(*g_drep));
+    g_dvu  = calloc(0x10000, sizeof(*g_dvu));
+    g_dsens = calloc(0x10000, sizeof(*g_dsens));
+    if (!g_dval || !g_dctx || !g_drep || !g_dvu || !g_dsens) {
+        fprintf(stderr, "[mbx] allocation impossible — moniteur INACTIF\n");
+        calypso_mbx_actif = 0;
+        return;
+    }
+
+    fprintf(g_f,
+        "# moniteur mailbox ARM<->DSP — un evenement par ligne, format stable\n"
+        "# sens : ARM>WR (commande)  ARM<RD (resultat)  DSP>WR (resultat)  DSP<RD (commande)\n"
+        "# %-10s %-8s %-6s %-6s %-14s %s\n",
+        "insn", "fn", "sens", "mot", "nom", "valeur");
+    fflush(g_f);
+
+    fprintf(stderr, "[mbx] moniteur mailbox ACTIF -> %s "
+            "(ecr=%d lec=%d cellules_sup=%d only=%d max=%lu)\n",
+            e, g_ecr, g_lec, g_ncells, g_only, g_max);
+
+    /* [2026-08-22] Annonce de ce qui est REELLEMENT couvert. Sans elle on ne
+     * distingue pas « la cellule n a pas bouge » de « la cellule n etait pas
+     * surveillee » — c est ce qui m avait fait chercher 0x2cea a la main. */
+    {
+        int i;
+        fprintf(stderr, "[mailbox] couverture : %s",
+                g_only ? "SEULEMENT les cellules et plages listees"
+                       : "fenetre API 0x0800-0x0FFF");
+        for (i = 0; i < g_ncells; i++) {
+            fprintf(stderr, " + 0x%04x", g_cells[i]);
+        }
+        for (i = 0; i < g_nranges; i++) {
+            fprintf(stderr, " + [0x%04x-0x%04x, %u mots]",
+                    g_ranges[i].lo, g_ranges[i].hi,
+                    (unsigned)(g_ranges[i].hi - g_ranges[i].lo + 1));
+        }
+        fprintf(stderr, " | sens : %s%s | garde-fou : %lu ligne(s)%s\n",
+                g_ecr ? "ecritures " : "", g_lec ? "lectures" : "",
+                g_max, g_max ? "" : " (illimite)");
+    }
+    calypso_mbx_actif = 1;
+}
+
+/* Dans la fenêtre mailbox, ou dans la liste supplémentaire ? */
+static int mbx_retenu(uint16_t mot)
+{
+    int i;
+
+    for (i = 0; i < g_ncells; i++) {
+        if (g_cells[i] == mot) {
+            return 1;
+        }
+    }
+    for (i = 0; i < g_nranges; i++) {
+        if (mot >= g_ranges[i].lo && mot <= g_ranges[i].hi) {
+            return 1;
+        }
+    }
+    if (g_only) {
+        return 0;
+    }
+    return (mot >= 0x0800 && mot <= 0x0FFF);
+}
+
+void calypso_mbx_evt(CalypsoMbxSens sens, uint16_t mot, uint16_t val,
+                     uint16_t avant, uint32_t ctx, uint32_t fn, uint32_t insn)
+{
+    int est_ecr;
+
+    if (!g_init) {
+        calypso_mbx_init();
+    }
+    if (!g_f) {
+        return;
+    }
+
+    est_ecr = (sens == MBX_ARM_WR || sens == MBX_DSP_WR);
+    if ((est_ecr && !g_ecr) || (!est_ecr && !g_lec)) {
+        return;
+    }
+    if (!mbx_retenu(mot)) {
+        return;
+    }
+
+    if (g_max && g_n >= g_max) {
+        if (g_n == g_max) {
+            g_n++;
+            fprintf(g_f, "# PLAFOND %lu lignes atteint — trace interrompue. "
+                         "CALYPSO_MAILBOX_MAX=0 pour l'enlever.\n", g_max);
+            fflush(g_f);
+        }
+        return;
+    }
+    g_n++;
+
+    if (g_brut) {
+        mbx_ecrire(sens, mot, val, avant, ctx, fn, insn, 0);
+        return;
+    }
+
+    /* Une écriture qui CHANGE la valeur est toujours un événement : elle passe
+     * sans condition, et elle redéfinit la référence.
+     *
+     * [2026-07-29, troisième version] Auparavant TOUTE écriture passait. Mesuré
+     * sur un run natif : 87 174 lignes sur 92 150 étaient le DSP réécrivant
+     * « 0x0000 -> 0x0000 » depuis le même PC (@0xb446), une fois par trame. Une
+     * écriture qui ne change rien, depuis le même PC, ne porte pas plus
+     * d'information qu'une lecture — même règle pour les deux. */
+    if (est_ecr && avant != val) {
+        if (g_drep[mot] > 1) {
+            mbx_ecrire(g_dsens[mot], mot, g_dval[mot], g_dval[mot], g_dctx[mot],
+                       fn, insn, g_drep[mot] - 1);
+        }
+        g_drep[mot] = 0;
+        mbx_ecrire(sens, mot, val, avant, ctx, fn, insn, 0);
+        g_dval[mot]  = val;
+        g_dctx[mot]  = ctx;
+        g_dsens[mot] = sens;
+        g_dvu[mot]   = 1;
+        return;
+    }
+
+    /* Sinon — lecture, ou écriture sans effet : rien de neuf si même valeur ET
+     * même contexte. On compte. */
+    if (g_dvu[mot] && g_dval[mot] == val && g_dctx[mot] == ctx) {
+        g_drep[mot]++;
+        g_n--;                        /* ne consomme pas le plafond */
+        return;
+    }
+
+    /* Changement : on résume la série précédente, puis on journalise. */
+    if (g_drep[mot] > 1) {
+        mbx_ecrire(g_dsens[mot], mot, g_dval[mot], g_dval[mot], g_dctx[mot],
+                   fn, insn, g_drep[mot] - 1);
+    }
+    g_drep[mot]  = 1;
+    g_dval[mot]  = val;
+    g_dctx[mot]  = ctx;
+    g_dsens[mot] = sens;
+    g_dvu[mot]   = 1;
+    mbx_ecrire(sens, mot, val, avant, ctx, fn, insn, 0);
+}
+
+static void mbx_ecrire(CalypsoMbxSens sens, uint16_t mot, uint16_t val,
+                       uint16_t avant, uint32_t ctx, uint32_t fn, uint32_t insn,
+                       unsigned long rep)
+{
+    static const char *nom_sens[] = { "ARM>WR", "ARM<RD", "DSP>WR", "DSP<RD" };
+    char suffixe[32] = "";
+
+    if (rep) {
+        snprintf(suffixe, sizeof(suffixe), "  x%lu", rep + 1);
+    }
+    if ((g_n & 0x3FF) == 0) {
+        fflush(g_f);                  /* une fenêtre de 1024 lignes au pire */
+    }
+    if (sens == MBX_ARM_WR || sens == MBX_DSP_WR) {
+        fprintf(g_f, "%-12u %-8u %-6s 0x%04x %-14s 0x%04x -> 0x%04x  @0x%04x%s\n",
+                insn, fn, nom_sens[sens], mot, mbx_nom(mot), avant, val, ctx,
+                suffixe);
+    } else {
+        fprintf(g_f, "%-12u %-8u %-6s 0x%04x %-14s = 0x%04x            @0x%04x%s\n",
+                insn, fn, nom_sens[sens], mot, mbx_nom(mot), val, ctx, suffixe);
+    }
+}
+
+```
+
 ## `hw/arm/calypso/calypso_mb.c` {#f-hw-arm-calypso-calypso-mb-c}
 
 ::: {.file-meta}
@@ -459,7 +1148,7 @@ uint32_t calypso_rf3166_faults(void) { return pa.faults; }
 ## `hw/arm/calypso/calypso_rhea_dma.c` {#f-hw-arm-calypso-calypso-rhea-dma-c}
 
 ::: {.file-meta}
-[.c]{.tag} 659 lignes - 32KB
+[.c]{.tag} 689 lignes - 34KB
 :::
 
 ```{.c .numberLines filename="hw/arm/calypso/calypso_rhea_dma.c"}
@@ -985,8 +1674,38 @@ void calypso_rhea_dma_rx_request(C54xState *s)
         if (got <= 0)
             break;
 
+        /* [2026-08-22] DOUBLE-BUFFER §11.3.5 (CAL207) — la destination SUIT
+         * CURRENT_PAGE. Doc DMA_CTRL bit4 : « 0 = 1re page API, 1 = 2e page API,
+         * automatiquement mis a jour pendant le transfert ». Page 0 = AAD
+         * (dst_idx), page 1 = AAD+ALGTH (dst_idx+max_words). L'ancien code ecrivait
+         * TOUJOURS dst_idx -> la 2e page (0x0d2e) restait VIDE, alors que le DSP y
+         * lit une fois sur deux (desasm PROM 0xb2c4=0x0cce / 0xb2c9=0x0d2e) ->
+         * energie=0 -> d_fb_det jamais pose. Triangule doc + disasm + logs.
+         * A/B : CALYPSO_RHEA_DMA_PAGE_OFF=1 restaure le dst fixe (ancien comportement). */
+        /* [2026-08-22 soir] CORRELATEUR = 296 MOTS PLATS, PAS 2 PAGES DE 96.
+         * Le correlateur FB lit un buffer CONTIGU de 296 mots (=148 IQ @1SPS).
+         * Le ping-pong §11.3.5 a 2 pages (dst_idx / dst_idx+96 = 192 mots) repliait
+         * le burst 296 : page2->dst_idx (ecrase page0), page3->dst_idx+96 (ecrase
+         * page1). Resultat : FCCH corrompue, le correlateur pique au BORD (TOA=39).
+         * Le double-buffer HW est un artefact TEMPS-REEL (le DSP consomme la page 0
+         * pendant que le DMA remplit la page 1) ; il n'a PAS lieu d'etre quand on
+         * draine tout le burst en une passe synchrone. On ecrit donc les pages
+         * CONTIGUES : page k -> dst_idx + k*96, soit [0x0cce..0x0df6) plat -> le
+         * correlateur voit les 296 mots.
+         * A/B : CALYPSO_RHEA_DMA_PINGPONG=1 restaure l'ancien ping-pong 2-pages. */
+        unsigned pdst = dst_idx + (unsigned)(pages * max_words);
+        {
+            static int pingpong = -1;
+            if (pingpong < 0) pingpong = getenv("CALYPSO_RHEA_DMA_PINGPONG") ? 1 : 0;
+            if (pingpong) {
+                pdst = dst_idx;
+                if (rd.ch[n].ctrl & CTRL_CURRENT_PAGE)
+                    pdst = dst_idx + (unsigned)max_words;   /* 2e page API = AAD+ALGTH */
+            }
+        }
         for (int i = 0; i < got; i++)
-            api[dst_idx + i] = buf[i];
+            if (pdst + (unsigned)i < C54X_API_SIZE)
+                api[pdst + i] = buf[i];
 
         for (int i = 0; i < got; i++)
             if (buf[i]) nz_total++;
@@ -3501,7 +4220,7 @@ uint16_t calypso_trf6151_apm_for_rf(int target_rf_dbm)
 ## `hw/arm/calypso/calypso_trx.c` {#f-hw-arm-calypso-calypso-trx-c}
 
 ::: {.file-meta}
-[.c]{.tag} 2454 lignes - 120KB
+[.c]{.tag} 2485 lignes - 121KB
 :::
 
 ```{.c .numberLines filename="hw/arm/calypso/calypso_trx.c"}
@@ -3770,6 +4489,37 @@ void calypso_trx_api_commit_w(uint32_t arm_offset, uint16_t value)
     }
 }
 
+/* [2026-08-22] AUTO-RECALAGE FN sur la SCH — LE VRAI FIX (remplace la béquille
+ * DL_FN_OFFSET codée en dur). Un vrai mobile adopte la FN du BTS portée par le SCH
+ * (T1/T2/T3). calypso_trx_autosync_fn() reçoit la FN du SCH décodé et, au 1er SCH,
+ * fige offset = sch_fn - trx_fn -> l'horloge émulée se cale à la source, sans valeur
+ * codée en dur. Gate CALYPSO_DL_FN_AUTOSYNC (défaut 1). Un CALYPSO_DL_FN_OFFSET
+ * manuel désactive l'auto (override explicite, ancien comportement). */
+static int64_t g_auto_fn_off = 0;
+static int     g_auto_fn_armed = 0;
+
+/* Appelee depuis calypso_dsp_shunt.c (chemin SCH gr-gsm), qui la declare en
+ * `extern`. Sans prototype visible ici, -Werror=missing-prototypes casse le
+ * build. Meme convention que calypso_dsp_shunt_set_dcch plus haut. */
+void calypso_trx_autosync_fn(uint32_t sch_fn);   /* -Werror=missing-prototypes */
+
+void calypso_trx_autosync_fn(uint32_t sch_fn)
+{
+    if (g_auto_fn_armed || !g_trx) return;
+    if (getenv("CALYPSO_DL_FN_OFFSET")) { g_auto_fn_armed = 1; return; } /* override manuel gagne */
+    static int gate = -1;
+    if (gate < 0) {
+        const char *e = getenv("CALYPSO_DL_FN_AUTOSYNC");
+        gate = (e && *e == '0') ? 0 : 1;   /* défaut ON */
+    }
+    if (!gate) { g_auto_fn_armed = 1; return; }
+    g_auto_fn_off = (int64_t)sch_fn - (int64_t)g_trx->fn;
+    g_auto_fn_armed = 1;
+    fprintf(stderr, "[trx] AUTO-SYNC FN sur SCH : sch_fn=%u trx_fn=%u -> offset=%lld "
+            "(recalage a la source, remplace la bequille DL_FN_OFFSET)\n",
+            sch_fn, (unsigned)g_trx->fn, (long long)g_auto_fn_off);
+}
+
 uint32_t calypso_trx_get_fn(void)
 {
     if (!g_trx) {
@@ -3796,7 +4546,7 @@ uint32_t calypso_trx_get_fn(void)
             off = atoi(e);
         }
     }
-    return (uint32_t)((int64_t)g_trx->fn + off);
+    return (uint32_t)((int64_t)g_trx->fn + off + g_auto_fn_off);
 }
 
 /* ---- DSP API RAM ---- */
@@ -6109,7 +6859,7 @@ void calypso_tsp_move(uint8_t addr, uint8_t data, uint32_t fn)
 ## `hw/arm/calypso/calypso_twl3025.c` {#f-hw-arm-calypso-calypso-twl3025-c}
 
 ::: {.file-meta}
-[.c]{.tag} 232 lignes - 11KB
+[.c]{.tag} 258 lignes - 13KB
 :::
 
 ```{.c .numberLines filename="hw/arm/calypso/calypso_twl3025.c"}
@@ -6276,10 +7026,29 @@ double calypso_twl3025_get_afc_hz(void)
 {
     twl3025_lazy_env();
     if (twl.force_hz != 0) return (double)twl.force_hz;
-    /* Effective DAC = écriture firmware - calibration baseline.
-     * Cf comment en tête du fichier sur la sémantique baseline. */
+    /* Effective DAC = écriture firmware - calibration baseline (-700 = calib E88,
+     * effective=0 au reset firmware, PAS de hack d'init). */
     int32_t effective_dac = (int32_t)twl.dac_value - TWL3025_AFC_INITIAL_DAC_VALUE;
-    return (double)effective_dac * TWL3025_AFC_SLOPE_HZ_PER_LSB;
+
+    /* [2026-08-22] PENTE VCXO BAND-AWARE — le vrai fix (relire osmocom afc.c).
+     * afc_correct() choisit AFC_NORM_FACTOR selon la BANDE : GSM/850 -> 2^15/947
+     * (=34.6), tout le reste (DCS/PCS) -> 2^15/1894 (=17.3, moitié). Physique : le
+     * VCXO 13 MHz est multiplié jusqu'au LO (900 vs 1800 MHz), donc UN LSB DAC
+     * décale le baseband DEUX FOIS plus en DCS. Pour un gain de boucle = 1, la
+     * pente Hz/LSB de l'émulateur doit suivre : GSM = slope/34.6 = 8.29 ; DCS =
+     * slope/17.3 = 16.6 (×2). L'ému hardcodait la valeur GSM -> en DCS (ARFCN 514)
+     * gain = 0.5 -> l'AFC sous-corrige, converge trop lentement vers le null, et le
+     * reset FBSB l'interrompt avant -> TOA reste bloqué à r39=39 au lieu de 23.
+     * Sélection par CALYPSO_TWL3025_AFC_BAND (défaut GSM ; =DCS/1800/PCS -> ×2). */
+    static double hz_lsb = 0.0;
+    if (hz_lsb == 0.0) {
+        const char *b = getenv("CALYPSO_TWL3025_AFC_BAND");
+        int dcs = (b && (b[0]=='D' || b[0]=='d' || b[0]=='P' || b[0]=='p' ||
+                         (b[0]=='1' && b[1]=='8')));   /* DCS / PCS / 1800 */
+        hz_lsb = dcs ? (TWL3025_AFC_SLOPE / (TWL3025_AFC_NORM_FACTOR_GSM / 2.0))
+                     : TWL3025_AFC_SLOPE_HZ_PER_LSB;
+    }
+    return (double)effective_dac * hz_lsb;
 }
 
 double calypso_twl3025_get_afc_phase_step(void)
@@ -6288,10 +7057,17 @@ double calypso_twl3025_get_afc_phase_step(void)
     if (!twl.afc_enabled) return 0.0;   /* CALYPSO_TWL3025_AFC=0 → pas de rotation AFC */
     double hz = calypso_twl3025_get_afc_hz();
     if (hz == 0.0) return 0.0;
-    /* Phase step per sample = 2π × freq / fs.
-     * Signe : VCXO + → osc UP → received baseband freq DOWN (down-conv).
-     * Compensation = rotation samples par -phase_step. */
-    return -2.0 * M_PI * hz / GSM_SAMPLE_RATE_HZ;
+    /* Phase step per sample = ±2π × freq / fs.
+     * [2026-08-22] SIGNE INVERSÉ (- -> +). Une fois la boucle AFC réellement
+     * fermée (apply_phase déplacé dans c54x_bsp_load, point de convergence des
+     * feeds), l'ancien signe (-) donnait un feedback POSITIF : la DAC partait en
+     * runaway (-700 -> 4095, +34 kHz) au lieu de converger vers -700. Le
+     * raisonnement d'origine « VCXO+ -> baseband DOWN -> -phase_step » ne
+     * correspond pas au signe de la mesure freq_error du DSP émulé. Défaut = +
+     * (converge) ; A/B : CALYPSO_TWL3025_AFC_SIGN_OLD=1 restaure l'ancien -. */
+    static int sign_old = -1;
+    if (sign_old < 0) sign_old = getenv("CALYPSO_TWL3025_AFC_SIGN_OLD") ? 1 : 0;
+    return (sign_old ? -1.0 : 1.0) * 2.0 * M_PI * hz / GSM_SAMPLE_RATE_HZ;
 }
 
 void calypso_twl3025_apply_phase(int16_t *iq_samples, int n_samples,
@@ -7877,6 +8653,284 @@ void l1ctl_sock_poll(void)
 bool l1ctl_client_active(void)
 {
     return g_l1ctl.cli_fd >= 0;
+}
+
+```
+
+## `hw/arm/calypso/sercomm_gate.c` {#f-hw-arm-calypso-sercomm-gate-c}
+
+::: {.file-meta}
+[.c]{.tag} 268 lignes - 9,6KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/sercomm_gate.c"}
+/*
+ * sercomm_gate.c — Sercomm DLCI router (PTY) + CLK UDP listener
+ *
+ * Two separate roles, matching the current QEMU split:
+ *
+ *   1. PTY (UART modem) — sercomm HDLC stream from host (mobile/ccch_scan).
+ *      DLCIs are re-wrapped and pushed to the UART RX FIFO so the firmware's
+ *      sercomm driver parses them via the real code path. L1CTL = DLCI 5,
+ *      TRXC = DLCI 4 (intercepted here, stub responses wrapped back out).
+ *      No DLCI on the PTY ever carries radio bursts.
+ *
+ *   2. UDP CLK listener — just drains "IND CLOCK <fn>" on the baseband
+ *      side and logs it. calypso_trx owns its own FN counter; the CLK
+ *      packets are purely informational here.
+ *
+ *      TRXC traffic is stubbed locally by calypso-ipc-device on UDP 5701 — QEMU
+ *      never sees TRXC on UDP.
+ *
+ *      TRXD (burst) transport is owned by calypso_bsp.c via calypso_orch.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#include "qemu/osdep.h"
+#include "qemu/main-loop.h"
+#include "qemu/error-report.h"
+#include "chardev/char-fe.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <errno.h>
+
+#include "hw/arm/calypso/calypso_uart.h"
+#include "hw/arm/calypso/sercomm_gate.h"
+
+/* TRXC handling is NOT done by QEMU. calypso-ipc-device answers TRXC commands
+ * locally (stub) on UDP 5701 — QEMU never sees them. The L1CTL/L23
+ * path on PTY DLCI 5 is the only thing the modem UART carries. */
+
+#define GATE_LOG(fmt, ...) \
+    fprintf(stderr, "[gate] " fmt "\n", ##__VA_ARGS__)
+
+/* UART pointer captured on the first sercomm_gate_feed() call. The TRXC
+ * UDP callback uses it to push received sercomm-wrapped frames straight
+ * into the firmware UART RX FIFO. */
+static CalypsoUARTState *g_uart;
+
+/* ============================================================
+ * 1. PTY side — sercomm HDLC parser (L1CTL only)
+ * ============================================================ */
+
+#define SERCOMM_FLAG   0x7E
+#define SERCOMM_ESCAPE 0x7D
+#define SERCOMM_XOR    0x20
+
+#define GATE_BUF_SIZE  512
+
+enum gate_rx_state {
+    GATE_WAIT_FLAG,
+    GATE_IN_FRAME,
+    GATE_ESCAPE,
+};
+
+static uint8_t  sc_buf[GATE_BUF_SIZE];
+static int      sc_len;
+static enum gate_rx_state sc_state;
+
+/*
+ * Re-wrap a decoded sercomm frame (DLCI + CTRL + payload) and push it
+ * back into the UART RX FIFO. The firmware's sercomm driver will parse
+ * it again — keeping the firmware code path 100% identical to hardware.
+ */
+static void gate_push_to_fifo(CalypsoUARTState *s,
+                              const uint8_t *frame, int len)
+{
+    fprintf(stderr,
+            "[gate→fw-fifo] DLCI=%u CTRL=%02x payload=%d bytes (rx_count_before=%u)\n",
+            len > 0 ? frame[0] : 0xff,
+            len > 1 ? frame[1] : 0xff,
+            len > 2 ? len - 2 : 0,
+            (unsigned)s->rx_count);
+    { uint8_t _b = SERCOMM_FLAG; calypso_uart_inject_raw(s, &_b, 1); }
+    for (int i = 0; i < len; i++) {
+        uint8_t c = frame[i];
+        /* Standard sercomm HDLC byte stuffing : escape FLAG (0x7e) and
+         * ESCAPE (0x7d) so they survive in payload bytes. Mandatory for
+         * the firmware sercomm parser ; removing this corrupts every
+         * frame whose payload contains 0x7e or 0x7d. */
+        if (c == SERCOMM_FLAG || c == SERCOMM_ESCAPE) {
+            { uint8_t _e = SERCOMM_ESCAPE; calypso_uart_inject_raw(s, &_e, 1); }
+            { uint8_t _x = c ^ SERCOMM_XOR; calypso_uart_inject_raw(s, &_x, 1); }
+        } else {
+            calypso_uart_inject_raw(s, &c, 1);
+        }
+    }
+    { uint8_t _b = SERCOMM_FLAG; calypso_uart_inject_raw(s, &_b, 1); }
+}
+
+#define SERCOMM_DLCI_TRXC 4
+
+/* Wrap a payload in sercomm DLCI 4 (TRXC) and send it back via the
+ * chardev TX (→ PTY → calypso-ipc-device → osmo-bts-trx 5701). */
+static void gate_send_trxc_rsp(CalypsoUARTState *s,
+                                const uint8_t *payload, int plen)
+{
+    if (!s) return;
+    uint8_t frame[1024];
+    int pos = 0;
+    frame[pos++] = SERCOMM_FLAG;
+    uint8_t hdr[2] = { SERCOMM_DLCI_TRXC, 0x03 };
+    for (int i = 0; i < 2; i++) {
+        if (hdr[i] == SERCOMM_FLAG || hdr[i] == SERCOMM_ESCAPE) {
+            frame[pos++] = SERCOMM_ESCAPE;
+            frame[pos++] = hdr[i] ^ SERCOMM_XOR;
+        } else {
+            frame[pos++] = hdr[i];
+        }
+    }
+    for (int i = 0; i < plen && pos + 2 < (int)sizeof(frame); i++) {
+        uint8_t c = payload[i];
+        if (c == SERCOMM_FLAG || c == SERCOMM_ESCAPE) {
+            frame[pos++] = SERCOMM_ESCAPE;
+            frame[pos++] = c ^ SERCOMM_XOR;
+        } else {
+            frame[pos++] = c;
+        }
+    }
+    frame[pos++] = SERCOMM_FLAG;
+    qemu_chr_fe_write_all(&s->chr, frame, pos);
+    fprintf(stderr, "[gate-trxc] TX→bridge %d bytes (sercomm framed=%d)\n",
+            plen, pos);
+}
+
+/* Parse a TRXC CMD string and produce a RSP string.
+ * Mirrors calypso-ipc-device::trxc_response. Returns response length, or 0 if
+ * the command is not a CMD (silently ignored). */
+static int gate_trxc_handle(const uint8_t *cmd_buf, int cmd_len,
+                             char *rsp, int rsp_size)
+{
+    /* Strip trailing \0 and find verb/args */
+    int n = cmd_len;
+    while (n > 0 && (cmd_buf[n-1] == 0 || cmd_buf[n-1] == "\n"[0])) n--;
+    if (n < 4) return 0;
+    if (memcmp(cmd_buf, "CMD ", 4) != 0) return 0;
+
+    char tmp[512];
+    int  tn = n - 4 < (int)sizeof(tmp) - 1 ? n - 4 : (int)sizeof(tmp) - 1;
+    memcpy(tmp, cmd_buf + 4, tn);
+    tmp[tn] = 0;
+
+    /* Split verb and args */
+    char *verb = tmp;
+    char *args = strchr(tmp, " "[0]);
+    if (args) { *args = 0; args++; }
+    else args = (char *)"";
+
+    fprintf(stderr, "[gate-trxc] RX←bridge CMD %s args=%s\n", verb, args);
+
+    int rl;
+    if (strcmp(verb, "POWERON") == 0)
+        rl = snprintf(rsp, rsp_size, "RSP POWERON 0");
+    else if (strcmp(verb, "POWEROFF") == 0)
+        rl = snprintf(rsp, rsp_size, "RSP POWEROFF 0");
+    else if (strcmp(verb, "SETFORMAT") == 0)
+        rl = snprintf(rsp, rsp_size, "RSP SETFORMAT 0 %s", args[0] ? args : "0");
+    else if (strcmp(verb, "NOMTXPOWER") == 0)
+        rl = snprintf(rsp, rsp_size, "RSP NOMTXPOWER 0 50");
+    else if (strcmp(verb, "MEASURE") == 0)
+        rl = snprintf(rsp, rsp_size, "RSP MEASURE 0 %s -60", args[0] ? args : "0");
+    else if (args[0])
+        rl = snprintf(rsp, rsp_size, "RSP %s 0 %s", verb, args);
+    else
+        rl = snprintf(rsp, rsp_size, "RSP %s 0", verb);
+
+    if (rl > 0 && rl < rsp_size) rsp[rl++] = 0;  /* trailing NUL like bridge */
+    return rl;
+}
+
+void sercomm_gate_feed(CalypsoUARTState *s, const uint8_t *buf, int size)
+{
+    if (!g_uart) g_uart = s;
+    for (int i = 0; i < size; i++) {
+        uint8_t b = buf[i];
+
+        switch (sc_state) {
+        case GATE_WAIT_FLAG:
+            if (b == SERCOMM_FLAG) {
+                sc_state = GATE_IN_FRAME;
+                sc_len = 0;
+            } else {
+                /* Pre-sercomm raw bytes pass through (loader/console). */
+                calypso_uart_inject_raw(s, &b, 1);
+            }
+            break;
+
+        case GATE_ESCAPE:
+            if (sc_len < GATE_BUF_SIZE)
+                sc_buf[sc_len++] = b ^ SERCOMM_XOR;
+            sc_state = GATE_IN_FRAME;
+            break;
+
+        case GATE_IN_FRAME:
+            if (b == SERCOMM_FLAG) {
+                if (sc_len >= 2) {
+                    /* DLCI 5 = L1CTL from mobile (via bridge).
+                     * Trace, then push to firmware FIFO so the real
+                     * sercomm parser dispatches it. All other DLCIs
+                     * (console, debug, …) go straight to FIFO. */
+                    if (sc_buf[0] == SERCOMM_DLCI_TRXC && sc_len >= 2) {
+                        char rsp[512];
+                        int rl = gate_trxc_handle(sc_buf + 2, sc_len - 2,
+                                                   rsp, sizeof(rsp));
+                        if (rl > 0)
+                            gate_send_trxc_rsp(s, (uint8_t *)rsp, rl);
+                        sc_len = 0;
+                        break;
+                    }
+                    if (sc_buf[0] == 5) {
+                        int plen = sc_len - 2;
+                        uint8_t mt = plen > 0 ? sc_buf[2] : 0;
+                        fprintf(stderr,
+                                "[PTY-L1CTL] <<<RX %d bytes (mobile→fw) mt=0x%02x:",
+                                plen, mt);
+                        for (int j = 0; j < plen && j < 32; j++)
+                            fprintf(stderr, " %02x", sc_buf[2 + j]);
+                        if (plen > 32) fprintf(stderr, " ...");
+                        fprintf(stderr, "\n");
+
+                    }
+                    gate_push_to_fifo(s, sc_buf, sc_len);
+                }
+                sc_len = 0;
+            } else if (b == SERCOMM_ESCAPE) {
+                sc_state = GATE_ESCAPE;
+            } else {
+                if (sc_len < GATE_BUF_SIZE)
+                    sc_buf[sc_len++] = b;
+            }
+            break;
+        }
+    }
+}
+
+/* ============================================================
+ * 2. UDP CLK listener — informational only
+ * ============================================================
+ *
+ * TRXC is stubbed by calypso-ipc-device on UDP 5701; QEMU never sees it.
+ * TRXD (bursts) is owned by calypso_bsp.c via calypso_orch.
+ */
+
+/* CLK UDP listener removed — QEMU sends ticks to bridge directly. */
+static int g_clk_fd = -1;
+
+/* ---------- init ---------- */
+
+void sercomm_gate_init(int base_port)
+{
+    if (base_port <= 0) base_port = 6700;
+    int clk_port = base_port + 0;
+
+    /* CLK UDP listener disabled — QEMU is now the clock master and sends
+     * ticks directly to the bridge via calypso_trx.c (port 6700).
+     * The gate no longer needs to receive CLK IND. */
+    (void)clk_port;
+    g_clk_fd = -1;
+    GATE_LOG("TRXD: owned by calypso_bsp.c via calypso_orch");
 }
 
 ```

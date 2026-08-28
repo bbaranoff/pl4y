@@ -3,6 +3,1033 @@ title: "4 - Sources - partie 3"
 ---
 
 
+## `hw/arm/calypso/calypso_c54x_trace.c` {#f-hw-arm-calypso-calypso-c54x-trace-c}
+
+::: {.file-meta}
+[.c]{.tag} 1017 lignes - 44KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_c54x_trace.c"}
+/*
+ * calypso_c54x_trace.c - debug instrumentation lifted out of calypso_c54x.c.
+ *
+ * None of this participates in emulation. Every probe here is a ring buffer, a
+ * histogram or a dump, gated on an environment token; with the gates off the
+ * only thing they change is what reaches stderr. They were interleaved with the
+ * decoder, which is why calypso_c54x.c had grown past 21k lines.
+ *
+ * Mechanical move: each block below was cut with sed from calypso_c54x.c at the
+ * line ranges named in its banner and pasted verbatim. The only edits are the
+ * `static` keywords dropped from the fifteen functions the decoder still calls
+ * (now declared in calypso_c54x_trace.h). No probe logic was touched.
+ *
+ * Deliberately LEFT BEHIND in calypso_c54x.c, because their state is written or
+ * read directly by the decoder and moving them would trade file-static symbols
+ * for externs without shrinking anything: CORR, STKW, NOPGUARD, SP-RING/SP-HIST,
+ * the boot and vec28 traces, THROUGHPUT and READSTATS.
+ */
+
+#include "qemu/osdep.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "calypso_c54x.h"
+#include "calypso_c54x_trace.h"
+#include "hw/arm/calypso/calypso_debug.h"
+
+
+/* ==== ARTRACK — generic ARn write tracer with provenance   [calypso_c54x.c:207-331] ==== */
+
+/* === Generic ARn write tracer with provenance (2026-05-25 v3 unified) ===
+ * Tracer paramétré pour AR0..AR7. Remplace les ad-hoc ar2/ar4. Env mask
+ * `CALYPSO_AR_TRACE` (hex, default 0) :
+ *   =0xFF  → trace tous les AR0..AR7
+ *   =0x14  → trace AR2 + AR4 seulement (bits 2 et 4 set)
+ *   =0x04  → AR2 only
+ *   =0     → désactivé (zéro coût)
+ *
+ * Hook : `case MMR_AR0..AR7` dans data_write_locked. Skip auto-modify
+ * noise (Δ ∈ [-3, 3]). Classification opcode via decode + flag ZERO
+ * automatique (= suspect clobber MMR via STL A,*AR-).
+ *
+ * Question résolue par cette sonde : qui pose ARn = mauvaise valeur ?
+ *   STM-#lk    → immediate hardcoded ROM (silicon-intentional, le fix
+ *                est ailleurs : étape ultérieure qui ré-set manque)
+ *   MVDM-mem   → load depuis mem (slot uninit divergence QEMU vs silicon)
+ *   MVMM       → copie d'un autre AR (remonter le tracer sur source)
+ *   STM Smem   → load mem indirect (idem MVDM)
+ *   STLM-A     → from accumulator A (vérifier d'où A vient) */
+#define AR_HIST_MAX 64
+typedef struct {
+    uint16_t pc;
+    uint16_t op_last;
+    uint16_t val_last;
+    uint32_t count;
+} ArEntry;
+static ArEntry  g_ar_hist[8][AR_HIST_MAX];
+static unsigned g_ar_used[8]    = {0};
+static unsigned g_ar_total[8]   = {0};
+static unsigned g_ar_mask       = 0;
+static int      g_ar_enabled    = -1;
+static unsigned g_ar_log_cap    = 50;
+
+void ar_write_track(C54xState *s, unsigned idx, uint16_t new_val)
+{
+    /* AR3-PRELOAD (revival dsp 2026-06-22, read-only, toujours actif, cape 120) :
+     * capture les LOADS d'AR3 dans/autour du buffer I/Q [0x2a00..0x2c00). Le
+     * correlateur PC=0xee38 lit AR3=0x2b97 (HORS buffer, fin=0x2b28). ar_write_track
+     * n'est appele QUE sur load MMR (STM/STLM/MVDM), PAS sur auto-increment.
+     * VERDICT :
+     *  - AR3 loade a ~0x2a00 (debut buffer) et AUCUN load >=0x2b28 ici -> le 0x2b97
+     *    vient d'INCREMENTS = boucle trop longue / buffer trop court = FIX B (BSP).
+     *  - AR3 loade directement >=0x2b28 (flag OUT-OF-BUF) -> instruction mal emulee
+     *    = FIX A (decodage c54x), avec le PC/op coupable. */
+    if (idx == 3 && new_val >= 0x2a00 && new_val < 0x2c00) {
+        static unsigned ar3p_n = 0;
+        if (ar3p_n < 120) {
+            uint16_t op = prog_fetch(s, s->pc);
+            fprintf(stderr, "[c54x] AR3-PRELOAD PC=0x%04x op=0x%04x AR3 %04x->%04x "
+                    "%s insn=%u\n", s->pc, op, s->ar[3], new_val,
+                    new_val >= 0x2b28 ? "*** OUT-OF-BUF ***" : "(in-buf)",
+                    s->insn_count);
+            ar3p_n++;
+        }
+    }
+    if (g_ar_enabled < 0) {
+        const char *e = getenv("CALYPSO_AR_TRACE");
+        g_ar_mask = (e && *e) ? (unsigned)strtoul(e, NULL, 0) : 0xFFu;
+        g_ar_enabled = calypso_debug_enabled("AR-TRACE") ? 1 : 0;
+        if (g_ar_enabled) {
+            fprintf(stderr,
+                "[c54x] AR-TRACE enabled, mask=0x%02x (AR0..AR7), "
+                "log_cap=%u hist_max=%u\n",
+                g_ar_mask, g_ar_log_cap, AR_HIST_MAX);
+        }
+    }
+    if (g_ar_enabled <= 0) return;
+    if (idx >= 8) return;
+    if (!(g_ar_mask & (1u << idx))) return;
+
+    uint16_t old_val = s->ar[idx];
+    int32_t delta = (int32_t)new_val - (int32_t)old_val;
+    if (delta >= -3 && delta <= 3) return;  /* skip auto-modify noise */
+    g_ar_total[idx]++;
+
+    uint16_t op = prog_fetch(s, s->pc);
+    const char *kind = "MISC";
+    if ((op & 0xFF80) == 0x7700) kind = "STM-#lk";
+    else if ((op & 0xFF00) == 0x8400) kind = "STLM-A";
+    else if ((op & 0xFF00) == 0x8600) kind = "MVDM-mem";
+    else if ((op & 0xFF00) == 0x8800) kind = "MVMM";
+    else if ((op & 0xF800) == 0x8000) kind = "STL-A";
+
+    unsigned i;
+    for (i = 0; i < g_ar_used[idx]; i++) {
+        if (g_ar_hist[idx][i].pc == s->pc) {
+            g_ar_hist[idx][i].count++;
+            g_ar_hist[idx][i].val_last = new_val;
+            g_ar_hist[idx][i].op_last = op;
+            break;
+        }
+    }
+    if (i == g_ar_used[idx] && g_ar_used[idx] < AR_HIST_MAX) {
+        g_ar_hist[idx][i].pc = s->pc;
+        g_ar_hist[idx][i].op_last = op;
+        g_ar_hist[idx][i].val_last = new_val;
+        g_ar_hist[idx][i].count = 1;
+        g_ar_used[idx]++;
+    }
+    if (g_ar_total[idx] <= g_ar_log_cap) {
+        fprintf(stderr,
+            "[c54x] AR%u-W #%u %s @insn=%u PC=0x%04x op=0x%04x  "
+            "AR%u %04x → %04x (Δ=%+d)  A=%010llx SP=%04x\n",
+            idx, g_ar_total[idx], kind, s->insn_count, s->pc, op,
+            idx, old_val, new_val, delta,
+            (unsigned long long)(s->a & 0xFFFFFFFFFFULL), s->sp);
+    }
+    /* Distinction sémantique critique (cf review Claude web 2026-05-25 v2) :
+     * - STM-#lk    = deliberate AR update via immediate hardcoded ROM
+     *                (silicon-intentional, l'AR change par design firmware)
+     * - LD-#k      = idem (small immediate)
+     * - STL-A / autres = side-effect d'un MMR write where AR happens to
+     *                    self-alias (= AR pointing at its own MMR slot).
+     *                    NOT an explicit AR update — coincidence pointer.
+     * Label clairement pour ne pas confondre les 2 dans le hunt. */
+    if (new_val == 0) {
+        int deliberate = ((op & 0xFF80) == 0x7700);  /* STM-#lk only */
+        fprintf(stderr,
+            "[c54x] AR%u-W ZERO %s @insn=%u PC=0x%04x op=0x%04x AR%u←0 "
+            "(kind=%s)\n",
+            idx,
+            deliberate ? "DELIBERATE" : "SIDE-EFFECT",
+            s->insn_count, s->pc, op, idx, kind);
+    }
+}
+
+/* ==== ATRACK — A accumulator provenance tracer   [calypso_c54x.c:333-395] ==== */
+
+/* === A accumulator provenance tracer (2026-05-25 v3) ===
+ * Capture le LAST WRITER de A via chokepoint top-of-loop : compare A
+ * iter-à-iter, si change → mémorise PC + op du writer. Quand un trigger
+ * PC fire (default = 0x9ac0 = STL A,*AR2- clobber IMR), dump A + last
+ * writer. Réponse à la question Claude web : A=0 délibéré (= mask-all
+ * design firmware) ou A=0 divergence (= A devait porter mask valide) ?
+ *
+ * Env : CALYPSO_A_TRACE_PC=0x9ac0 (hex PC trigger, default 0xFFFF=off)
+ * Zéro coût si env non set. */
+static int64_t  g_a_last_value      = 0;
+static uint16_t g_a_last_writer_pc  = 0;
+static uint16_t g_a_last_writer_op  = 0;
+static unsigned g_a_last_writer_insn = 0;
+static int      g_a_trace_enabled   = -1;
+static uint16_t g_a_trace_pc        = 0xFFFF;
+static unsigned g_a_trace_hits      = 0;
+static unsigned g_a_trace_log_cap   = 50;
+
+void a_track_init_lazy(void)
+{
+    if (g_a_trace_enabled >= 0) return;
+    const char *e = getenv("CALYPSO_A_TRACE_PC");
+    if (calypso_debug_enabled("A-TRACE")) {
+        g_a_trace_pc = (e && *e) ? (uint16_t)strtoul(e, NULL, 0) : 0;
+        g_a_trace_enabled = 1;
+        fprintf(stderr,
+            "[c54x] A-TRACE enabled, trigger PC=0x%04x log_cap=%u\n",
+            g_a_trace_pc, g_a_trace_log_cap);
+    } else {
+        g_a_trace_enabled = 0;
+    }
+}
+
+void a_track_iter(C54xState *s, uint16_t prev_pc, uint16_t prev_op)
+{
+    if (g_a_trace_enabled <= 0) return;
+    /* Detect A change → mémorise dernier writer */
+    if (s->a != g_a_last_value) {
+        g_a_last_writer_pc   = prev_pc;
+        g_a_last_writer_op   = prev_op;
+        g_a_last_writer_insn = s->insn_count;
+        g_a_last_value       = s->a;
+    }
+    /* Trigger : PC about to execute matches target */
+    if (s->pc == g_a_trace_pc) {
+        g_a_trace_hits++;
+        int a_zero = ((s->a & 0xFFFF) == 0);
+        /* Log if (a) parmi les N premiers (contexte) OR (b) A_low=0 (= cas
+         * suspect STL clobber zone). Évite cap log silencieux qui masque
+         * les events critiques tardifs (cf cas insn=253328 IMR clobber). */
+        if (g_a_trace_hits <= g_a_trace_log_cap || a_zero) {
+            fprintf(stderr,
+                "[c54x] A-AT-PC #%u @insn=%u PC=0x%04x  A=%010llx (low=0x%04x, %s) "
+                "last_writer: PC=0x%04x op=0x%04x @insn=%u\n",
+                g_a_trace_hits, s->insn_count, s->pc,
+                (unsigned long long)(s->a & 0xFFFFFFFFFFULL),
+                (unsigned)(s->a & 0xFFFF),
+                a_zero ? "A_low=0 → STL clobber zone" : "A_low≠0",
+                g_a_last_writer_pc, g_a_last_writer_op,
+                g_a_last_writer_insn);
+        }
+    }
+}
+
+/* ==== AR6AT — AR6 windowed snapshot at trigger PC   [calypso_c54x.c:397-478] ==== */
+
+/* === AR6 windowed snapshot at trigger PC (2026-05-25 v4) ===
+ * Capture AR6 + B + source provenance à chaque fire d'un PC trigger,
+ * fenêtré sur [insn_lo, insn_hi] pour éviter explosion log (le PC 0x821a
+ * fire 10M+ fois). Réponse à la question Claude web : aux fires qui
+ * clobber IMR à PC=0x821a, AR6 vaut 0 (= base divergence) ou 0x16
+ * (= self-alias feedback) ?
+ *
+ * Tracking AR6's last writer (= what set AR6 to its current value)
+ * via top-of-loop comparison (même pattern que A tracer).
+ *
+ * Env :
+ *   CALYPSO_AR6_AT_PC=0x821a    PC trigger
+ *   CALYPSO_AR6_WIN_LO=3619500  insn window start
+ *   CALYPSO_AR6_WIN_HI=3619810  insn window end (one outer-loop iter)
+ *   CALYPSO_AR6_AT_LOG_CAP=200  max log lines (default 200)
+ */
+static uint16_t g_ar6_last_value     = 0;
+static uint16_t g_ar6_last_writer_pc = 0;
+static uint16_t g_ar6_last_writer_op = 0;
+static unsigned g_ar6_last_writer_insn = 0;
+static int      g_ar6_at_enabled     = -1;
+static uint16_t g_ar6_at_pc          = 0xFFFF;
+static unsigned g_ar6_at_win_lo      = 0;
+static unsigned g_ar6_at_win_hi      = 0;
+static unsigned g_ar6_at_hits        = 0;
+static unsigned g_ar6_at_log_cap     = 200;
+
+void ar6_at_init_lazy(void)
+{
+    if (g_ar6_at_enabled >= 0) return;
+    const char *e = getenv("CALYPSO_AR6_AT_PC");
+    if (calypso_debug_enabled("AR6-AT")) {
+        g_ar6_at_pc = (e && *e) ? (uint16_t)strtoul(e, NULL, 0) : 0;
+        g_ar6_at_enabled = 1;
+        const char *lo = getenv("CALYPSO_AR6_WIN_LO");
+        const char *hi = getenv("CALYPSO_AR6_WIN_HI");
+        const char *cap = getenv("CALYPSO_AR6_AT_LOG_CAP");
+        g_ar6_at_win_lo = (lo && *lo) ? (unsigned)strtoul(lo, NULL, 0) : 0;
+        g_ar6_at_win_hi = (hi && *hi) ? (unsigned)strtoul(hi, NULL, 0) : 0xFFFFFFFFu;
+        g_ar6_at_log_cap = (cap && *cap) ? (unsigned)strtoul(cap, NULL, 0) : 200;
+        fprintf(stderr,
+            "[c54x] AR6-AT-PC enabled, trigger PC=0x%04x window=[%u..%u] cap=%u\n",
+            g_ar6_at_pc, g_ar6_at_win_lo, g_ar6_at_win_hi, g_ar6_at_log_cap);
+    } else {
+        g_ar6_at_enabled = 0;
+    }
+}
+
+void ar6_at_iter(C54xState *s, uint16_t prev_pc, uint16_t prev_op)
+{
+    if (g_ar6_at_enabled <= 0) return;
+    /* Track AR6 last writer */
+    if (s->ar[6] != g_ar6_last_value) {
+        g_ar6_last_writer_pc   = prev_pc;
+        g_ar6_last_writer_op   = prev_op;
+        g_ar6_last_writer_insn = s->insn_count;
+        g_ar6_last_value       = s->ar[6];
+    }
+    /* Trigger : PC about to execute matches AND within window */
+    if (s->pc == g_ar6_at_pc &&
+        s->insn_count >= g_ar6_at_win_lo &&
+        s->insn_count <= g_ar6_at_win_hi) {
+        g_ar6_at_hits++;
+        if (g_ar6_at_hits <= g_ar6_at_log_cap) {
+            uint16_t ar6 = s->ar[6];
+            const char *regime;
+            if (ar6 == 0)              regime = "AR6=0 → addr=IMR (BUFFER BASE DIVERGENCE)";
+            else if (ar6 == 0x16)      regime = "AR6=0x16 → addr=MMR_AR6 (SELF-ALIAS)";
+            else if (ar6 < 0x20)       regime = "AR6 in MMR zone";
+            else                        regime = "AR6 normal";
+            fprintf(stderr,
+                "[c54x] AR6-AT-PC #%u @insn=%u PC=0x%04x  AR6=0x%04x (%s) "
+                "B=%010llx (high=0x%04x)  last_writer: PC=0x%04x op=0x%04x @insn=%u\n",
+                g_ar6_at_hits, s->insn_count, s->pc,
+                ar6, regime,
+                (unsigned long long)(s->b & 0xFFFFFFFFFFULL),
+                (unsigned)((s->b >> 16) & 0xFFFF),
+                g_ar6_last_writer_pc, g_ar6_last_writer_op,
+                g_ar6_last_writer_insn);
+        }
+    }
+}
+
+/* ==== RSBX — INTM hits counter (state)   [calypso_c54x.c:481-483] ==== */
+
+/* RSBX INTM hits counter (cheap probe, candidat 1 du doc §7). */
+static uint64_t g_rsbx_intm_hits = 0;
+static int      g_rsbx_intm_enabled = -1;
+
+/* ==== RSBX — INTM check   [calypso_c54x.c:566-586] ==== */
+
+void rsbx_intm_check(C54xState *s, uint16_t op)
+{
+    if (g_rsbx_intm_enabled < 0) {
+        const char *e = cdbg_env("RSBX-INTM");
+        g_rsbx_intm_enabled = (e && *e == '1') ? 1 : 0;
+        if (g_rsbx_intm_enabled) {
+            fprintf(stderr, "[c54x] RSBX-INTM-TRACE enabled (op=0xF6BB)\n");
+        }
+    }
+    if (g_rsbx_intm_enabled <= 0) return;
+    if (op == 0xF6BB) {
+        g_rsbx_intm_hits++;
+        if (g_rsbx_intm_hits <= 20 || (g_rsbx_intm_hits % 1000) == 0) {
+            fprintf(stderr,
+                "[c54x] RSBX-INTM #%llu @insn=%u PC=0x%04x  ST1 INTM 0x%04x → "
+                "(cleared) — IRQ enable path atteint !\n",
+                (unsigned long long)g_rsbx_intm_hits, s->insn_count, s->pc,
+                s->st1);
+        }
+    }
+}
+
+/* ==== AR4 tracer — HISTORICAL NOTE ONLY, the tracer itself is gone   [calypso_c54x.c:588-602] ==== */
+
+/* === AR4 write tracer with provenance (2026-05-25) ===
+ * Hooke chaque write vers MMR_AR4 (= 0x14) via data_write_locked.
+ * Logge (insn, PC, opcode courant, val écrite, ancien AR4) + tente une
+ * classification de provenance via decode opcode :
+ *   STM #lk, ARn  (0x77yx)  → immediate value depuis next prog word
+ *   STLM src,ARn  (0x84yx)  → from accumulator A/B low
+ *   MVDM dmad,ARn (0x86yx)  → from data memory absolute
+ *   MVDD/MVMM     (autres)  → from another register
+ * Flag SUSPECT si nouvelle valeur AR4 ∈ [0x2b80..0x2c00] (observed bug
+ * zone) ou [0x3fb0..0x3fbf] (BSP buffer area). Env CALYPSO_AR4_TRACE=1.
+ *
+ * Question critique (cf Claude web) : provenance = const/mem/register ?
+ * Si AR4 vient d'un mem load (LDM/MVDM), le corrupter remonte au TCB
+ * en mémoire — pas l'instruction qui charge AR4, mais le TCB lui-même
+ * (potentiellement uninitialized faute de re-init firmware sautée). */
+
+/* ==== SPABS — SP absolute-write tracer   [calypso_c54x.c:603-678] ==== */
+
+/* === SP absolute-write tracer (2026-05-25 — nohack hunt) ===
+ * Logge chaque write SP via STL/STM/STLM absolute, FRAME #imm, MVMM
+ * register transfer — c'est-à-dire les sites où SP est *téléporté* à une
+ * valeur arbitraire, par opposition aux PUSH/POP/CALL/RET qui sont des
+ * inc/dec de 1. Si un site téléporte SP=0x3fbe, on tient le corrupter
+ * exact du bootstub-entry observé à insn=3995013.
+ *
+ * Hooké aux 3 sites identifiés :
+ *   L1218 : data_write_locked case MMR_SP — STL/STM/STLM to MMR_SP
+ *   L3875 : F7Dx case 0xD — LD #k8u, SP
+ *   L4285 : MVMM register transfer — dst==8 (SP via MMR enc 3-bit)
+ *
+ * Env-gated CALYPSO_SP_ABS_TRACE=1, zéro coût si OFF.
+ * Limite N premiers writes verbatim + histo per-PC (cap SP_ABS_HIST_MAX). */
+#define SP_ABS_HIST_MAX 128
+typedef struct {
+    uint16_t pc;
+    uint16_t value_last;
+    uint32_t count;
+    uint8_t  site;   /* 0=MMR_SP, 1=LDK8, 2=MVMM */
+} SpAbsEntry;
+static SpAbsEntry g_sp_abs_hist[SP_ABS_HIST_MAX];
+static unsigned   g_sp_abs_used     = 0;
+static unsigned   g_sp_abs_total    = 0;
+static int        g_sp_abs_enabled  = -1;
+static unsigned   g_sp_abs_log_cap  = 50;
+
+void sp_abs_track(C54xState *s, uint16_t new_val, uint8_t site)
+{
+    if (g_sp_abs_enabled < 0) {
+        const char *e = cdbg_env("SP-ABS");
+        g_sp_abs_enabled = (e && *e == '1') ? 1 : 0;
+        if (g_sp_abs_enabled) {
+            fprintf(stderr, "[c54x] SP-ABS-TRACE enabled, log_cap=%u hist_max=%u\n",
+                    g_sp_abs_log_cap, SP_ABS_HIST_MAX);
+        }
+    }
+    if (g_sp_abs_enabled <= 0) return;
+    g_sp_abs_total++;
+    /* Per-PC histo */
+    unsigned i;
+    for (i = 0; i < g_sp_abs_used; i++) {
+        if (g_sp_abs_hist[i].pc == s->pc && g_sp_abs_hist[i].site == site) {
+            g_sp_abs_hist[i].count++;
+            g_sp_abs_hist[i].value_last = new_val;
+            break;
+        }
+    }
+    if (i == g_sp_abs_used && g_sp_abs_used < SP_ABS_HIST_MAX) {
+        g_sp_abs_hist[i].pc         = s->pc;
+        g_sp_abs_hist[i].value_last = new_val;
+        g_sp_abs_hist[i].count      = 1;
+        g_sp_abs_hist[i].site       = site;
+        g_sp_abs_used++;
+    }
+    /* Verbatim log first N */
+    if (g_sp_abs_total <= g_sp_abs_log_cap) {
+        const char *site_name = site == 0 ? "MMR_SP-W" :
+                                site == 1 ? "LD-#k8-SP" : "MVMM-SP";
+        int32_t delta = (int32_t)new_val - (int32_t)s->sp;
+        fprintf(stderr,
+            "[c54x] SP-ABS #%u %s @insn=%u PC=0x%04x SP %04x → %04x (Δ=%+d) "
+            "A=%010llx AR4=%04x\n",
+            g_sp_abs_total, site_name, s->insn_count, s->pc,
+            s->sp, new_val, delta,
+            (unsigned long long)(s->a & 0xFFFFFFFFFFULL), s->ar[4]);
+    }
+    /* Flag if SP lands in suspect zone (0x3fb0..0x3fbf = BSP read region
+     * OR 0x2b80..0x2c00 = 0xfd2a A=AR4 historical) */
+    if ((new_val >= 0x3fb0 && new_val <= 0x3fbf) ||
+        (new_val >= 0x2b80 && new_val <= 0x2c00)) {
+        fprintf(stderr,
+            "[c54x] SP-ABS SUSPECT! @insn=%u PC=0x%04x SP←0x%04x (corrupter ?)\n",
+            s->insn_count, s->pc, new_val);
+    }
+}
+
+/* ==== STUCK — PC+XPC histogram probe   [calypso_c54x.c:906-990] ==== */
+
+/* === STUCK-STATE PC+XPC histogram (c web reframe 2026-05-25 night3) =====
+ *
+ * Sonde diagnostique : quand le DSP est en "stuck state" (= INTM=1 ET
+ * BRINT0 pending dans IFR), on enregistre PC+XPC. Permet d'identifier
+ * la VRAIE boucle de blocage XPC-qualifiée — sans présumer que c'est
+ * fc50 ou autre PC particulier.
+ *
+ * Le PC HIST classique ne distingue pas les pages XPC (= ambiguous "fc50"
+ * peut être page 0x1F mirror ou 0x28/0x38 etc.).
+ *
+ * Entry/exit du stuck state logué (= delimit la fenêtre).
+ * Top-20 PC+XPC dump périodique (= quand stuck dure).
+ *
+ * Env-gated CALYPSO_STUCK_PROBE=1. Coût off : 1 bit-check + 1 branch. */
+#define STUCK_HIST_SIZE 64
+typedef struct {
+    uint16_t pc;
+    uint8_t  xpc;
+    uint32_t count;
+} StuckHistEntry;
+static StuckHistEntry g_stuck_hist[STUCK_HIST_SIZE];
+static unsigned g_stuck_hist_used = 0;
+static int g_stuck_probe_enabled = -1;
+static int g_stuck_active = 0;
+static uint32_t g_stuck_duration = 0;
+static uint64_t g_stuck_start_insn = 0;
+static unsigned g_stuck_dump_count = 0;
+
+static void stuck_probe_init_lazy(void)
+{
+    if (g_stuck_probe_enabled >= 0) return;
+    const char *e = cdbg_env("STUCK");
+    g_stuck_probe_enabled = (e && *e == '1') ? 1 : 0;
+    if (g_stuck_probe_enabled) {
+        fprintf(stderr,
+            "[c54x] STUCK-PROBE enabled : capture PC+XPC histogramme quand "
+            "INTM=1 + IFR bit5 (BRINT0) pending\n");
+    }
+}
+
+static void stuck_probe_record(uint16_t pc, uint8_t xpc)
+{
+    /* Linear scan small hist (cap 64). Insert or increment. */
+    for (unsigned i = 0; i < g_stuck_hist_used; i++) {
+        if (g_stuck_hist[i].pc == pc && g_stuck_hist[i].xpc == xpc) {
+            g_stuck_hist[i].count++;
+            return;
+        }
+    }
+    if (g_stuck_hist_used < STUCK_HIST_SIZE) {
+        g_stuck_hist[g_stuck_hist_used].pc = pc;
+        g_stuck_hist[g_stuck_hist_used].xpc = xpc;
+        g_stuck_hist[g_stuck_hist_used].count = 1;
+        g_stuck_hist_used++;
+    }
+    /* If hist full, silently drop new PCs — top hot ones already captured. */
+}
+
+static void stuck_probe_dump(uint64_t cur_insn, const char *trig)
+{
+    /* Bubble sort by count desc (n<=64). */
+    for (unsigned k = 0; k < g_stuck_hist_used; k++) {
+        unsigned best = k;
+        for (unsigned i = k + 1; i < g_stuck_hist_used; i++) {
+            if (g_stuck_hist[i].count > g_stuck_hist[best].count) best = i;
+        }
+        if (best != k) {
+            StuckHistEntry tmp = g_stuck_hist[k];
+            g_stuck_hist[k] = g_stuck_hist[best];
+            g_stuck_hist[best] = tmp;
+        }
+    }
+    if (calypso_debug_enabled("STUCK-HIST")) fprintf(stderr,
+        "[c54x] STUCK-HIST [%s] duration=%u insn since insn=%llu (now=%llu) top:\n",
+        trig, g_stuck_duration,
+        (unsigned long long)g_stuck_start_insn,
+        (unsigned long long)cur_insn);
+    unsigned n_show = g_stuck_hist_used > 20 ? 20 : g_stuck_hist_used;
+    for (unsigned i = 0; i < n_show; i++) {
+        fprintf(stderr,
+            "[c54x]   #%2u PC=0x%04x XPC=%u  count=%u\n",
+            i + 1, g_stuck_hist[i].pc, g_stuck_hist[i].xpc,
+            g_stuck_hist[i].count);
+    }
+}
+
+/* ==== INT3 — cycle tracer + control-flow signature   [calypso_c54x.c:1092-1280] ==== */
+
+/* === INT3 cycle tracer + control-flow signature (c web reframe 2026-05-25 night5)
+ *
+ * Sonde décisive pour départager F1 (= pourquoi ISR INT3 ne RETE pas).
+ *
+ * Per cycle INT3 :
+ *   - START : INT3 dispatched (vec=19) → reset trace, log cycle_id + entry PC
+ *   - DURING : chaque branch conditionnelle exécutée → (PC, op, target, taken)
+ *   - END (good) : RETE fire → dump trace tagged GOOD + insn count
+ *   - END (orphan) : nouveau INT3 dispatch avant RETE → dump previous tagged
+ *                   ORPHAN-NEXT-INT3 + reason
+ *
+ * Diff offline good_cycle vs orphan_cycle → 1ère branche qui diverge
+ * = trigger du bug. À cette branche, lire l'état testé = la vraie cause.
+ *
+ * Cappé 256 branches/cycle (= overflow tagué pour borne).
+ * Env-gated CALYPSO_INT3_CYCLE_TRACE=1. */
+#define INT3_BRANCH_TRACE_MAX 1024
+typedef struct {
+    uint16_t pc;        /* PC of branch insn */
+    uint16_t op;        /* opcode word 0 */
+    uint16_t next_pc;   /* PC after exec (= branch taken target OR fall-through) */
+    uint32_t insn_offset; /* delta from cycle start (first occurrence) */
+    uint32_t repeat;    /* consecutive identical (pc,op,next_pc) collapsed count */
+} Int3BranchEvent;
+static Int3BranchEvent g_int3_trace[INT3_BRANCH_TRACE_MAX];
+static unsigned g_int3_trace_count = 0;
+static int g_int3_trace_overflow = 0;
+static int g_int3_cycle_active = 0;
+static uint64_t g_int3_cycle_id = 0;
+static uint16_t g_int3_cycle_entry_pc = 0;
+static uint64_t g_int3_cycle_entry_insn = 0;
+static int g_int3_trace_enabled = -1;
+
+static void int3_trace_init_lazy(void)
+{
+    if (g_int3_trace_enabled >= 0) return;
+    const char *e = cdbg_env("INT3-CYCLE");
+    g_int3_trace_enabled = (e && *e == '1') ? 1 : 0;
+    if (g_int3_trace_enabled) {
+        fprintf(stderr,
+            "[c54x] INT3-CYCLE-TRACE enabled : par cycle vec=19, log toutes "
+            "branches conditionnelles + RETE/orphan tag. Cap=%u branches/cycle.\n",
+            INT3_BRANCH_TRACE_MAX);
+    }
+}
+
+/* Detect conditional branch / call / return family. Returns 1 if op
+ * is in a tracked branch family, else 0. */
+static int is_int3_traced_branch(uint16_t op)
+{
+    uint16_t hi = op & 0xFF00;
+    if (hi == 0x6C00) return 1;  /* BANZ pmad,Sind */
+    if (hi == 0x6E00) return 1;  /* BANZD pmad,Sind */
+    if (hi == 0xF800) return 1;  /* BC pmad,cond */
+    if (hi == 0xF900) return 1;  /* CC pmad,cond */
+    if (hi == 0xFA00) return 1;  /* BCD pmad,cond */
+    if (hi == 0xFB00) return 1;  /* CCD pmad,cond */
+    if (hi == 0xFC00) {
+        /* FC00 unconditional = RET ; FCxx where xx is cond = RC */
+        if (op != 0xFC00) return 1;
+        return 0;
+    }
+    if (hi == 0xFE00) {
+        if (op != 0xFE00) return 1; /* RCD cond */
+        return 0;
+    }
+    return 0;
+}
+
+/* Called from c54x_interrupt_ex when vec=19 (INT3 FRAME) dispatched. */
+void int3_cycle_start(C54xState *s, uint16_t target_pc)
+{
+    if (g_int3_trace_enabled < 0) int3_trace_init_lazy();
+    if (g_int3_trace_enabled <= 0) return;
+    /* If previous cycle still active = orphan (= didn't RETE before re-entry) */
+    if (g_int3_cycle_active) {
+        fprintf(stderr,
+            "[c54x] INT3-CYCLE #%llu ORPHAN-NEXT-INT3 — previous cycle didn't "
+            "RETE, new entry @insn=%llu PC=0x%04x. Trace below (%u branches%s) :\n",
+            (unsigned long long)g_int3_cycle_id,
+            (unsigned long long)s->insn_count, target_pc,
+            g_int3_trace_count,
+            g_int3_trace_overflow ? "+ OVERFLOW" : "");
+        for (unsigned i = 0; i < g_int3_trace_count; i++) {
+            Int3BranchEvent *e = &g_int3_trace[i];
+            /* 2-word branches (no lk_used here for simplicity) : BC/CC/BCD/CCD
+             * (0xF8-0xFB) and BANZ/BANZD (0x6C/0x6E). 1-word : RET/RC/RCD. */
+            uint16_t hi = e->op & 0xFF00;
+            bool two_word = (hi >= 0xF800 && hi <= 0xFB00)
+                            || hi == 0x6C00 || hi == 0x6E00;
+            uint16_t fallthrough = e->pc + (two_word ? 2 : 1);
+            fprintf(stderr,
+                "[c54x]   #%3u Δ%u PC=0x%04x op=0x%04x → next=0x%04x %s ×%u\n",
+                i + 1, e->insn_offset, e->pc, e->op, e->next_pc,
+                (e->next_pc == fallthrough) ? "(NOT_TAKEN)" : "(TAKEN)",
+                e->repeat);
+        }
+    }
+    g_int3_cycle_id++;
+    g_int3_cycle_active = 1;
+    g_int3_cycle_entry_pc = target_pc;
+    g_int3_cycle_entry_insn = s->insn_count;
+    g_int3_trace_count = 0;
+    g_int3_trace_overflow = 0;
+    if (calypso_debug_enabled("INT3-CYCLE")) fprintf(stderr,
+        "[c54x] INT3-CYCLE #%llu START @insn=%llu PC→0x%04x SP=0x%04x "
+        "PMST=0x%04x IFR=0x%04x\n",
+        (unsigned long long)g_int3_cycle_id,
+        (unsigned long long)s->insn_count, target_pc, s->sp,
+        s->pmst, s->ifr);
+}
+
+/* Called from c54x_run after c54x_exec_one. exec_pc/exec_op are the
+ * instruction that just executed; s->pc is the resulting PC. */
+void int3_cycle_track_branch(C54xState *s, uint16_t exec_pc,
+                                    uint16_t exec_op, int consumed)
+{
+    if (g_int3_trace_enabled <= 0) return;
+    if (!g_int3_cycle_active) return;
+    if (!is_int3_traced_branch(exec_op)) return;
+    /* Compute next_pc correctly across all branch-handler patterns :
+     * 1. Non-delayed branch TAKEN  → handler set s->pc=target, returned consumed=0
+     *    → s->pc already = target.
+     * 2. Delayed branch TAKEN      → handler armed delay_slots=2 + delayed_pc,
+     *    returned consumed>0; main loop hasn't run +=consumed yet
+     *    → eventual target = s->delayed_pc.
+     * 3. Branch FALL-THROUGH (any) → handler returned consumed>0, s->pc unchanged,
+     *    delay_slots not set; main loop will += consumed → next insn
+     *    → next = exec_pc + consumed. */
+    uint16_t actual_next;
+    if (consumed == 0) {
+        actual_next = s->pc;
+    } else if (s->delay_slots == 2) {
+        actual_next = s->delayed_pc;
+    } else {
+        actual_next = (uint16_t)(exec_pc + consumed);
+    }
+
+    /* Dedup-pattern : look up to 4 slots back. Catches consecutive
+     * identical (distance 1, AAA), strict alternation (distance 2,
+     * ABAB), and short cycles up to length 4 (ABCDABCD). Each iteration
+     * of the repeating pattern bumps the matched slot's repeat — total
+     * iterations = max(repeat) across slots forming the cycle. */
+    for (unsigned back = 1; back <= 4 && back <= g_int3_trace_count; back++) {
+        Int3BranchEvent *cand = &g_int3_trace[g_int3_trace_count - back];
+        if (cand->pc == exec_pc && cand->op == exec_op && cand->next_pc == actual_next) {
+            cand->repeat++;
+            return;
+        }
+    }
+    if (g_int3_trace_count >= INT3_BRANCH_TRACE_MAX) {
+        g_int3_trace_overflow = 1;
+        return;
+    }
+    Int3BranchEvent *e = &g_int3_trace[g_int3_trace_count++];
+    e->pc = exec_pc;
+    e->op = exec_op;
+    e->next_pc = actual_next;
+    e->insn_offset = (uint32_t)(s->insn_count - g_int3_cycle_entry_insn);
+    e->repeat = 1;
+}
+
+/* Called from RETE handler (L3300 area) BEFORE INTM is cleared. */
+void int3_cycle_end_good(C54xState *s, uint16_t return_addr)
+{
+    if (g_int3_trace_enabled <= 0) return;
+    if (!g_int3_cycle_active) return;
+    uint64_t duration = s->insn_count - g_int3_cycle_entry_insn;
+    fprintf(stderr,
+        "[c54x] INT3-CYCLE #%llu RETE-GOOD @insn=%llu duration=%llu PC→0x%04x "
+        "branches=%u%s\n",
+        (unsigned long long)g_int3_cycle_id,
+        (unsigned long long)s->insn_count, (unsigned long long)duration,
+        return_addr, g_int3_trace_count,
+        g_int3_trace_overflow ? "+ OVERFLOW" : "");
+    for (unsigned i = 0; i < g_int3_trace_count; i++) {
+        Int3BranchEvent *e = &g_int3_trace[i];
+        uint16_t hi = e->op & 0xFF00;
+        bool two_word = (hi >= 0xF800 && hi <= 0xFB00)
+                        || hi == 0x6C00 || hi == 0x6E00;
+        uint16_t fallthrough = e->pc + (two_word ? 2 : 1);
+        fprintf(stderr,
+            "[c54x]   #%3u Δ%u PC=0x%04x op=0x%04x → next=0x%04x %s ×%u\n",
+            i + 1, e->insn_offset, e->pc, e->op, e->next_pc,
+            (e->next_pc == fallthrough) ? "(NOT_TAKEN)" : "(TAKEN)",
+            e->repeat);
+    }
+    g_int3_cycle_active = 0;
+}
+
+/* ==== STUCK — per-loop check   [calypso_c54x.c:1282-1321] ==== */
+
+/* Called from c54x_run top-of-loop. */
+void stuck_probe_check(C54xState *s)
+{
+    if (g_stuck_probe_enabled < 0) stuck_probe_init_lazy();
+    if (g_stuck_probe_enabled <= 0) return;
+    int intm_set = !!(s->st1 & ST1_INTM);
+    int brint0_pending = !!(s->ifr & (1 << 5));
+    int now_stuck = (intm_set && brint0_pending);
+    if (now_stuck && !g_stuck_active) {
+        g_stuck_active = 1;
+        g_stuck_start_insn = s->insn_count;
+        g_stuck_duration = 0;
+        g_stuck_hist_used = 0;  /* fresh hist per stuck window */
+        fprintf(stderr,
+            "[c54x] STUCK-ENTER insn=%llu PC=0x%04x XPC=%u IFR=0x%04x IMR=0x%04x\n",
+            (unsigned long long)s->insn_count, s->pc, s->xpc & 0xFF,
+            s->ifr, s->imr);
+    }
+    if (now_stuck) {
+        g_stuck_duration++;
+        /* Sample every 100 insns to bound hist diversity */
+        if ((g_stuck_duration % 100) == 0) {
+            stuck_probe_record(s->pc, s->xpc & 0xFF);
+        }
+        /* Dump periodically while stuck */
+        if ((g_stuck_duration % 5000000) == 0 && g_stuck_dump_count < 5) {
+            g_stuck_dump_count++;
+            stuck_probe_dump(s->insn_count, "periodic-5M");
+        }
+    } else if (g_stuck_active) {
+        g_stuck_active = 0;
+        fprintf(stderr,
+            "[c54x] STUCK-EXIT insn=%llu duration=%u PC=0x%04x XPC=%u IFR=0x%04x\n",
+            (unsigned long long)s->insn_count, g_stuck_duration,
+            s->pc, s->xpc & 0xFF, s->ifr);
+        if (g_stuck_duration >= 10000) {  /* only dump if long-ish stuck */
+            stuck_probe_dump(s->insn_count, "on-exit");
+        }
+    }
+}
+
+/* ==== RMAP — aggregated map of addresses READ   [calypso_c54x.c:1844-1898] ==== */
+
+/* [2026-07-28] RMAP : carte agregee des adresses LUES par les PC d une plage.
+ * Symetrique de WMAP. Voir en-tete du patch rmap.py. */
+#define RMAP_PCS 48
+static struct { uint16_t pc; uint32_t n; uint16_t a[8]; uint8_t na;
+                uint16_t amn, amx; } g_rmap[RMAP_PCS];
+static int      g_rmap_n;
+static uint32_t g_rmap_tot;
+static int      g_rmap_on = -1;
+static uint16_t g_rmap_pclo, g_rmap_pchi;
+
+static void rmap_dump(void)
+{
+    fprintf(stderr, "[c54x] RMAP PC 0x%04x..0x%04x  lectures=%u  PCs=%d%s\n",
+            g_rmap_pclo, g_rmap_pchi, g_rmap_tot, g_rmap_n,
+            g_rmap_n >= RMAP_PCS ? "  *** SATUREE ***" : "");
+    for (int i = 0; i < g_rmap_n; i++) {
+        fprintf(stderr, "[c54x] RMAP   PC=0x%04x n=%-7u lit 0x%04x..0x%04x  ex:",
+                g_rmap[i].pc, g_rmap[i].n, g_rmap[i].amn, g_rmap[i].amx);
+        for (int k = 0; k < g_rmap[i].na && k < 8; k++)
+            fprintf(stderr, " %04x", g_rmap[i].a[k]);
+        fprintf(stderr, "\n");
+    }
+}
+
+void rmap_note(uint16_t addr, uint16_t pc)
+{
+    if (g_rmap_on < 0) {
+        const char *e = getenv("CALYPSO_RMAP");
+        g_rmap_on = (e && atoi(e) > 0) ? 1 : 0;
+        const char *lo = getenv("CALYPSO_RMAP_PCLO"), *hi = getenv("CALYPSO_RMAP_PCHI");
+        g_rmap_pclo = lo ? (uint16_t)strtoul(lo, NULL, 0) : 0x9f00;
+        g_rmap_pchi = hi ? (uint16_t)strtoul(hi, NULL, 0) : 0x9fff;
+        if (g_rmap_on)
+            fprintf(stderr, "[c54x] RMAP armed PC 0x%04x..0x%04x\n", g_rmap_pclo, g_rmap_pchi);
+    }
+    if (!g_rmap_on || pc < g_rmap_pclo || pc > g_rmap_pchi) return;
+
+    int i;
+    for (i = 0; i < g_rmap_n; i++) if (g_rmap[i].pc == pc) break;
+    if (i == g_rmap_n) {
+        if (g_rmap_n >= RMAP_PCS) return;
+        g_rmap_n++;
+        g_rmap[i].pc = pc; g_rmap[i].n = 0; g_rmap[i].na = 0;
+        g_rmap[i].amn = 0xffff; g_rmap[i].amx = 0;
+    }
+    g_rmap[i].n++;
+    if (addr < g_rmap[i].amn) g_rmap[i].amn = addr;
+    if (addr > g_rmap[i].amx) g_rmap[i].amx = addr;
+    if (g_rmap[i].na < 8) {
+        int seen = 0;
+        for (int k = 0; k < g_rmap[i].na; k++) if (g_rmap[i].a[k] == addr) { seen = 1; break; }
+        if (!seen) g_rmap[i].a[g_rmap[i].na++] = addr;
+    }
+    if (++g_rmap_tot % 5000 == 0) rmap_dump();
+}
+
+/* ==== SCRATCHWR — scratch write probe   [calypso_c54x.c:2687-2744] ==== */
+
+/* [2026-08-22] SCRATCH-WR (CALYPSO_SCRATCH_WR, defaut OFF) — la table de
+ * coefficients du FIRS est-elle JAMAIS ecrite ?
+ * FIRS-COEF a montre prog[0x61..0x66]=0xF4E4 (remplissage) ET data[0x61..0x66]=0
+ * au moment de l execution. Le PROGRAMME 0x0000-0x6FFF n est couvert par aucun
+ * fichier ROM (PROM0 debute a 0x7000) — c est exactement la que tombe pmad=0x61.
+ *   aucune ecriture   -> segment ROM manquant ;
+ *   ecriture tardive  -> ordonnancement.
+ * On date (insn) et on situe (PC) chaque ecriture des DEUX espaces, avec bilan
+ * periodique pour distinguer « rien ecrit » de « sonde muette ». LECTURE SEULE. */
+static int scratchwr_on(void)
+{
+    static int g = -1;
+    if (g < 0) {
+        g = calypso_gate("CALYPSO_SCRATCH_WR", 0);
+        fprintf(stderr, "[c54x] SCRATCH-WR %s : ecritures dans 0x0060-0x007F "
+                "(scratch-pad DARAM + espace PROGRAMME via MVDP) — zone des "
+                "coefficients du FIRS (pmad=0x0061)\n",
+                g ? "ACTIVE" : "INACTIVE (defaut)");
+    }
+    return g;
+}
+
+void scratchwr_note(C54xState *s, uint16_t a, uint16_t v, const char *espace)
+{
+    if (!scratchwr_on()) return;
+    /* [2026-08-22] v2 : plafond PAR ADRESSE, jamais global. La v1 avait un
+     * plafond global de 40 lignes, consomme par data[0x74] a insn ~5000-10000 ;
+     * les ecritures des coefficients (MVDD a insn ~1376674) n ont donc jamais
+     * ete affichees et j ai lu ce plafond comme une absence. */
+    int zone = -1;
+    if (a >= 0x0060 && a <= 0x007F)      zone = 0;   /* destination */
+    else if (a >= 0x2CB0 && a <= 0x2CBF) zone = 1;   /* SOURCE de la table */
+    if (zone < 0) return;
+
+    static unsigned long long cum[2] = {0, 0};
+    static unsigned long long cum_coef = 0;   /* 0x0061..0x0066 seulement */
+    static unsigned long long cum_src  = 0;   /* 0x2CB9..0x2CBF seulement */
+    static unsigned char shown[2][0x20];
+
+    cum[zone]++;
+    if (a >= 0x0061 && a <= 0x0066) cum_coef++;
+    if (a >= 0x2CB9 && a <= 0x2CBF) cum_src++;
+
+    unsigned idx = (zone == 0) ? (unsigned)(a - 0x0060) : (unsigned)(a - 0x2CB0);
+    if (idx < 0x20 && shown[zone][idx] < 3) {
+        shown[zone][idx]++;
+        fprintf(stderr, "[c54x] SCRATCH-WR %s[0x%04x] <- 0x%04x PC=0x%04x insn=%u%s\n",
+                espace, a, v, s->pc, s->insn_count,
+                (a >= 0x0061 && a <= 0x0066) ? "  <<<< COEFFICIENTS (destination)" :
+                (a >= 0x2CB9 && a <= 0x2CBF) ? "  <<<< SOURCE de la table" : "");
+    }
+    if (((cum[0] + cum[1]) % 500) == 0)
+        fprintf(stderr, "[c54x] SCRATCH-WR bilan : scratch(0x60-0x7F)=%llu "
+                "source(0x2CB0-0x2CBF)=%llu | dont coefficients(0x61-0x66)=%llu "
+                "source utile(0x2CB9-0x2CBF)=%llu\n",
+                (unsigned long long)cum[0], (unsigned long long)cum[1],
+                (unsigned long long)cum_coef, (unsigned long long)cum_src);
+}
+
+/* ==== WMAP — aggregated map of writers   [calypso_c54x.c:3141-3225] ==== */
+
+/* [2026-07-28] WMAP : carte agregee des ecrivains d une plage data[].
+ * Voir en-tete du patch wmap.py — un agregat, pas un flux : aucun plafond de
+ * lignes, donc aucune fenetre a rater (les 3 sondes precedentes ont toutes ete
+ * tronquees). Sortie periodique : PC, n, valeurs distinctes, min/max. */
+#define WMAP_PCS 64
+static struct { uint16_t pc; uint32_t n; uint16_t v[8]; uint8_t nv;
+                uint16_t mn, mx; uint16_t addr0; uint32_t n0; } g_wmap[WMAP_PCS];
+static int      g_wmap_n;
+static uint32_t g_wmap_tot;
+static int      g_wmap_on = -1;
+static uint16_t g_wmap_lo, g_wmap_hi, g_wmap_lo2, g_wmap_hi2;
+
+static void wmap_dump(void)
+{
+    fprintf(stderr, "[c54x] WMAP plages 0x%04x..0x%04x + 0x%04x..0x%04x  ecritures=%u  ecrivains=%d%s\n",
+            g_wmap_lo, g_wmap_hi, g_wmap_lo2, g_wmap_hi2, g_wmap_tot, g_wmap_n,
+            g_wmap_n >= WMAP_PCS ? "  *** TABLE SATUREE, ecrivains manquants ***" : "");
+    for (int i = 0; i < g_wmap_n; i++) {
+        fprintf(stderr, "[c54x] WMAP   PC=0x%04x n=%-7u @0x%04x(n=%u) distinct=%s%d  min=0x%04x max=0x%04x  ex:",
+                g_wmap[i].pc, g_wmap[i].n, g_wmap[i].addr0, g_wmap[i].n0,
+                g_wmap[i].nv >= 8 ? ">=" : "", g_wmap[i].nv,
+                g_wmap[i].mn, g_wmap[i].mx);
+        for (int k = 0; k < g_wmap[i].nv && k < 8; k++)
+            fprintf(stderr, " %04x", g_wmap[i].v[k]);
+        fprintf(stderr, "%s\n", g_wmap[i].n0 < 2 ? "   <= (trop peu d echantillons)"
+                : g_wmap[i].nv == 1 ? "   <= CONSTANTE dans le temps"
+                                    : "   <= VARIE dans le temps = PORTE DE LA DONNEE");
+    }
+}
+
+/* v3 : battement — prouve que la sonde est VIVANTE meme a zero ecriture.
+ * Appele sur chaque write hors plage ; n imprime qu une fois par tranche de
+ * 5e6 writes globaux, en rappelant le total DANS la plage (0 = vrai zero). */
+static void wmap_heartbeat(void)
+{
+    static uint64_t k;
+    if (!g_wmap_on) return;
+    if (++k % 5000000ULL) return;
+    fprintf(stderr, "[c54x] WMAP heartbeat: writes DSP=%llu, dans plages=%u"
+            " (0 = la plage n est jamais ecrite par une instruction DSP)\n",
+            (unsigned long long)k, g_wmap_tot);
+}
+
+void wmap_note(uint16_t addr, uint16_t val, uint16_t pc)
+{
+    if (g_wmap_on < 0) {
+        const char *e = getenv("CALYPSO_WMAP");
+        g_wmap_on = (e && atoi(e) > 0) ? 1 : 0;
+        const char *lo = getenv("CALYPSO_WMAP_LO"), *hi = getenv("CALYPSO_WMAP_HI");
+        g_wmap_lo = lo ? (uint16_t)strtoul(lo, NULL, 0) : 0x2c00;
+        g_wmap_hi = hi ? (uint16_t)strtoul(hi, NULL, 0) : 0x2c1f;
+        const char *lo2 = getenv("CALYPSO_WMAP_LO2"), *hi2 = getenv("CALYPSO_WMAP_HI2");
+        g_wmap_lo2 = lo2 ? (uint16_t)strtoul(lo2, NULL, 0) : 0xffff;
+        g_wmap_hi2 = hi2 ? (uint16_t)strtoul(hi2, NULL, 0) : 0x0000;
+        if (g_wmap_on)
+            fprintf(stderr, "[c54x] WMAP armed 0x%04x..0x%04x\n", g_wmap_lo, g_wmap_hi);
+    }
+    if (!g_wmap_on) return;
+    if (!((addr >= g_wmap_lo  && addr <= g_wmap_hi) ||
+          (addr >= g_wmap_lo2 && addr <= g_wmap_hi2))) { wmap_heartbeat(); return; }
+
+    int i;
+    for (i = 0; i < g_wmap_n; i++) if (g_wmap[i].pc == pc) break;
+    if (i == g_wmap_n) {
+        if (g_wmap_n >= WMAP_PCS) return;
+        g_wmap_n++;
+        g_wmap[i].pc = pc; g_wmap[i].n = 0; g_wmap[i].nv = 0;
+        g_wmap[i].mn = 0xffff; g_wmap[i].mx = 0;
+        g_wmap[i].addr0 = addr; g_wmap[i].n0 = 0;   /* v2 : cellule temoin figee */
+    }
+    g_wmap[i].n++;
+    if (val < g_wmap[i].mn) g_wmap[i].mn = val;
+    if (val > g_wmap[i].mx) g_wmap[i].mx = val;
+    /* v2 : le critere de SIGNAL est la variation dans le TEMPS a adresse FIXE. */
+    if (addr != g_wmap[i].addr0) return;
+    g_wmap[i].n0++;
+    if (g_wmap[i].nv < 8) {
+        int seen = 0;
+        for (int k = 0; k < g_wmap[i].nv; k++) if (g_wmap[i].v[k] == val) { seen = 1; break; }
+        if (!seen) g_wmap[i].v[g_wmap[i].nv++] = val;
+    }
+    /* v3 : seuil bas + tick temporel, pour que l ABSENCE soit mesurable. */
+#define WMAP_TICK 2000
+    if (++g_wmap_tot % WMAP_TICK == 0) wmap_dump();
+}
+
+/* ==== DIO — demod I/O trace   [calypso_c54x.c:3228-3278] ==== */
+
+/* [2026-07-28] DEMODIO : voir en-tete du patch demodio.py. */
+static int      g_dio_on = -1;
+static uint64_t g_dio_after;
+static unsigned g_dio_n;
+static uint16_t g_dio_pclo, g_dio_pchi;
+
+static void dio_init(void)
+{
+    const char *e = getenv("CALYPSO_DEMODIO");
+    g_dio_on = (e && atoi(e) > 0) ? 1 : 0;
+    const char *a = getenv("CALYPSO_DEMODIO_AFTER");
+    g_dio_after = a && *a ? strtoull(a, NULL, 0) : 40000000ULL;
+    const char *lo = getenv("CALYPSO_DEMODIO_PCLO"), *hi = getenv("CALYPSO_DEMODIO_PCHI");
+    g_dio_pclo = lo ? (uint16_t)strtoul(lo, NULL, 0) : 0x9f95;
+    g_dio_pchi = hi ? (uint16_t)strtoul(hi, NULL, 0) : 0x9fe2;
+    if (g_dio_on)
+        fprintf(stderr, "[c54x] DEMODIO armed PC 0x%04x..0x%04x apres insn=%llu\n",
+                g_dio_pclo, g_dio_pchi, (unsigned long long)g_dio_after);
+}
+
+void dio_note(C54xState *s, const char *rw, uint16_t addr, uint16_t val)
+{
+    if (g_dio_on < 0) dio_init();
+    if (!g_dio_on) return;
+    if (s->pc < g_dio_pclo || s->pc > g_dio_pchi) return;
+    if (s->insn_count < g_dio_after) return;
+    if (g_dio_n >= 160) return;
+    int64_t a = (s->a & 0x8000000000LL) ? (int64_t)(s->a | ~0xFFFFFFFFFFLL) : (int64_t)s->a;
+    int64_t b = (s->b & 0x8000000000LL) ? (int64_t)(s->b | ~0xFFFFFFFFFFLL) : (int64_t)s->b;
+    /* [2026-07-30] ASM ajoute a la ligne. Motif : la boucle 0x9fab-0x9fb8 fabrique
+     * la reference du correlateur dans 0x2a00+ via
+     *     0x9fb5  ld  *AR6-0%, TS, A     (A = table(+-1) << T,  T dans [16,31])
+     *     0x9fb6  sfta A, +8
+     *     0x9fb7  sfta A, -8             (les deux s'annulent)
+     *     0x9fb8  sth *AR4+, A, ASM      (0x8694 = la variante ASM, cf. l.10528)
+     * et elle n'ecrit que 0x0000 / 0xffff, soit {0, -1} au lieu de {+K, -K} —
+     * une reference a |DC|/rms ~ 0,7, ce qui recoupe le 0,60 mesure sur
+     * daram_2a00.cfile et explique qu'aucune correlation ne pique.
+     * Or « mot haut de (A >> |ASM|) » vaut 0 pour toute magnitude < 2^16 mais
+     * 0xffff pour toute valeur negative (extension de signe) : l'asymetrie vient
+     * de la, et elle depend entierement de ASM et de T. T etait deja imprime,
+     * ASM non — et le seul ASM que j'avais vu (-12) provenait d'une AUTRE sonde a
+     * un AUTRE PC (SHADOW-DADST @0xa077), donc d'une autre fenetre : impossible de
+     * conclure sans le mesurer ICI. On imprime donc ASM et ST1 bruts. */
+    int _asm = s->st1 & 0x1F; if (_asm & 0x10) _asm |= ~0x1F;
+    fprintf(stderr, "[c54x] DEMODIO %s PC=0x%04x op=0x%04x addr=0x%04x val=0x%04x "
+            "A=%lld B=%lld T=0x%04x ASM=%d ST1=0x%04x AR2=%04x AR3=%04x AR4=%04x AR5=%04x insn=%u\n",
+            rw, s->pc, prog_fetch(s, s->pc), addr, val, (long long)a, (long long)b,
+            s->t, _asm, s->st1, s->ar[2], s->ar[3], s->ar[4], s->ar[5], s->insn_count);
+    g_dio_n++;
+}
+
+```
+
 ## `hw/arm/calypso/calypso_dbg.c` {#f-hw-arm-calypso-calypso-dbg-c}
 
 ::: {.file-meta}
@@ -474,7 +1501,7 @@ void calypso_dma_tick(C54xState *s)
 ## `hw/arm/calypso/calypso_dsp_helper.c` {#f-hw-arm-calypso-calypso-dsp-helper-c}
 
 ::: {.file-meta}
-[.c]{.tag} 947 lignes - 53KB
+[.c]{.tag} 966 lignes - 54KB
 :::
 
 ```{.c .numberLines filename="hw/arm/calypso/calypso_dsp_helper.c"}
@@ -1106,8 +2133,27 @@ void shunt_dispatch_allc(uint8_t page_idx)
      * firmware poste ALLC = a la sous-voie REELLE du mobile. On accepte donc l'UA
      * sur toute la region SDCCH du type de canal (pas besoin de deviner SS) :
      *   SDCCH/4 : fn%%51 [22,39] (SS0-3) ; SDCCH/8 : [0,31] (SS0-7). */
-    int _lo = g_shunt.sdcch_ch8 ? 0  : 22;
-    int _hi = g_shunt.sdcch_ch8 ? 31 : 39;
+    /* [2026-08-21] RACINE DE « LA 1re LU DU RUN RATE ».
+     * g_shunt.sdcch_ch8 demarre a FALSE et n'est arme que par set_dcch(), appelee
+     * au PREMIER DATA_IND du canal dedie (l1ctl_sock : seul le flux firmware->mobile
+     * est parse ; DM_EST_REQ est du code mort, le socket l1ctl est orphelin).
+     * Tant qu'il est faux la fenetre vaut [22,39] = la region du SDCCH/4. Or l'UA
+     * d'un SDCCH/8 arrive en fn%51 [0,3] : elle tombait HORS FENETRE, restait dans
+     * l'anneau et se faisait evincer au TTL. Le mobile ne voyait pas l'UA et
+     * retransmettait sa SABM ; la BTS, elle, avait deja etabli le lien et repondait
+     * « SABM L>0 not expected in timer recovery state » SANS renvoyer d'UA -> la
+     * tentative etait irrattrapable -> T200 x6 -> « Location update failed ».
+     * Une seule fois par run, parce que calypso_dsp_shunt_l1_reset() ne remet PAS
+     * sdcch_ch8 a false (defaut deja note l.2854 de calypso_dsp_shunt.c).
+     *
+     * TANT QUE LE TYPE N'EST PAS POSITIVEMENT CONNU, ON PREND L'UNION DES DEUX
+     * REGIONS [0,39] au lieu de PARIER sur le /4. Cette fenetre n'est qu'un
+     * garde-fou grossier : la selection fine de la sous-voie est faite par l'ALLC
+     * que poste le firmware (cf. le commentaire juste au-dessus). Une fois arme,
+     * on retrouve exactement le comportement d'avant. */
+    int _armed = g_shunt.sdcch_ss_set;
+    int _lo = _armed ? (g_shunt.sdcch_ch8 ? 0  : 22) : 0;
+    int _hi = _armed ? (g_shunt.sdcch_ch8 ? 31 : 39) : 39;
     if (sdcch_on && sdcch_ring_on) {
         while (g_shunt.sdcch_ring_tail != g_shunt.sdcch_ring_head) {
             uint32_t hidx = g_shunt.sdcch_ring_head % SDCCH_RING_N;
@@ -1428,10 +2474,230 @@ void shunt_dispatch_pm(uint8_t page_idx)
 
 ```
 
+## `hw/arm/calypso/calypso_dsp_legit.c` {#f-hw-arm-calypso-calypso-dsp-legit-c}
+
+::: {.file-meta}
+[.c]{.tag} 210 lignes - 12KB
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_dsp_legit.c"}
+/*
+ * calypso_dsp_legit.c — the "legit" route: hand the posted task to the REAL
+ * c54x emulator instead of letting the shunt fake the result.
+ *
+ * Split out of calypso_dsp_shunt.c. That file is the shunt GLUE: it answers
+ * the ARM↔DSP API-RAM contract with data gr-gsm already demodulated, so the
+ * c54x never runs. This file is the opposite path — it copies the ARM's task
+ * descriptor into DSP DARAM, raises the frame interrupt and actually executes
+ * c54x opcodes.
+ *
+ * Both entry points are gated on CALYPSO_DSP_RUN_C54X=1 at their call sites in
+ * calypso_dsp_shunt.c. The default mode (shunt_legit) sets that to 0, so
+ * nothing here runs unless the c54x route is explicitly asked for.
+ *
+ * Pure mechanical split: every statement below was moved VERBATIM from
+ * calypso_dsp_shunt.c:1750-1907. Comments were reworded and translated; no
+ * logic was changed. Only the two entry points lost `static` so their original
+ * callers can still reach them.
+ */
+
+#include "qemu/osdep.h"
+#include "hw/arm/calypso/calypso_debug.h"      /* calypso_gate() */
+#include "calypso_c54x.h"                      /* C54xState, c54x_run/wake/interrupt_ex/bsp_load */
+#include "hw/arm/calypso/calypso_dsp_internal.h" /* g_shunt, wp_base(), B_GSM_TASK, NDB_D_DSP_PAGE */
+#include <stdint.h>
+#include <stdlib.h>
+
+extern int g_c54x_int3_src;  /* INT3 diagnostic source (RO) */
+
+/* d_dsp_page as a c54x DATA WORD address (what api_ram[] is indexed by), built
+ * from the NDB byte offset with the same NDB_W() conversion the rest of the
+ * shunt uses. NDB_D_DSP_PAGE alone is a byte offset INSIDE the NDB, so it must
+ * never be handed to `- C54X_API_BASE` directly. */
+#define D_DSP_PAGE_W  ((uint16_t)NDB_W(NDB_D_DSP_PAGE))
+
+/* Read the c54x data[] space DIRECTLY for an ARM-side API address, WITHOUT the
+ * calypso_dsp_read MMIO round-trip. That round-trip takes
+ * calypso_pcb_daram_lock, a non-recursive mutex — taking it again while
+ * already inside the frame-tick context re-locks and aborts. Same mapping as
+ * calypso_dsp_read: ARM offset O -> data[O/2 + 0x800]. */
+static inline uint16_t shunt_c54x_api_rd(C54xState *dsp, uint32_t arm_addr)
+{
+    return dsp->data[((arm_addr - 0xFFD00000UL) >> 1) + 0x0800];
+}
+
+/* [2026-07-24] CADENCE SPLIT. The old single shunt_route_to_c54x() only ran
+ * when g_shunt.pending was set (= the ARM had just posted a NEW d_dsp_page),
+ * i.e. roughly once every ~12 real frames. Measured: 708 DSP insn per turn but
+ * ~57ms of real time per turn, so the DSP's go-live retry loop got only a
+ * fraction of the real time it needs to catch the survival window of
+ * data[0x0810]/d_ctrl_system. Native does not have this problem:
+ * calypso_tdma_tick() calls c54x_run() unconditionally, gated only on
+ * running/idle/shunt_active, never on "is there a fresh task".
+ *
+ * The fix is to separate the two halves:
+ *   - the header (part A) needs a FRESH page_idx/d_fn, so it stays gated on
+ *     pending — see the staleness fix from the same day, below;
+ *   - the wake+run (part B) does not depend on a fresh dispatch. It replays
+ *     the last known I/Q, raises the frame IT and burns the DSP budget —
+ *     exactly what native does every frame. So part B became callable on
+ *     EVERY frame, pending or not, which restores a cadence close to native
+ *     (~217Hz instead of ~17Hz). */
+void shunt_route_to_c54x_header(uint8_t page_idx)
+{
+    C54xState *dsp = g_shunt.c54x;
+    if (!dsp)
+        return;
+    fprintf(stderr, "[c54x-route] enter page=%u dsp=%p\n", (unsigned)page_idx, (void*)dsp);
+
+    /* (a) API write-page -> DARAM 0x0586 (mirrors the trx DMA gated at :711).
+     * wp_base(page_idx) = absolute MMIO address of the write page (== dsp_ram).
+     * The d_dsp_page word (NDB+0 = 0xFFD001A8) is read live (= s->dsp_ram[0x01A8/2]
+     * on the trx side) for data[0x0584] and the 0x08E2 mirror. */
+    {
+        uint32_t wbase    = wp_base(page_idx);
+        fprintf(stderr, "[c54x-route] a1 wbase=0x%08x\n", wbase);
+        /* [2026-07-24] RACE FIX. The old code read dsp->data[NDB_D_DSP_PAGE]
+         * (= data[0x08E2]) RIGHT HERE, mid-frame — a cell that data[0x08E2]
+         * toggles between this moment and the FRAME-IT that follows in this
+         * SAME invocation. Confirmed at runtime: a2 saw 0x0000 186/186 times
+         * while FRAME-IT# saw 0x0003 559/559 times on the SAME cell — not an
+         * address bug, a timing/staleness bug. The page_idx parameter is
+         * ALREADY the fresh value, captured when the ARM wrote it (see ~line
+         * 135: page_idx = (new_d_dsp_page & B_GSM_PAGE) ? 1 : 0). So rebuild
+         * dsp_page from that known-fresh value instead of re-reading a cell
+         * subject to the race, which avoids propagating stale data into
+         * data[0x0584]/api_ram[0x08E2] below. */
+        uint16_t dsp_page = B_GSM_TASK | page_idx;
+        /* [2026-07-29] The "race" described just above was never a race: a2
+         * printed data[0x08E2] (never written) while FRAME-IT printed
+         * api_ram[0x08E2] (written by the mirror below) — two distinct arrays,
+         * two values, no concurrency involved. And 0x08E2 was not the right
+         * cell anyway: d_dsp_page = 0x08D4. We now print the cell the ROM
+         * actually reads, in the array it actually reads (api_ram).
+         *
+         * [2026-08-25] FIXED. NDB_D_DSP_PAGE is a BYTE offset inside the NDB
+         * (0x00), not a DSP word address, so `NDB_D_DSP_PAGE - C54X_API_BASE`
+         * indexed api_ram[-2048] — 4 KiB BEFORE CalypsoTRX::dsp_ram, an
+         * out-of-bounds read here and an out-of-bounds WRITE on the mirror
+         * below. NDB_W() is the conversion this file was missing:
+         *   NDB_W(NDB_D_DSP_PAGE) == 0x0800 + (0x01A8 >> 1) == 0x08D4,
+         * so the api_ram index is 0x08D4 - C54X_API_BASE == 0xD4. */
+        fprintf(stderr, "[c54x-route] a2 dsp_page=0x%04x (from page_idx=%u, "
+                "api_ram[0x%04x]=0x%04x) api_ram=%p\n",
+                dsp_page, (unsigned)page_idx, D_DSP_PAGE_W,
+                dsp->api_ram ? dsp->api_ram[D_DSP_PAGE_W - C54X_API_BASE]
+                             : dsp->data[D_DSP_PAGE_W],
+                (void*)dsp->api_ram);
+        dsp->data[0x0584] = dsp_page;
+        dsp->data[0x0585] = (uint16_t)(g_shunt.d_fn & 0xFFFF);
+        fprintf(stderr, "[c54x-route] a3 data-hdr-ok\n");
+        for (int i = 0; i < 20; i++)
+            dsp->data[0x0586 + i] = shunt_c54x_api_rd(dsp, wbase + (uint32_t)i * 2);
+        fprintf(stderr, "[c54x-route] a4 wp-copy-ok\n");
+        /* [2026-07-29] DSP-side d_dsp_page mirror. This used to write 0x08E2 =
+         * d_dsp_state: the page overwrote the C_DSP_IDLE3 posted by the ARM
+         * (dsp.c:215), and the ROM, which reads 0x08D4 (0xa51c/0xc8ea), saw
+         * nothing. Fixed at the source — which satisfied the condition for
+         * removing the FIX_DPAGE_OFF crutch (calypso_c54x.c), dropped in the
+         * same change.
+         *
+         * [2026-08-25] The mirror used to index api_ram[NDB_D_DSP_PAGE -
+         * C54X_API_BASE] = api_ram[-2048] and corrupted 4 KiB of heap in front
+         * of CalypsoTRX::dsp_ram every time the c54x route posted a page. It
+         * now goes through D_DSP_PAGE_W (see above). */
+        if (dsp->api_ram)
+            dsp->api_ram[D_DSP_PAGE_W - C54X_API_BASE] = dsp_page;
+    }
+    fprintf(stderr, "[c54x-route] a-daram-ok\n");
+}
+
+void shunt_route_to_c54x_run(void)
+{
+    C54xState *dsp = g_shunt.c54x;
+    if (!dsp)
+        return;
+
+    /* (b) replay the last I/Q burst (cs16, interleaved I,Q) into bsp_buf. */
+    if (g_shunt.last_iq_valid && g_shunt.last_iq_n > 0)
+        c54x_bsp_load(dsp, (const uint16_t *)g_shunt.last_iq, g_shunt.last_iq_n);
+
+    fprintf(stderr, "[c54x-route] b-bsp-load-ok n=%d\n", g_shunt.last_iq_n);
+    /* (c) INT3 FRAME + wake: bring the DSP back if it was idle/halted. */
+    g_c54x_int3_src = 3;
+    /* [2026-07-22] FRAME_IT_NATIVE: clean tick — deliver the frame scheduler
+     * (vec28/bit12) DIRECTLY on the frame tick rather than through the 19/3
+     * remap. c54x_irq_level_check picks it up when INTM=0 (natural take, no
+     * forcing). That is the real hardware frame-sync primitive. Otherwise
+     * (legacy): vec19/bit3 (+ VEC28 remap). */
+    {
+        /* @CRUTCH — FRAME_IT_NATIVE  (CALYPSO_FRAME_IT_NATIVE, EXISTS; := 1 in
+         *           native / native_helped / wire)
+         *   hides   : the missing frame-TPU -> DSP vector wiring. We call
+         *             c54x_interrupt_ex(dsp,28,12) directly on the frame tick
+         *             instead of 19/3 (the vec19 stub is a RETE).
+         *   remove  : once the TPU delivers the frame IT on the right vector by
+         *             itself (same as VEC28_REMAP on the calypso_c54x.c side).
+         */
+        static int fin = -1;
+        if (fin < 0) fin = calypso_gate("CALYPSO_FRAME_IT_NATIVE", 0);
+        if (fin)
+            c54x_interrupt_ex(dsp, 28, 12);   /* frame scheduler IT, clean tick */
+        else
+            c54x_interrupt_ex(dsp, C54X_INT_FRAME_VEC, C54X_INT_FRAME_BIT);
+        /* [2026-07-23] TINT MASTER CLOCK frame sync: fire TINT on the SAME TDMA
+         * tick (not per-2000-insn). Handler 0x72d3 = slot driver op.
+         * [2026-08-03] CAL000 §5.1: TINT = bit3/vec19, not bit4/vec20 (which is
+         * RINT / SPI receive). Switched under the CALYPSO_IT_TABLE_DOC airlock,
+         * see calypso_c54x.c. */
+        {
+            /* @CRUTCH — TINT0_MASTER (fire on the frame tick)
+             *           (CALYPSO_TINT0_MASTER, EXISTS, default OFF outside the WIRE profile)
+             *   hides   : the ROM configuring/starting TIMER0. The firmware stops the
+             *             timer (TSS=1) in an init path that never runs; we manufacture
+             *             TINT at frame cadence.
+             *   remove  : once the ROM's TIMER0 init sequence executes (TCR programmed).
+             */
+            static int _t0m = -1;
+            if (_t0m < 0) _t0m = calypso_gate("CALYPSO_TINT0_MASTER", 0);
+            if (_t0m) {
+                static int _doc = -1;
+                if (_doc < 0) _doc = calypso_gate("CALYPSO_IT_TABLE_DOC", 0);
+                if (_doc)   /* §5.1: TINT = IMR bit 3 / vec 19 */
+                    c54x_interrupt_ex(dsp, C54X_IT_TINT_VEC, C54X_IT_TINT_BIT);
+                else        /* legacy SPRU131: actually RINT / SPI receive */
+                    c54x_interrupt_ex(dsp, C54X_IT_SPI_RX_VEC, C54X_IT_SPI_RX_BIT);
+            }
+        }
+    }
+    c54x_wake(dsp);
+    /* revive: the c54x_run loop gate is (running && !idle). c54x_wake only
+     * clears idle; on the route_c54x path the trx code that used to set
+     * running=true is gated off — so force it here, otherwise the c54x_run
+     * loop is skipped entirely (0 insn). */
+    dsp->running = true;
+
+    fprintf(stderr, "[c54x-route] c-wake-ok running=%d idle=%d\n", dsp->running, dsp->idle);
+    /* (d) burn the budget (one nominal frame ~256000 insns; env-adjustable). */
+    {
+        static int budget = -1;
+        if (budget < 0) {
+            const char *b = getenv("CALYPSO_DSP_BUDGET");
+            budget = (b && *b) ? atoi(b) : 256000;
+            if (budget <= 0) budget = 256000;
+        }
+        fprintf(stderr, "[c54x-route] d-pre-c54x_run budget=%d\n", budget);
+        c54x_run(dsp, budget);
+        fprintf(stderr, "[c54x-route] d-c54x_run-RETURNED\n");
+    }
+}
+
+```
+
 ## `hw/arm/calypso/calypso_dsp_shunt.c` {#f-hw-arm-calypso-calypso-dsp-shunt-c}
 
 ::: {.file-meta}
-[.c]{.tag} 4379 lignes - 240KB
+[.c]{.tag} 4662 lignes - 256KB
 :::
 
 ```{.c .numberLines filename="hw/arm/calypso/calypso_dsp_shunt.c"}
@@ -1680,6 +2946,28 @@ static void calypso_sdcch_ul_publish(const uint8_t *l2, uint16_t task_u,
 }
 
 static uint16_t shunt_pm_decan_apm(int fallback_target);   /* fwd : defini plus bas */
+static int feed_fn_canon(void);      /* fwd : defini plus bas (fix feed 22/08) */
+static int feed_decim_auto(void);    /* fwd : defini plus bas */
+static int feed_decim_eff(int decim, int n);  /* fwd : defini plus bas */
+
+/* [2026-08-22] Mesure ce qu'un feed vient d'ecrire. Les sondes precedentes
+ * n'imprimaient que les 3 premiers mots — inutilisable : un burst GSM commence
+ * par une garde, « s0=s1=s2=0 » ne dit RIEN du contenu. Piege vecu le 22/08. */
+static void feed_stats(const uint16_t *buf, int words, unsigned *nz,
+                       unsigned *maxi, unsigned *maxq, unsigned long long *nrj)
+{
+    unsigned _nz = 0, _mi = 0, _mq = 0;
+    unsigned long long _e = 0;
+    for (int i = 0; i < words; i++) {
+        int v = (int16_t)buf[i];
+        unsigned a2 = (v < 0) ? (unsigned)(-v) : (unsigned)v;
+        if (v) _nz++;
+        if (i & 1) { if (a2 > _mq) _mq = a2; }
+        else       { if (a2 > _mi) _mi = a2; }
+        _e += (unsigned long long)a2 * a2;
+    }
+    *nz = _nz; *maxi = _mi; *maxq = _mq; *nrj = _e;
+}
 
 /* Coherence interne des #define de repli (l'arithmetique NDB_W, pas l'accord
  * avec le firmware — c'est le role du resolveur DWARF ci-dessous). */
@@ -2104,12 +3392,51 @@ static void shunt_latch_task(uint16_t new_d_dsp_page)
             win[i] = (uint8_t)(w & 0xff);
             if (i + 1 < 30) win[i + 1] = (uint8_t)((w >> 8) & 0xff);
         }
+        /* [2026-08-16] RACINE DU MO SMS : le scanner refusait ctrl == 0x00.
+         *
+         * LE DEFAUT. L'ancienne condition blacklistait des valeurs de CONTROL
+         * (0x2b remplissage, 0xff memoire vierge, 0x00 « suppose vide »). Or
+         * 0x00 est une I-frame parfaitement legale : N(S)=0, N(R)=0, P=0 —
+         * c'est-a-dire la PREMIERE trame d'information de tout envoi.
+         *
+         * CE QUE CA CASSAIT. Mesure du run 16/08, CP-DATA d'un SMS MO. Le
+         * mobile poste (qemu.log:33720, L1CTL DATA_REQ, 23 o) :
+         *     0d 00 53 | 09 01 1b 00 2a 00 08 91 33 ...
+         *     addr 0x0d = EA=1 SAPI 3 (SMS) | ctrl 0x00 = I N(S)=0 N(R)=0 P=0
+         *     | len 0x53 = EL=1, M=1, L=20
+         * j=0 etait REFUSE sur `c != 0x00`. Le scanner glissait et tombait a
+         * j=4 sur `01 1b` (0x01 ressemble a une addr SAPI 0, 0x1b passe le
+         * filtre control) et publiait la L3 NUE, sans en-tete LAPDm :
+         *     01 1b 00 2a 00 08 91 33 ...
+         * osmo-bts lit alors l2[2]=0x00 comme octet de longueur -> EL=0 :
+         *     lapdm.c:971 « we don't support multi-octet length »
+         *     -> MDL-ERROR-IND 12 -> BSC « ERROR INDICATION cause=Frame not
+         *        implemented » -> SDCCH libere -> gsm48_rr.c:762 « Main
+         *        signallin link is down, so release SAPI 3 link locally »
+         *        -> MMSMS_REL_IND -> SMS jete.
+         * La retransmission T200 revient avec ctrl 0x10 (P=1), qui passait le
+         * filtre — d'ou UNE publication correcte, mais trop tard.
+         * ⚠️ NON specifique au pont : qemu_wrap.c lit le meme sideband, donc
+         * le MO SMS etait casse pareil en fake_trx. Et ca PERIME le diagnostic
+         * « Frame not implemented == chiffrement UL » : ce run est en a5/0.
+         *
+         * LE CHOIX. On ne blackliste plus de valeur de control : on valide le
+         * TRIPLET addr/ctrl/len, l'octet de LONGUEUR etant le vrai
+         * discriminant (EL=1 obligatoire, L <= N201=20). Il rejette le faux
+         * depart j=4 (len 0x00 -> EL=0) et accepte le vrai j=0. */
         int kk = -1;
         for (int j = 0; j <= 6; j++) {
-            uint8_t a = win[j], c = win[j + 1];
+            uint8_t a = win[j], c = win[j + 1], l = win[j + 2];
             int sapi = (a >> 2) & 7;
-            if ((a & 0x01) && (sapi == 0 || sapi == 3) &&
-                c != 0x2b && c != 0x00 && c != 0xff) { kk = j; break; }
+            /* addr : EA=1, LPD=0, SAPI 0 (signalisation) ou 3 (SMS) */
+            int addr_ok = (a & 0x01) && ((a & 0x60) == 0)
+                          && (sapi == 0 || sapi == 3);
+            /* ctrl : on n'ecarte QUE le remplissage et la memoire vierge.
+             * 0x00 est LEGAL (I-frame N(S)=0 N(R)=0 P=0) — cf. ci-dessus. */
+            int ctrl_ok = (c != 0x2b) && (c != 0xff);
+            /* len : EL=1 (osmo-bts refuse le multi-octet), L <= N201 */
+            int len_ok  = (l & 0x01) && ((l >> 2) <= 20);
+            if (addr_ok && ctrl_ok && len_ok) { kk = j; break; }
         }
         if (kk < 0) kk = 0;
         for (int i = 0; i < 23; i++) l2[i] = win[kk + i];
@@ -2185,10 +3512,15 @@ static void shunt_latch_task(uint16_t new_d_dsp_page)
         int non_idle = (l2[1] != 0x03);
         if (non_idle || ul_log < 6) {
             if (!non_idle) ul_log++;
-            SHUNT_LOG("SDCCH-UL%s task_u=0x%04x l1s%%51=%u "
+            /* kk = offset retenu par le scanner dans la fenetre a_cu. JUGE du
+             * fix du 16/08 : une trame saine se trouve a kk=0 ou kk=2 (header
+             * L1 SACCH). Un kk qui derive (4, 5, 6) signale un faux depart :
+             * on republierait de la L3 nue et osmo-bts repondrait
+             * « multi-octet length » / MDL-ERROR-IND 12. */
+            SHUNT_LOG("SDCCH-UL%s task_u=0x%04x l1s%%51=%u kk=%d "
                     "L2: %02x %02x %02x %02x %02x %02x %02x %02x\n",
                     non_idle ? " *NONIDLE*" : "", g_shunt.d_task_u,
-                    (unsigned)(shunt_l1s_fn() % 51),
+                    (unsigned)(shunt_l1s_fn() % 51), kk,
                     l2[0], l2[1], l2[2], l2[3], l2[4], l2[5], l2[6], l2[7]);
         }
     }
@@ -2884,22 +4216,41 @@ static void shunt_dcch_sacch_present(uint16_t *d)
             SHUNT_LOG("DCCH-SACCH : garde du canal principal %s\n",
                       garde ? "ACTIVE" : "desactivee");
         }
-        static const uint8_t sacch_base[4] = { 42, 46, 93, 97 };
+        /* [2026-08-21] CE SWITCH NE CONNAISSAIT QUE LES BASES DU SDCCH/4.
+         * g_shunt.sdcch_ss porte la base DL fn%51 posee par set_dcch() :
+         *   /4 -> {22,26,32,36}[ss]      /8 -> ss*4  ∈ {0,4,8,...,28}
+         * Sur un /8, AUCUN case ne matchait (26/32/36 sont hors de {0..28}) :
+         * ss_idx retombait a 0 et la SACCH dediee etait presentee en fn%102 42-45,
+         * la fenetre du SDCCH/4 SS0, alors qu'elle arrive en 32-35 (SS0 du /8).
+         * La SACCH d'un SDCCH/8 n'a donc JAMAIS ete presentee au bon endroit.
+         * Miroir exact, cote shunt, du plan /4-en-dur corrige le meme jour dans
+         * pont.py. Tables GSM 05.02, sur la 102-multitrame :
+         *   SACCH/C4 SS0..3 -> 42, 46, 93, 97
+         *   SACCH/C8 SS0..7 -> 32, 36, 40, 44, 83, 87, 91, 95
+         * (les sous-voies hautes vivent dans la seconde moitie de la 102.) */
+        static const uint8_t sacch_base4[4] = { 42, 46, 93, 97 };
+        static const uint8_t sacch_base8[8] = { 32, 36, 40, 44, 83, 87, 91, 95 };
         unsigned ss_idx;
-        switch (g_shunt.sdcch_ss) {          /* base fn%51 -> index de sous-canal */
-        case 26: ss_idx = 1; break;
-        case 32: ss_idx = 2; break;
-        case 36: ss_idx = 3; break;
-        default: ss_idx = 0; break;          /* 22 = SS0 */
+        uint32_t b;
+        if (g_shunt.sdcch_ch8) {
+            ss_idx = (g_shunt.sdcch_ss / 4u) & 7u;   /* base = ss*4 -> ss */
+            b = sacch_base8[ss_idx];
+        } else {
+            switch (g_shunt.sdcch_ss) {      /* base fn%51 -> index de sous-canal */
+            case 26: ss_idx = 1; break;
+            case 32: ss_idx = 2; break;
+            case 36: ss_idx = 3; break;
+            default: ss_idx = 0; break;      /* 22 = SS0 */
+            }
+            b = sacch_base4[ss_idx];
         }
         uint32_t f102 = (uint32_t)calypso_trx_get_fn() % 102u;
-        uint32_t b    = sacch_base[ss_idx];
         if (f102 < b || f102 > b + 3u) {
             static unsigned long long hors;
             if (++hors % 20000 == 1)
-                SHUNT_LOG("DCCH-SACCH : fn%%102=%u hors fenetre SACCH [%u-%u] du SS%u "
-                          "(#%llu) -- on ne presente pas\n",
-                          f102, b, b + 3u, ss_idx, hors);
+                SHUNT_LOG("DCCH-SACCH : fn%%102=%u hors fenetre SACCH [%u-%u] du "
+                          "SDCCH/%d SS%u (#%llu) -- on ne presente pas\n",
+                          f102, b, b + 3u, g_shunt.sdcch_ch8 ? 8 : 4, ss_idx, hors);
             return;
         }
         if (garde && (d[ndb_w(g_ndb.a_cd)] & (1u << B_BLUD))) {
@@ -3327,6 +4678,35 @@ static uint16_t shunt_pm_decan_apm(int fallback_target)
         return calypso_trf6151_apm_for_rf(rfi);
     }
     return calypso_trf6151_apm_for_rf(fallback_target);
+}
+
+/* [2026-08-22] MODÈLE INTÉGRATEUR RSSI HW — le vrai pm_meas natif.
+ * Sur vrai Calypso la tâche PM (md=1) ne calcule PAS a_pm depuis les samples : le
+ * DSP zéro-remplit la page résultat (PROM0 0xb446 : `stl *AR1+,A` en rptb 80), puis
+ * un intégrateur lit un REGISTRE HW de puissance (côté ABB/RF) et pose a_pm — jamais
+ * depuis 0x2a00. Ce registre n'est pas dans l'ADC modélisé ; on le MODÉLISE depuis la
+ * vraie magnitude du signal DL : g_shunt.last_pm = MAV(|I|+|Q|) mesurée dans feed_iq
+ * sur les échantillons réellement reçus. a_pm = calib_RF(20·log10(MAV/MAV_REF)+RF_REF).
+ * → a_pm SUIT le signal (aucun 0x7000 canné). L'ancrage MAV_REF→RF_REF est la
+ * calibration du frontend (comme le gain trf6151), pas une valeur décrétée : deux
+ * signaux différents donnent deux a_pm différents. Utilisé par le hook a_pm de
+ * calypso_c54x.c, qui intercepte l'écriture DSP vers data[0x834..836]/[0x848..84A]. */
+uint16_t calypso_dsp_shunt_rssi_apm(void)
+{
+    static double mav_ref = 20929.0, rf_ref = -60.0; static int init = 0;
+    if (!init) {
+        init = 1;
+        const char *mr = getenv("CALYPSO_DECAN_PM_MAV_REF"); if (mr && *mr) mav_ref = atof(mr);
+        const char *rr = getenv("CALYPSO_DECAN_PM_RF_REF");  if (rr && *rr) rf_ref = atof(rr);
+        if (mav_ref < 1.0) mav_ref = 1.0;
+    }
+    double mav = (double)g_shunt.last_pm;
+    if (mav < 1.0) mav = 1.0;
+    double rf = 20.0 * log10(mav / mav_ref) + rf_ref;
+    if (rf < -100.0) rf = -100.0;   /* plancher : suit le signal faible sans rejeter */
+    if (rf >  -30.0) rf =  -30.0;
+    int rfi = (int)(rf >= 0 ? rf + 0.5 : rf - 0.5);
+    return calypso_trf6151_apm_for_rf(rfi);
 }
 
 void calypso_dsp_shunt_on_frame_tick(void)
@@ -4690,6 +6070,9 @@ static void shunt_gsmtap_init(void)
  * SHUNT_CANNED_BSIC. C'est le "DSP qui poste son decode SCH dans le NDB". */
 static int g_sch_fd = -1;
 
+/* [2026-08-22] auto-recalage FN sur SCH (calypso_trx.c) — decl scope FICHIER. */
+extern void calypso_trx_autosync_fn(uint32_t sch_fn);
+
 static void shunt_sch_read(void *opaque)
 {
     uint8_t buf[64];
@@ -4743,6 +6126,28 @@ static void shunt_sch_read(void *opaque)
                         "delta=%d sch%%51=%u toa=%d\n",
                         (unsigned)fn, trx_fn, d, (unsigned)((uint32_t)fn % 51),
                         (int)g_shunt.sb_toa);
+            /* [2026-08-22] Recale l'horloge FN sur ce SCH (1er SCH -> offset auto
+             * fige). Remplace la bequille codee en dur CALYPSO_DL_FN_OFFSET.
+             *
+             * ⚠️ [2026-08-22 soir] GATE. En mode NATIF c'est une BEQUILLE : la FN
+             * vient du SCH decode par **gr-gsm**, pas du correlateur du DSP. Le
+             * natif est alors juge avec l'horloge deja calee pour lui, et la ligne
+             * FN-ALIGN affiche `toa=23` qui est la valeur du MODELE gr-gsm — a ne
+             * PAS lire comme un succes natif (piege vecu le 22/08).
+             * CALYPSO_GRGSM_FN_AUTOSYNC=0 -> le natif doit se caler tout seul.
+             * Defaut 1 : ne change RIEN au comportement existant. */
+            {
+                static int _gsync = -1;
+                if (_gsync < 0) {
+                    _gsync = calypso_gate("CALYPSO_GRGSM_FN_AUTOSYNC", 1);
+                    fprintf(stderr, "[feed-daram-dsp] GRGSM-FN-AUTOSYNC %s : "
+                            "recalage de l'horloge FN sur le SCH decode par gr-gsm\n",
+                            _gsync ? "ACTIF (=1 ; BEQUILLE si mode natif)"
+                                   : "INACTIF (=0 ; le natif doit se caler seul)");
+                }
+                if (_gsync)
+                    calypso_trx_autosync_fn((uint32_t)fn);
+            }
         }
     }
 }
@@ -5075,7 +6480,18 @@ void calypso_dsp_shunt_feed_iq(uint32_t fn, const int16_t *iq, int n)
         int _p = (int)(fn % 51);
         /* [2026-07-26] FCCH positions {1,11,21,31,41} (offset +1 vs canon 0/10/20/30/40,
          * confirme par FN-ALIGN sch%51=1,21,31,41). */
-        int _is_fcch = (_p % 10 == 1) && (_p <= 41);
+        /* [2026-08-22] CORRIGE — la fenetre etait decalee de +1 et feedait le SCH.
+         * L'ancien commentaire disait « FCCH = {1,11,21,31,41}, offset +1 vs canon,
+         * confirme par FN-ALIGN sch%51=1,21,31,41 » : il lisait la sonde **SCH**
+         * (`sch_fn`) et en concluait FCCH. `sch%51 ∈ {1,11,21,31,41}` prouve au
+         * contraire que le SCH est aux positions CANONIQUES (GSM 05.02), donc que
+         * la FCCH est en {0,10,20,30,40}.
+         * MESURE : avec l'ancienne fenetre, `FB-IQ-DARAM ... s0=0x0000 s1=0x0000
+         * s2=0x0000` — le feed ecrivait des ZEROS depuis le debut. Confirme
+         * independamment par tools_/corr_iq.py : bursts non nuls a fn%51 ∈
+         * {0,10,20,30,40}. Gate CALYPSO_FEED_FN_CANON=0 pour restaurer le +1. */
+        int _is_fcch = feed_fn_canon() ? ((_p % 10 == 0) && (_p <= 40))
+                                       : ((_p % 10 == 1) && (_p <= 41));
         /* @BEQUILLE — FB_IQ_MARKER  (CALYPSO_FB_IQ_MARKER, atoi>0, defaut OFF)
          *   masque  : rien de reel — remplace l'IQ par une RAMPE 0x1000+woff pour tester
          *             la reachabilite de la vue DARAM du noyau. Court-circuite la branche
@@ -5098,17 +6514,116 @@ void calypso_dsp_shunt_feed_iq(uint32_t fn, const int16_t *iq, int n)
                         g_shunt.c54x->data[base], g_shunt.c54x->data[base+1], g_shunt.c54x->data[base+2]);
         } else if (_fid && g_shunt.c54x && g_shunt.c54x->data && (!_fcch || _is_fcch)) {
             uint16_t base = _iqbase; int dl = 0x128; int woff = 0;
-            for (int k = 0; 2*(k*_decim)+1 < n && woff < dl; k++) {
-                g_shunt.c54x->data[base + woff++] = (uint16_t)iq[2*(k*_decim)];
+            /* [2026-08-22] decimation EFFECTIVE : l'entree est deja a 1 SPS ici
+             * (n=320 = 160 paires IQ) ; decimer encore par 4 aliase la tonalite
+             * FCCH (dphi=+pi/2 par echantillon -> 4*pi/2 = 2*pi = DC). */
+            int _de = feed_decim_eff(_decim, n);
+            for (int k = 0; 2*(k*_de)+1 < n && woff < dl; k++) {
+                g_shunt.c54x->data[base + woff++] = (uint16_t)iq[2*(k*_de)];
                 if (woff < dl)
-                    g_shunt.c54x->data[base + woff++] = (uint16_t)iq[2*(k*_decim)+1];
+                    g_shunt.c54x->data[base + woff++] = (uint16_t)iq[2*(k*_de)+1];
             }
-            static unsigned _l = 0;
-            if (_l++ < 16)
-                fprintf(stderr, "[feed-daram-dsp] FB-IQ-DARAM fn=%u p=%d wrote=%d decim=%d "
-                        "s0=0x%04x s1=0x%04x s2=0x%04x\n", fn, _p, woff, _decim,
-                        g_shunt.c54x->data[base], g_shunt.c54x->data[base+1],
-                        g_shunt.c54x->data[base+2]);
+            {
+                unsigned _nz, _mi, _mq; unsigned long long _e;
+                feed_stats(&g_shunt.c54x->data[base], woff, &_nz, &_mi, &_mq, &_e);
+                static unsigned _l2 = 0;
+                if (_l2++ < 16)
+                    fprintf(stderr, "[feed-daram-dsp] FB-IQ-DARAM fn=%u p=%d wrote=%d "
+                            "decim=%d (demande %d, n=%d) NONZERO=%u/%d max|I|=%u "
+                            "max|Q|=%u energie=%llu mid=0x%04x,0x%04x\n",
+                            fn, _p, woff, _de, _decim, n, _nz, woff, _mi, _mq, _e,
+                            woff > 152 ? g_shunt.c54x->data[base+150] : 0,
+                            woff > 152 ? g_shunt.c54x->data[base+151] : 0);
+            }
+        }
+    }
+
+    /* [2026-08-22] SB-IQ-DARAM — le pendant SB de FB_IQ_DARAM.
+     *
+     * CONSTAT. La chaine FB0 -> FB1 -> SB tourne bien (osmocon de ce run :
+     * FB0=19, FB1=20, SB=8 ; le `fb1_att=0` de la sonde fbsb est un ARTEFACT,
+     * `fb1_attempt` n'est incremente NULLE PART, cf. calypso_fbsb.c:54).
+     * Mais le SB rend invariablement ZERO : `TOA=0 Power=-138dBm`,
+     * `=> SB 0x00000000 BSIC=0`, et a_sch reste 0x0000.
+     *
+     * RAISON. FB_IQ_DARAM ci-dessus n'ecrit que **0x2a00** (buffer FB) et
+     * seulement sur les trames FCCH ({1,11,21,31,41} mod 51). Le correlateur SB
+     * lit un AUTRE buffer : **0x0e4e**, destination du DMA SB (AAD=0xc9c,
+     * cf. [rhea-dma] DMA2_AAD). Personne ne l'alimente -> le SB correle du vide.
+     *
+     * CE BLOC. Meme methode exactement que FB_IQ_DARAM (296 mots = 148 IQ a
+     * 1 SPS, decimation _decim, I puis Q, ecriture directe dans data[]), mais
+     * base 0x0e4e et fenetre SCH = FCCH+1 = {2,12,22,32,42} mod 51.
+     *
+     * @BEQUILLE — SB_IQ_DARAM (+ _BASE)  (CALYPSO_SB_IQ_DARAM, atoi>0, defaut OFF)
+     *   masque  : le DMA on-chip RX -> 0x0e4e. L'ecriture se fait hors data_write,
+     *             donc invisible des sondes WATCH_*.
+     *   retirer : quand la chaine BSP -> RHEA DMA -> 0x0e4e alimente le buffer SB
+     *             toute seule sur les trames SCH. C'est un instrument de DIAGNOSTIC
+     *             (repondre « le SB sait-il correler quand on le nourrit ? »),
+     *             PAS un correctif : tant qu'il est actif, le verdict natif est
+     *             fausse au meme titre que CALYPSO_GRGSM_FN_AUTOSYNC.
+     */
+    {
+        static int _sid = -1, _sdecim = 4;
+        static uint16_t _sbbase = 0;
+        if (_sid < 0) {
+            const char *e = getenv("CALYPSO_SB_IQ_DARAM"); _sid = (e && atoi(e) > 0) ? 1 : 0;
+            const char *d = getenv("CALYPSO_BSP_IQ_DECIM"); if (d && *d) _sdecim = atoi(d);
+            if (_sdecim < 1) _sdecim = 1;
+            const char *b = getenv("CALYPSO_SB_IQ_BASE");
+            _sbbase = (b && *b) ? (uint16_t)strtol(b, NULL, 0) : 0x0e4e;
+            fprintf(stderr, "[feed-daram-dsp] SB-IQ-DARAM %s : base=0x%04x decim=%d "
+                    "(nourrit le correlateur SB sur les trames SCH)\n",
+                    _sid ? "ACTIF (BEQUILLE de diagnostic)" : "INACTIF (defaut)",
+                    _sbbase, _sdecim);
+        }
+        if (_sid && g_shunt.c54x && g_shunt.c54x->data) {
+            int _sp = (int)(fn % 51);
+            /* SCH = FCCH+1 : FCCH est en {1,11,21,31,41} (offset +1 vs canon,
+             * confirme par FN-ALIGN sch%51=1,21,31,41) -> SCH en {2,12,22,32,42}. */
+            /* [2026-08-22] CORRIGE : le SCH est en {1,11,21,31,41} (canonique
+             * GSM 05.02, prouve par FN-ALIGN sch%51). J'avais herite de la fausse
+             * premisse « FCCH=+1 » du bloc FB et vise {2,12,22,32,42} -> zeros. */
+            int _is_sch = feed_fn_canon() ? ((_sp % 10 == 1) && (_sp <= 41))
+                                          : ((_sp % 10 == 2) && (_sp <= 42));
+            if (_is_sch) {
+                uint16_t base = _sbbase; int dl = 0x128; int woff = 0;
+                /* /!\ 0x0e4e est DANS la fenetre API (0x0800..0x27FF) : c'est
+                 * api_ram[addr-0x0800] que le DSP LIT, pas data[] (calypso_c54x.c,
+                 * data_read : « API RAM (shared with ARM) » ; cf. aussi le
+                 * commentaire « AAD=0x99c -> api_ram[0x4ce] »). Ecrire data[] seul
+                 * serait INVISIBLE du DSP — c'est le bug deja paye le 2026-08-03
+                 * sur data[0x098c]/api_ram[0x098c]. On ecrit donc LES DEUX : data[]
+                 * pour les sondes, api_ram[] pour le DSP.
+                 * (0x2a00 du feed FB est HORS fenetre -> data[] y est correct.) */
+                int _sde = feed_decim_eff(_sdecim, n);
+                for (int k = 0; 2*(k*_sde)+1 < n && woff < dl; k++) {
+                    uint16_t a0 = (uint16_t)(base + woff);
+                    g_shunt.c54x->data[a0] = (uint16_t)iq[2*(k*_sde)];
+                    if (a0 >= 0x0800 && a0 < 0x2800 && g_shunt.c54x->api_ram)
+                        g_shunt.c54x->api_ram[a0 - 0x0800] = (uint16_t)iq[2*(k*_sde)];
+                    woff++;
+                    if (woff < dl) {
+                        uint16_t a1 = (uint16_t)(base + woff);
+                        g_shunt.c54x->data[a1] = (uint16_t)iq[2*(k*_sde)+1];
+                        if (a1 >= 0x0800 && a1 < 0x2800 && g_shunt.c54x->api_ram)
+                            g_shunt.c54x->api_ram[a1 - 0x0800] = (uint16_t)iq[2*(k*_sde)+1];
+                        woff++;
+                    }
+                }
+                static unsigned _sl = 0;
+                if (_sl++ < 16)
+                    {
+                        unsigned _nz, _mi, _mq; unsigned long long _e;
+                        feed_stats(&g_shunt.c54x->data[base], woff, &_nz, &_mi, &_mq, &_e);
+                        fprintf(stderr, "[feed-daram-dsp] SB-IQ-DARAM fn=%u p=%d wrote=%d "
+                                "decim=%d n=%d api_ram=%d NONZERO=%u/%d max|I|=%u "
+                                "max|Q|=%u energie=%llu\n",
+                                fn, _sp, woff, _sde, n,
+                                g_shunt.c54x->api_ram ? 1 : 0, _nz, woff, _mi, _mq, _e);
+                    }
+            }
         }
     }
 
@@ -5755,6 +7270,40 @@ bool calypso_dsp_shunt_fb_stream_next(uint16_t *outI, uint16_t *outQ)
     return true;
 }
 
+/* [2026-08-22] Gates des deux correctifs de feed (voir en-tete des blocs
+ * FB-IQ-DARAM / SB-IQ-DARAM). Separes pour permettre la bisection. */
+static int feed_fn_canon(void)
+{
+    static int g = -1;
+    if (g < 0) {
+        g = calypso_gate("CALYPSO_FEED_FN_CANON", 1);
+        fprintf(stderr, "[feed-daram-dsp] FEED-FN-CANON %s : FCCH={0,10,20,30,40} "
+                "SCH={1,11,21,31,41} (GSM 05.02)\n",
+                g ? "ACTIF (positions canoniques)"
+                  : "INACTIF (ancien decalage +1, feedait les trames SCH)");
+    }
+    return g;
+}
+
+static int feed_decim_auto(void)
+{
+    static int g = -1;
+    if (g < 0) {
+        g = calypso_gate("CALYPSO_FEED_DECIM_AUTO", 1);
+        fprintf(stderr, "[feed-daram-dsp] FEED-DECIM-AUTO %s : ne decime que si "
+                "l'entree est a 4 SPS (n > 2*296), comme c54x_bsp_load\n",
+                g ? "ACTIF (garde 4 SPS)" : "INACTIF (decimation inconditionnelle)");
+    }
+    return g;
+}
+
+/* Decimation effective : 1 si l'entree est deja a 1 SPS. */
+static int feed_decim_eff(int decim, int n)
+{
+    if (!feed_decim_auto()) return decim;
+    return (decim > 1 && n > 2 * 296) ? decim : 1;
+}
+
 /* [2026-07-27] Reset L1 (Ctrl-C mobile / L1CTL_RESET_REQ FULL) : clear l'etat
  * transitoire du shunt (IMM-ASSIGN / SDCCH-DL latches par un SMS) qui sinon
  * supprime le SI apres la relance -> le mobile ne re-campe pas. Appele depuis
@@ -6323,627 +7872,6 @@ void calypso_manifest_once(void)
     }
     fprintf(stderr, "[MANIFEST] ===== %d CALYPSO_* variables (see artifact appendix) =====\n", n);
     fflush(stderr);
-}
-
-```
-
-## `hw/arm/calypso/calypso_iota.c` {#f-hw-arm-calypso-calypso-iota-c}
-
-::: {.file-meta}
-[.c]{.tag} 101 lignes - 3,4KB
-:::
-
-```{.c .numberLines filename="hw/arm/calypso/calypso_iota.c"}
-/*
- * TWL3025 / IOTA model — implementation.
- *
- * SPDX-License-Identifier: GPL-2.0-or-later
- */
-#include "qemu/osdep.h"
-#include <stdio.h>
-#include <string.h>
-#include "hw/arm/calypso/calypso_iota.h"
-
-#include "hw/arm/calypso/calypso_debug.h"
-#define IOTA_LOG(fmt, ...) \
-    do { if (calypso_debug_enabled("IOTA")) \
-        fprintf(stderr, "[iota] " fmt "\n", ##__VA_ARGS__); } while (0)
-
-/* Pending BDLENA windows queued by the TPU sequencer, waiting for a
- * matching downlink burst to arrive on the BSP. Sized for one full TDMA
- * frame's worth of slots so successive armings on different TNs queue up
- * cleanly. */
-#define IOTA_PENDING_MAX 32
-
-static struct {
-    uint8_t  last_byte;     /* most recent TSP byte */
-    bool     bdl_ena;       /* current state of BDLENA pin */
-    bool     bul_ena;       /* current state of BULENA pin */
-    uint32_t bdl_pulses;    /* total BDLENA rising edges */
-    uint32_t writes_seen;
-    /* Pending pulses: each holds the TN the L1 armed for. */
-    uint8_t  pending_tn[IOTA_PENDING_MAX];
-    int      pending_head, pending_tail;
-} iota;
-
-static int iota_pending_count(void)
-{
-    int n = iota.pending_tail - iota.pending_head;
-    if (n < 0) n += IOTA_PENDING_MAX;
-    return n;
-}
-
-static void iota_pending_push(uint8_t tn)
-{
-    if (iota_pending_count() >= IOTA_PENDING_MAX - 1) {
-        IOTA_LOG("WARN pending queue full, dropping oldest");
-        iota.pending_head = (iota.pending_head + 1) % IOTA_PENDING_MAX;
-    }
-    iota.pending_tn[iota.pending_tail] = tn;
-    iota.pending_tail = (iota.pending_tail + 1) % IOTA_PENDING_MAX;
-}
-
-void calypso_iota_init(void)
-{
-    memset(&iota, 0, sizeof(iota));
-    IOTA_LOG("init");
-}
-
-void calypso_iota_tsp_write(uint8_t data, uint8_t expected_tn)
-{
-    bool prev_bdl = iota.bdl_ena;
-    bool prev_bul = iota.bul_ena;
-
-    iota.last_byte = data;
-    iota.bdl_ena   = !!(data & IOTA_TSP_BDLENA);
-    iota.bul_ena   = !!(data & IOTA_TSP_BULENA);
-    iota.writes_seen++;
-
-    if (!prev_bdl && iota.bdl_ena) {
-        iota.bdl_pulses++;
-        iota_pending_push(expected_tn);
-        if (iota.bdl_pulses <= 10 || (iota.bdl_pulses % 100) == 0) {
-            IOTA_LOG("BDLENA rising edge #%u tn=%u pending=%d",
-                     iota.bdl_pulses, expected_tn, iota_pending_count());
-        }
-    }
-    if (prev_bul != iota.bul_ena && iota.writes_seen <= 10) {
-        IOTA_LOG("BULENA -> %d (data=0x%02x)", iota.bul_ena, data);
-    }
-}
-
-bool calypso_iota_bdl_ena(void)            { return iota.bdl_ena; }
-uint32_t calypso_iota_bdl_ena_pulses(void) { return iota.bdl_pulses; }
-
-bool calypso_iota_take_bdl_pulse(uint8_t tn)
-{
-    /* Walk the pending queue from oldest to newest looking for a TN
-     * match. Newer pending pulses past the matched one stay queued. */
-    int n = iota_pending_count();
-    for (int i = 0; i < n; i++) {
-        int idx = (iota.pending_head + i) % IOTA_PENDING_MAX;
-        if (iota.pending_tn[idx] == tn) {
-            /* Consume: shift everything from head..idx forward by 1 */
-            for (int j = i; j > 0; j--) {
-                int dst = (iota.pending_head + j) % IOTA_PENDING_MAX;
-                int src = (iota.pending_head + j - 1) % IOTA_PENDING_MAX;
-                iota.pending_tn[dst] = iota.pending_tn[src];
-            }
-            iota.pending_head = (iota.pending_head + 1) % IOTA_PENDING_MAX;
-            return true;
-        }
-    }
-    return false;
-}
-
-```
-
-## `hw/arm/calypso/calypso_layer1.c` {#f-hw-arm-calypso-calypso-layer1-c}
-
-::: {.file-meta}
-[.c]{.tag} 181 lignes - 7,7KB
-:::
-
-```{.c .numberLines filename="hw/arm/calypso/calypso_layer1.c"}
-/*
- * calypso_layer1.c — HLE L1 model for the Calypso DSP (CALYPSO_L1=c).
- *
- * Scaffold fonctionnel intermédiaire (PAS l'endgame ; le revival LLE reste le but
- * faithful, gardé vivant derrière CALYPSO_L1 off). Modélise le L1 du DSP en C,
- * cadencé par calypso_tdma_tick. Lit l'I/Q en DARAM 0x2a00, écrit ses résultats
- * dans l'API RAM où l'ARM (osmocom-bb, inchangé) les lit.
- *
- * ÉTAPE 1 — détecteur FB/FCCH RÉEL (pas de forcing) :
- *   Filtre adapté au ton FCCH (+fc/4 → incrément de phase +22.5°/sample @4 SPS) :
- *       C = Σ z[n]·exp(-j·n·inc) ;  M = |C|² / (N·E)
- *   Ton pur (FCCH) → M≈1 ; bruit/GMSK data → M≈1/N. Discrimine VRAIMENT (le ratio
- *   différentiel R était émoussé à 4 SPS). Auto-alignant : M ne pique qu'aux trames
- *   FCCH (observées à fn%51≈7-8, offset fixe du multiframe BTS) → la trame de lock
- *   devient l'ancre, l'offset n'a pas à être connu.
- *   Valeurs DÉRIVÉES (pas cannées) : d_fb_det (détection réelle), snr (∝ cohérence M,
- *   >AFC_SNR_THRESHOLD=2560 quand locké), angle (résidu meanInc−nominal ≈0 → AFC
- *   stable, comme le ANGLE=0 du shunt mais CALCULÉ), pm (dérivé de E full-scale),
- *   toa (on-time, le bsp livre le burst aligné).
- *
- * SPDX-License-Identifier: GPL-2.0-or-later
- */
-#include "qemu/osdep.h"
-#include "hw/arm/calypso/calypso_layer1.h"
-#include <math.h>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-/* --- offsets data[] (DSP word) / dsp_ram (ARM word) --- */
-#define L1_DARAM_IQ      0x2a00      /* 148 paires int16 I/Q entrelacées */
-#define L1_IQ_PAIRS      148
-#define L1_NDB_D_FB_DET  0x08F8      /* ndb->d_fb_det */
-#define L1_NDB_D_FB_MODE 0x08F9      /* ndb->d_fb_mode (0=wideband 1=narrow) */
-#define L1_NDB_A_SYNC    0x08FA      /* a_sync_demod[0]=TOA [1]=PM [2]=ANGLE [3]=SNR */
-#define WP0_TASK_MD      (0x0008/2)
-#define WP1_TASK_MD      (0x0030/2)
-#define D_DSP_PAGE_WORD  (0x01A8/2)
-
-#define FB_DSP_TASK      5
-#define SB_DSP_TASK      6
-
-/* incrément de phase nominal du ton FCCH : +fc/4 = +1625/24 kHz à 4 SPS
- * (fs=4×270.833k) → 2π·67708/1083333 = +22.5°/sample. */
-#define L1_FCCH_INC_DEG  22.5
-#define L1_FCCH_M_THRESH 0.40        /* M_data≈1/148≈0.007, M_fcch≈1 → seuil large */
-#define L1_E_MIN         1.0e6       /* énergie min pour considérer un burst présent */
-#define AFC_SNR_THRESHOLD 2560       /* afc.h : 2.5 dB en fx6.10 */
-
-/* @BEQUILLE — L1  (CALYPSO_L1=c*, defaut absent)
- *   masque  : le DSP entier. calypso_l1_c_active() rend substitutes() vrai
- *             (calypso_dsp_shunt.c) -> un modele L1 haut-niveau en C remplace la
- *             couche 1 et gate les c54x_run natifs.
- *   retirer : quand le DSP emule tient la couche 1. Variable posee dans aucun
- *             profil livre : candidate au retrait pur et simple.
- */
-int calypso_l1_c_active(void)
-{
-    static int v = -1;
-    if (v < 0) {
-        const char *e = getenv("CALYPSO_L1");
-        v = (e && e[0] == 'c') ? 1 : 0;
-    }
-    return v;
-}
-
-/* Latch du d_task_md écrit par l'ARM : le poll tick-time rate le transient
- * (write puis consommé au write-time, vu par calypso_fbsb). Mis à jour depuis
- * calypso_dsp_write (calypso_trx.c) à chaque écriture de la tâche. */
-static uint16_t g_l1_task_md = 0;
-void calypso_layer1_on_task_write(uint16_t md)
-{
-    g_l1_task_md = md;
-}
-
-struct fb_res {
-    int      found;
-    double   M, meanInc_deg, energy;
-    int16_t  toa, pm, angle, snr;
-};
-
-/* Détecteur FCCH : filtre adapté au ton +fc/4 + résidu de fréquence. */
-static struct fb_res l1_fb_detect(C54xState *dsp)
-{
-    struct fb_res r = { 0 };
-    const double inc = L1_FCCH_INC_DEG * M_PI / 180.0;
-    const double rcos = cos(-inc), rsin = sin(-inc);  /* rotator exp(-j·inc) */
-
-    double Cre = 0, Cim = 0, E = 0;     /* C = Σ z[n]·exp(-j n inc) */
-    double pr = 1.0, pim = 0.0;          /* phasor p_n = exp(-j n inc), p_0 = 1 */
-    double sre = 0, sim = 0;             /* Σ d[n] (différentiel) pour meanInc */
-    double prevI = (double)(int16_t)dsp->data[L1_DARAM_IQ + 0];
-    double prevQ = (double)(int16_t)dsp->data[L1_DARAM_IQ + 1];
-
-    for (int n = 0; n < L1_IQ_PAIRS; n++) {
-        double I = (double)(int16_t)dsp->data[L1_DARAM_IQ + 2 * n];
-        double Q = (double)(int16_t)dsp->data[L1_DARAM_IQ + 2 * n + 1];
-        /* filtre adapté : C += z · p */
-        Cre += I * pr - Q * pim;
-        Cim += I * pim + Q * pr;
-        E   += I * I + Q * Q;
-        /* avance phasor : p *= exp(-j inc) */
-        double npr  = pr * rcos - pim * rsin;
-        double npim = pr * rsin + pim * rcos;
-        pr = npr; pim = npim;
-        /* différentiel d[n] = z[n]·conj(z[n-1]) (diagnostic / résidu) */
-        if (n > 0) {
-            sre += I * prevI + Q * prevQ;
-            sim += Q * prevI - I * prevQ;
-        }
-        prevI = I; prevQ = Q;
-    }
-
-    r.energy      = E;
-    r.M           = (E > 0.0) ? (Cre * Cre + Cim * Cim) / ((double)L1_IQ_PAIRS * E) : 0.0;
-    r.meanInc_deg = (sre != 0.0 || sim != 0.0) ? atan2(sim, sre) * 180.0 / M_PI : 0.0;
-    r.found       = (r.M >= L1_FCCH_M_THRESH && E >= L1_E_MIN);
-
-    if (r.found) {
-        /* angle : résidu de fréquence (meanInc − nominal), ≈0 pour I/Q propre →
-         * freq_diff = ANGLE_TO_FREQ(angle) ≈ 0 → AFC ne chasse pas. DÉRIVÉ. */
-        double resid_deg = r.meanInc_deg - L1_FCCH_INC_DEG;
-        double a = resid_deg * 32.0;                 /* échelle fx provisoire (à calibrer) */
-        r.angle = (int16_t)(a >  32767 ?  32767 : a < -32768 ? -32768 : a);
-        /* snr : croît avec la cohérence M ; >2560 (AFC_SNR_THRESHOLD) quand locké. */
-        double snr = r.M * (double)0x7000;
-        r.snr = (int16_t)(snr > 32767 ? 32767 : snr);
-        /* pm : dérivé — l'I/Q est full-scale Q15 (rxlev fort). Lu >>3 par
-         * read_fb_result → 0x7000>>3 = 0xE00. */
-        r.pm = 0x7000;
-        /* toa : le bsp livre le burst aligné sur la fenêtre → on-time.
-         * read_fb_result fait toa-=23, donc 23 → 0 (on-time). */
-        r.toa = 23;
-    }
-    return r;
-}
-
-void calypso_layer1_tick(C54xState *dsp, uint16_t *dsp_ram, uint32_t fn)
-{
-    if (!dsp || !dsp_ram) {
-        return;
-    }
-
-    uint16_t page = dsp_ram[D_DSP_PAGE_WORD] & 1;
-    uint16_t md_poll = page ? dsp_ram[WP1_TASK_MD] : dsp_ram[WP0_TASK_MD];
-    /* latch prioritaire (le poll rate le transient task=5) */
-    uint16_t md = g_l1_task_md ? g_l1_task_md : md_poll;
-
-    struct fb_res r = l1_fb_detect(dsp);
-
-    /* log riche (calibration du seuil + visu de l'auto-alignement) */
-    static unsigned logn = 0;
-    if (logn++ < 5000) {
-        fprintf(stderr,
-                "[L1c] fn=%u m51=%u md=%u(poll=%u) M=%.3f meanInc=%.1f E=%.2e det=%d\n",
-                fn, fn % 51, md, md_poll, r.M, r.meanInc_deg, r.energy, r.found);
-    }
-
-    /* écriture firmware UNIQUEMENT quand le FB est demandé (évite des d_fb_det
-     * parasites hors recherche). NDB page-less → pas de souci de page. */
-    if (md == FB_DSP_TASK) {
-        if (r.found) {
-            dsp->data[L1_NDB_A_SYNC + 0] = (uint16_t)r.toa;
-            dsp->data[L1_NDB_A_SYNC + 1] = (uint16_t)r.pm;     /* lu >>3 par l'ARM */
-            dsp->data[L1_NDB_A_SYNC + 2] = (uint16_t)r.angle;
-            dsp->data[L1_NDB_A_SYNC + 3] = (uint16_t)r.snr;
-            dsp->data[L1_NDB_D_FB_DET]   = 1;
-            static unsigned fbn = 0;
-            if (fbn++ < 200) {
-                fprintf(stderr, "[L1c-FB] FOUND fn=%u m51=%u M=%.3f meanInc=%.1f "
-                        "resid=%.1f -> d_fb_det=1 toa=%d pm=0x%04x ang=%d snr=%d\n",
-                        fn, fn % 51, r.M, r.meanInc_deg,
-                        r.meanInc_deg - L1_FCCH_INC_DEG,
-                        r.toa, (uint16_t)r.pm, r.angle, r.snr);
-            }
-        } else {
-            dsp->data[L1_NDB_D_FB_DET] = 0;
-        }
-    }
-}
-
-```
-
-## `hw/arm/calypso/calypso_mailbox.c` {#f-hw-arm-calypso-calypso-mailbox-c}
-
-::: {.file-meta}
-[.c]{.tag} 309 lignes - 12KB
-:::
-
-```{.c .numberLines filename="hw/arm/calypso/calypso_mailbox.c"}
-/*
- * calypso_mailbox.c — moniteur COMPLET de la mailbox ARM <-> DSP
- *
- * Voir calypso_mailbox.h pour le pourquoi. Configuration :
- *
- *   CALYPSO_MAILBOX=1|all     tout le flux de la fenêtre mailbox (0x0800..0x0FFF)
- *   CALYPSO_MAILBOX=w         écritures seulement (les deux sens)
- *   CALYPSO_MAILBOX=r         lectures seulement
- *   CALYPSO_MAILBOX_CELLS=0x098b,0x43d8,...   AJOUTE des cellules hors mailbox
- *                             (reprend l'idée de CALYPSO_WATCH_WR_ADDR, qu'il
- *                             remplace : ici les deux sens et les deux côtés)
- *   CALYPSO_MAILBOX_ONLY=1    ne trace QUE les cellules de _CELLS
- *   CALYPSO_MAILBOX_FILE=...  défaut $CALYPSO_LOG_DIR/mailbox.log, sinon
- *                             /tmp/calypso/logs/mailbox.log
- *   CALYPSO_MAILBOX_MAX=N     garde-fou (défaut 5 000 000 lignes, 0 = illimité)
- *
- * SPDX-License-Identifier: GPL-2.0-or-later
- */
-#include "calypso_mailbox.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-int calypso_mbx_actif = -1;   /* -1 = à initialiser au premier accès */
-
-static FILE    *g_f;
-static int      g_init;
-static int      g_ecr = 1, g_lec = 1;      /* écritures / lectures */
-static int      g_only;                    /* 1 = seulement _CELLS */
-static uint16_t g_cells[32];
-static int      g_ncells;
-static unsigned long g_n, g_max = 5000000UL;
-
-/* Repliement PAR CELLULE — journaliser au CHANGEMENT, pas au non-consécutif.
- *
- * [2026-07-29, seconde version] La première repliait les événements CONSÉCUTIFS
- * identiques. Ça ne replie rien : la boucle de fond du DSP interroge DEUX
- * cellules en alternance (`0xde86 ld *(0x098c)` puis `0xddfd ld *(0x098d)`),
- * donc jamais deux lignes de suite identiques. Résultat mesuré : 291 Mo et
- * 3 690 446 lignes en quelques minutes, et QEMU tué.
- *
- * La bonne sémantique est par cellule : une lecture qui rend la MÊME valeur au
- * MÊME PC ne porte aucune information neuve, même si d'autres accès s'intercalent.
- * On garde donc, pour chaque mot, la dernière valeur journalisée et le contexte ;
- * on n'écrit qu'au changement, en résumant la série précédente par « x N ».
- * Les écritures sont toujours journalisées : elles sont rares et chacune est un
- * événement.  CALYPSO_MAILBOX_BRUT=1 désactive tout le repliement. */
-static int       g_brut;
-static uint16_t *g_dval;      /* dernière valeur journalisée, par mot */
-static uint32_t *g_dctx;      /* dernier contexte journalisé, par mot */
-static uint32_t *g_drep;      /* longueur de la série en cours, par mot */
-static uint8_t  *g_dvu;       /* ce mot a-t-il déjà été journalisé ? */
-static uint8_t  *g_dsens;     /* sens du dernier événement journalisé */
-
-/* Noms des cellules qui reviennent sans cesse dans le diagnostic. Une trace
- * lisible évite de re-chercher « 0x08fa c'était quoi déjà » à chaque lecture. */
-static const char *mbx_nom(uint16_t m)
-{
-    switch (m) {
-    case 0x0804: return "d_task_md/wp0";
-    case 0x0818: return "d_task_md/wp1";
-    case 0x0828: return "d_task_d/rp0";
-    case 0x0829: return "d_burst_d/rp0";
-    case 0x083C: return "d_task_d/rp1";
-    case 0x083D: return "d_burst_d/rp1";
-    case 0x0810: return "d_ctrl_system";
-    /* [2026-07-29] 0x08E2 etait libelle « d_dsp_page » : faux de +14 mots.
-     * NDB+0 = 0x08D4 = d_dsp_page ; NDB+14 = 0x08E2 = d_dsp_state (l'ARM y
-     * ecrit 3 = C_DSP_IDLE3 depuis dsp.c:215). Voir calypso_fbsb.h. */
-    case 0x08D4: return "d_dsp_page";
-    case 0x08D5: return "d_error_status";
-    case 0x08E2: return "d_dsp_state";
-    case 0x08F8: return "d_fb_det";
-    case 0x08F9: return "d_fb_mode";
-    case 0x08FA: return "a_sync[TOA]";
-    case 0x08FB: return "a_sync[PM]";
-    case 0x08FC: return "a_sync[ANGLE]";
-    case 0x08FD: return "a_sync[SNR]";
-    case 0x098A: return "d_backgnd_en";
-    case 0x098B: return "d_backgnd_?b";
-    case 0x098C: return "d_backgnd_st";
-    case 0x098D: return "d_backgnd_?d";
-    case 0x098E: return "tab_handlers";
-    case 0x0FFF: return "d_task_word";
-    case 0x43D8: return "slot_handler";
-    default:     return "";
-    }
-}
-
-static void mbx_ecrire(CalypsoMbxSens sens, uint16_t mot, uint16_t val,
-                       uint16_t avant, uint32_t ctx, uint32_t fn, uint32_t insn,
-                       unsigned long rep);
-
-void calypso_mbx_init(void)
-{
-    const char *e;
-
-    if (g_init) {
-        return;
-    }
-    g_init = 1;
-
-    e = getenv("CALYPSO_MAILBOX");
-    if (!e || !*e || !strcmp(e, "0")) {
-        calypso_mbx_actif = 0;        /* éteint : coût nul sur les chemins chauds */
-        return;
-    }
-    if (!strcmp(e, "w") || !strcmp(e, "W")) {
-        g_lec = 0;
-    } else if (!strcmp(e, "r") || !strcmp(e, "R")) {
-        g_ecr = 0;
-    }
-
-    e = getenv("CALYPSO_MAILBOX_CELLS");
-    if (e && *e) {
-        const char *p = e;
-        while (*p && g_ncells < 32) {
-            char *fin = NULL;
-            long v;
-            while (*p == ',' || *p == ' ') {
-                p++;
-            }
-            if (!*p) {
-                break;
-            }
-            v = strtol(p, &fin, 0);
-            if (fin == p) {
-                break;                /* rien de lisible : on arrête là */
-            }
-            g_cells[g_ncells++] = (uint16_t)v;
-            p = fin;
-        }
-    }
-    e = getenv("CALYPSO_MAILBOX_ONLY");
-    g_only = (e && *e == '1');
-
-    e = getenv("CALYPSO_MAILBOX_BRUT");
-    g_brut = (e && *e == '1');
-
-    e = getenv("CALYPSO_MAILBOX_MAX");
-    if (e && *e) {
-        g_max = strtoul(e, NULL, 0);
-    }
-
-    e = getenv("CALYPSO_MAILBOX_FILE");
-    if (!e || !*e) {
-        static char def[512];
-        /* Le dépôt exporte LOG_DIR (paths.env) ; CALYPSO_LOG_DIR n'existe pas —
-         * première version de ce code : mauvais nom, le fichier serait toujours
-         * tombé dans le repli. On accepte les deux, LOG_DIR fait foi. */
-        const char *d = getenv("LOG_DIR");
-        if (!d || !*d) d = getenv("CALYPSO_LOG_DIR");
-        snprintf(def, sizeof(def), "%s/mailbox.log",
-                 (d && *d) ? d : "/tmp/calypso/logs");
-        e = def;
-    }
-    g_f = fopen(e, "w");
-    if (!g_f) {
-        fprintf(stderr, "[mbx] ouverture impossible : %s — moniteur INACTIF\n", e);
-        calypso_mbx_actif = 0;
-        return;
-    }
-    /* Tampon PLEIN et large. En _IOLBF chaque ligne était un appel système :
-     * 3,7 M de write() ont suffi à mettre QEMU à genoux. On vide périodiquement
-     * (voir mbx_ecrire) pour qu'un arrêt brutal ne perde qu'une fenêtre. */
-    setvbuf(g_f, NULL, _IOFBF, 1 << 20);
-
-    g_dval = calloc(0x10000, sizeof(*g_dval));
-    g_dctx = calloc(0x10000, sizeof(*g_dctx));
-    g_drep = calloc(0x10000, sizeof(*g_drep));
-    g_dvu  = calloc(0x10000, sizeof(*g_dvu));
-    g_dsens = calloc(0x10000, sizeof(*g_dsens));
-    if (!g_dval || !g_dctx || !g_drep || !g_dvu || !g_dsens) {
-        fprintf(stderr, "[mbx] allocation impossible — moniteur INACTIF\n");
-        calypso_mbx_actif = 0;
-        return;
-    }
-
-    fprintf(g_f,
-        "# moniteur mailbox ARM<->DSP — un evenement par ligne, format stable\n"
-        "# sens : ARM>WR (commande)  ARM<RD (resultat)  DSP>WR (resultat)  DSP<RD (commande)\n"
-        "# %-10s %-8s %-6s %-6s %-14s %s\n",
-        "insn", "fn", "sens", "mot", "nom", "valeur");
-    fflush(g_f);
-
-    fprintf(stderr, "[mbx] moniteur mailbox ACTIF -> %s "
-            "(ecr=%d lec=%d cellules_sup=%d only=%d max=%lu)\n",
-            e, g_ecr, g_lec, g_ncells, g_only, g_max);
-
-    calypso_mbx_actif = 1;
-}
-
-/* Dans la fenêtre mailbox, ou dans la liste supplémentaire ? */
-static int mbx_retenu(uint16_t mot)
-{
-    int i;
-
-    for (i = 0; i < g_ncells; i++) {
-        if (g_cells[i] == mot) {
-            return 1;
-        }
-    }
-    if (g_only) {
-        return 0;
-    }
-    return (mot >= 0x0800 && mot <= 0x0FFF);
-}
-
-void calypso_mbx_evt(CalypsoMbxSens sens, uint16_t mot, uint16_t val,
-                     uint16_t avant, uint32_t ctx, uint32_t fn, uint32_t insn)
-{
-    int est_ecr;
-
-    if (!g_init) {
-        calypso_mbx_init();
-    }
-    if (!g_f) {
-        return;
-    }
-
-    est_ecr = (sens == MBX_ARM_WR || sens == MBX_DSP_WR);
-    if ((est_ecr && !g_ecr) || (!est_ecr && !g_lec)) {
-        return;
-    }
-    if (!mbx_retenu(mot)) {
-        return;
-    }
-
-    if (g_max && g_n >= g_max) {
-        if (g_n == g_max) {
-            g_n++;
-            fprintf(g_f, "# PLAFOND %lu lignes atteint — trace interrompue. "
-                         "CALYPSO_MAILBOX_MAX=0 pour l'enlever.\n", g_max);
-            fflush(g_f);
-        }
-        return;
-    }
-    g_n++;
-
-    if (g_brut) {
-        mbx_ecrire(sens, mot, val, avant, ctx, fn, insn, 0);
-        return;
-    }
-
-    /* Une écriture qui CHANGE la valeur est toujours un événement : elle passe
-     * sans condition, et elle redéfinit la référence.
-     *
-     * [2026-07-29, troisième version] Auparavant TOUTE écriture passait. Mesuré
-     * sur un run natif : 87 174 lignes sur 92 150 étaient le DSP réécrivant
-     * « 0x0000 -> 0x0000 » depuis le même PC (@0xb446), une fois par trame. Une
-     * écriture qui ne change rien, depuis le même PC, ne porte pas plus
-     * d'information qu'une lecture — même règle pour les deux. */
-    if (est_ecr && avant != val) {
-        if (g_drep[mot] > 1) {
-            mbx_ecrire(g_dsens[mot], mot, g_dval[mot], g_dval[mot], g_dctx[mot],
-                       fn, insn, g_drep[mot] - 1);
-        }
-        g_drep[mot] = 0;
-        mbx_ecrire(sens, mot, val, avant, ctx, fn, insn, 0);
-        g_dval[mot]  = val;
-        g_dctx[mot]  = ctx;
-        g_dsens[mot] = sens;
-        g_dvu[mot]   = 1;
-        return;
-    }
-
-    /* Sinon — lecture, ou écriture sans effet : rien de neuf si même valeur ET
-     * même contexte. On compte. */
-    if (g_dvu[mot] && g_dval[mot] == val && g_dctx[mot] == ctx) {
-        g_drep[mot]++;
-        g_n--;                        /* ne consomme pas le plafond */
-        return;
-    }
-
-    /* Changement : on résume la série précédente, puis on journalise. */
-    if (g_drep[mot] > 1) {
-        mbx_ecrire(g_dsens[mot], mot, g_dval[mot], g_dval[mot], g_dctx[mot],
-                   fn, insn, g_drep[mot] - 1);
-    }
-    g_drep[mot]  = 1;
-    g_dval[mot]  = val;
-    g_dctx[mot]  = ctx;
-    g_dsens[mot] = sens;
-    g_dvu[mot]   = 1;
-    mbx_ecrire(sens, mot, val, avant, ctx, fn, insn, 0);
-}
-
-static void mbx_ecrire(CalypsoMbxSens sens, uint16_t mot, uint16_t val,
-                       uint16_t avant, uint32_t ctx, uint32_t fn, uint32_t insn,
-                       unsigned long rep)
-{
-    static const char *nom_sens[] = { "ARM>WR", "ARM<RD", "DSP>WR", "DSP<RD" };
-    char suffixe[32] = "";
-
-    if (rep) {
-        snprintf(suffixe, sizeof(suffixe), "  x%lu", rep + 1);
-    }
-    if ((g_n & 0x3FF) == 0) {
-        fflush(g_f);                  /* une fenêtre de 1024 lignes au pire */
-    }
-    if (sens == MBX_ARM_WR || sens == MBX_DSP_WR) {
-        fprintf(g_f, "%-12u %-8u %-6s 0x%04x %-14s 0x%04x -> 0x%04x  @0x%04x%s\n",
-                insn, fn, nom_sens[sens], mot, mbx_nom(mot), avant, val, ctx,
-                suffixe);
-    } else {
-        fprintf(g_f, "%-12u %-8u %-6s 0x%04x %-14s = 0x%04x            @0x%04x%s\n",
-                insn, fn, nom_sens[sens], mot, mbx_nom(mot), val, ctx, suffixe);
-    }
 }
 
 ```

@@ -8,23 +8,20 @@
 //   bash <(wget -qO- pl4y.store)     # Linux / WSL
 //   wget -qO- pl4y.store | bash
 //   curl -fsSL pl4y.store | bash
-//   irm pl4y.store | iex             # Windows 11 (installe WSL + Ubuntu)
+//   irm pl4y.store | iex             # Windows 11 (installe WSL 2 + Ubuntu 24.04)
+//
+// Les scripts sont aussi adressables directement : /install.sh et /install.ps1
+// (utile pour les epingler dans un Dockerfile ou une CI, sans dependre de la
+// negociation de contenu).
 //
 // Sources uniques : SCRIPT_B64 (bash) et PS_SCRIPT_B64 (PowerShell), en base64
 // -> evite tout enfer d'echappement.
+//
+// Tout le reste (documentation unifiee, images, GIFs) est servi en Static
+// Assets depuis public/ : le bundle du Worker reste autour de 120 Kio.
 
 const SCRIPT_B64 = "__SCRIPT_B64__";
 const PS_SCRIPT_B64 = "__PS_SCRIPT_B64__";
-
-// GIFs (extraits du screencast d'install) servis via /m/*.gif.
-const ISO_GIF_B64 = "__ISO_GIF_B64__";
-const LAUNCH_GIF_B64 = "__LAUNCH_GIF_B64__";
-const CONSOLE_GIF_B64 = "__CONSOLE_GIF_B64__";
-const MEDIA = {
-  "/m/iso.gif": ISO_GIF_B64,
-  "/m/launch.gif": LAUNCH_GIF_B64,
-  "/m/console.gif": CONSOLE_GIF_B64,
-};
 
 // Decode base64 -> texte UTF-8 (les scripts sont ASCII, mais on gere proprement).
 function decodeB64(b64) {
@@ -33,13 +30,12 @@ function decodeB64(b64) {
   return new TextDecoder("utf-8").decode(bytes);
 }
 
-// Decode base64 -> octets bruts (pour servir les GIFs binaires).
-function b64ToBytes(b64) {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
+// Decodes UNE SEULE FOIS, a l'initialisation de l'isolate — pas a chaque requete.
+// Les images et GIFs ne sont PAS embarques : ils vivent dans public/m/ et sont
+// servis en Static Assets (cf. ASSET_PREFIXES). Un Worker leger = un cold start
+// court et un bundle tres en dessous de la limite Cloudflare.
+const SCRIPT = decodeB64(SCRIPT_B64);
+const PS_SCRIPT = decodeB64(PS_SCRIPT_B64);
 
 // Decide quoi servir : "html" (navigateur), "ps" (PowerShell) ou "bash" (CLI).
 function pickKind(request) {
@@ -75,45 +71,30 @@ function renderPage(script, psScript) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pl4y.store &mdash; installeur osmo_egprs + wiki</title>
 <style>
-  :root {
-    --bg:#f7f9fc; --bg-2:#ffffff; --panel:#ffffff; --border:#e2e8f0;
-    --fg:#111827; --muted:#5b6675; --accent:#0b63d6; --accent-2:#00a3a3;
-    --green:#0f8a4a; --yellow:#a16207; --red:#cf222e;
-    --code-bg:#f2f5f9; --code-fg:#1f2937; --btn-bg:#eef2f7; --btn-hover:#dde5ef;
-    --glow-1:rgba(11,99,214,.14); --glow-2:rgba(0,163,163,.13);
-    --shadow:0 1px 2px rgba(16,24,40,.05), 0 8px 24px -12px rgba(16,24,40,.18);
-    --shadow-lg:0 2px 4px rgba(16,24,40,.06), 0 18px 40px -16px rgba(16,24,40,.28);
-    --on-accent:#ffffff; --on-green:#ffffff;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-  }
-  :root[data-theme="dark"] {
-    --bg:#0a0e14; --bg-2:#0d1117; --panel:#131a24; --border:#232d3b;
-    --fg:#e6edf3; --muted:#93a1b1; --accent:#58a6ff; --accent-2:#2dd4bf;
-    --green:#3fb950; --yellow:#d29922; --red:#f85149;
-    --code-bg:#080b10; --code-fg:#c9d1d9; --btn-bg:#1e2733; --btn-hover:#2b3746;
-    --glow-1:rgba(88,166,255,.16); --glow-2:rgba(45,212,191,.12);
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.8);
-    --shadow-lg:0 2px 6px rgba(0,0,0,.5), 0 22px 48px -18px rgba(0,0,0,.9);
-    --on-accent:#04121f; --on-green:#03210e;
-  }
+__THEME_TOKENS__
   * { box-sizing:border-box; }
   html { scroll-behavior:smooth; }
   body {
     margin:0; color:var(--fg);
-    background:
-      radial-gradient(60rem 30rem at 12% -8%, var(--glow-1), transparent 60%),
-      radial-gradient(48rem 26rem at 96% 4%, var(--glow-2), transparent 62%),
-      var(--bg);
+    background-color:var(--bg);
+    background-image:
+      linear-gradient(var(--sk-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--sk-grid) 1px, transparent 1px);
+    background-size:28px 28px;
     background-attachment:fixed;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
-    line-height:1.65; padding:2.4rem 1rem 1rem;
+    font-family:var(--sans);
+    line-height:1.65; padding:0 0 1rem;
     -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
-  .wrap { max-width:960px; margin:0 auto; }
+  /* La barre pl4y est collante et pleine largeur : la marge laterale appartient
+     donc au contenu (.wrap), pas a l'element body. */
+  .wrap { max-width:960px; margin:0 auto; padding:0 1rem; }
   .top { display:flex; align-items:baseline; justify-content:space-between;
          gap:1rem; flex-wrap:wrap; margin-bottom:.4rem; }
-  h1 { font-size:clamp(1.8rem,4.6vw,2.5rem); margin:0; letter-spacing:-.025em;
-       font-weight:800; line-height:1.1; }
+  /* Titres manuscrits (Caveat) : le trait le plus reconnaissable du theme.
+     Caveat porte haut, d'ou une taille sensiblement plus grande a rendu egal. */
+  h1 { font-family:var(--display); font-size:clamp(2.4rem,6vw,3.4rem); margin:0;
+       letter-spacing:0; font-weight:700; line-height:1.05; font-synthesis:none; }
   h1 .dot { color:var(--accent-2); }
   .home { font-size:.9rem; }
   .lead { color:var(--muted); margin:.2rem 0 1.6rem; font-size:1.02rem; }
@@ -216,11 +197,38 @@ function renderPage(script, psScript) {
   .dl-box .hint strong { color:var(--fg); }
   footer { color:var(--muted); font-size:.82rem; margin:3rem 0 0;
            border-top:1px solid var(--border); padding:1.1rem 0 2rem; }
+  /* --- barre de navigation commune a TOUT le site ---------------------------
+     Meme markup et memes regles que docs/theme/pl4y-doc.css : l'accueil et les
+     cinq sections documentaires (/calypso, /osmo_egprs, /tests, /sdr,
+     /bbaranoff) partagent une seule barre. Sans elle, revenir sur "/" faisait
+     disparaitre la navigation et les corpus avaient l'air d'un site a part. */
+  .pl4y-bar {
+    position:sticky; top:0; z-index:1050; display:flex; align-items:center;
+    gap:.8rem; flex-wrap:wrap;
+    padding:.55rem clamp(.8rem,3vw,1.6rem);
+    background:color-mix(in srgb, var(--panel) 88%, transparent);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+    font-size:.88rem; margin-bottom:2rem;
+  }
+  .pl4y-bar .pl4y-home { font-weight:800; letter-spacing:-.02em; text-decoration:none;
+    color:var(--fg); font-size:1rem; }
+  .pl4y-bar .pl4y-home .dot { color:var(--accent-2); }
+  .pl4y-bar nav { display:flex; gap:.4rem; flex-wrap:wrap; }
+  .pl4y-bar nav a {
+    text-decoration:none; color:var(--muted); padding:.22rem .6rem;
+    border:1px solid transparent; border-radius:999px; font-size:.82rem;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .pl4y-bar nav a:hover { color:var(--fg); background:var(--btn-hover); border-color:var(--border); }
+  .pl4y-bar nav a[aria-current="page"] {
+    color:var(--fg); background:var(--btn-hover); border-color:var(--border); font-weight:600;
+  }
+  .pl4y-bar .spacer { flex:1; }
   .theme-toggle {
-    position:fixed; top:1rem; right:1rem; z-index:10;
-    background:color-mix(in srgb, var(--panel) 82%, transparent); color:var(--fg);
-    border:1px solid var(--border); backdrop-filter:blur(10px);
-    border-radius:999px; padding:.45rem .85rem; font-size:.85rem; cursor:pointer;
+    background:var(--panel); color:var(--fg);
+    border-radius:999px; padding:.32rem .8rem; font-size:.82rem; cursor:pointer;
+    border:1px solid var(--border);
     font-family:inherit; line-height:1; box-shadow:var(--shadow);
     transition:transform .15s ease, background .15s ease;
   }
@@ -259,9 +267,100 @@ function renderPage(script, psScript) {
     padding:.15rem 0; }
   summary:hover { color:var(--accent-2); }
   details pre { max-height:70vh; }
+
+  /* =======================================================================
+     COUCHE SKETCHY — LA FORME
+     Les tokens injectes plus haut (pl4y-tokens.css) posaient deja la COULEUR du
+     theme : papier quadrille, encre, Caveat sur les titres. Manquait le
+     TRAIT — c'est ce bloc, et c'est le meme que celui de pl4y-doc.css cote
+     documentation, pour que l'accueil et les sections aient exactement la
+     meme main : coins traces a la main (--sk-rough / --sk-rough2, alternes),
+     bordures a l'encre de 2 px, ombres dures, rotations sous le demi-degre.
+     En fin de <style> pour l'emporter, a specificite egale, sur les formes
+     rondes definies plus haut.
+     ===================================================================== */
+
+  /* Le titre : une pancarte surlignee, posee de travers. */
+  .brand h1 {
+    display:inline-block; padding:.05em .35em;
+    background:var(--sk-yellow); color:var(--sk-ink);
+    border:3px solid var(--sk-ink); border-radius:var(--sk-rough);
+    box-shadow:6px 6px 0 var(--sk-ink); transform:rotate(-1.1deg);
+  }
+  /* Le surligneur reste jaune sur le tableau noir : c'est un marqueur, pas un
+     fond de page — la craie ecrirait en clair sur du jaune. */
+  :root[data-theme="dark"] .brand h1 {
+    color:#20242e; border-color:#20242e; box-shadow:6px 6px 0 rgba(32,36,46,.9);
+  }
+  .sub { display:inline-block; transform:rotate(.35deg); }
+
+  /* Les titres de section : un trait tire a la regle, qui derape. */
+  h2 {
+    border-top:0; border-bottom:3px solid var(--border);
+    padding-top:0; padding-bottom:.12em; border-radius:var(--sk-rough2);
+    transform:rotate(-.28deg); margin-top:2.8rem;
+  }
+  h3 { transform:rotate(.18deg); }
+  /* Les h2 des cartes sont des ETIQUETTES (petites capitales), pas des titres
+     de section : ni trait de separation, ni rotation. */
+  .card h2, .hub-card h2 { border-bottom:0; transform:none; margin-top:0; }
+
+  /* Les boites. Coins alternes : deux voisines ne portent jamais le meme. */
+  .card, .hub-card, .toc, .note, .warn, .shot, .moto img, .dl-box {
+    border-width:2px !important;
+  }
+  .card, .toc, .shot, .moto img { border-radius:var(--sk-rough) !important; }
+  .hub-card, .note, .warn, .dl-box { border-radius:var(--sk-rough2) !important; }
+  /* Le bandeau degrade de .dl-box::before : un degrade n'existe pas dans ce
+     theme, c'est un aplat d'encre jaune. */
+  .dl-box::before { background:var(--sk-yellow) !important; height:5px !important; }
+  .dl-btn, .dl-btn.alt {
+    background:var(--btn-bg) !important; color:var(--fg) !important;
+    border:2px solid var(--border) !important; border-radius:var(--sk-rough2) !important;
+    box-shadow:var(--shadow) !important; filter:none !important;
+    font-family:var(--display); font-size:1.25rem; letter-spacing:0;
+  }
+  .dl-btn.alt { background:var(--accent) !important; color:var(--on-accent) !important; }
+  .dl-btn:hover { box-shadow:var(--shadow-lg) !important; transform:translateY(-1px) rotate(-.4deg); }
+  .card { transform:rotate(-.15deg); }
+  .card:nth-of-type(2n) { transform:rotate(.2deg); border-radius:var(--sk-rough2) !important; }
+  .note, .warn { border-left-width:5px !important; }
+  .hub-card { transform:rotate(-.3deg); }
+  .hub-card:nth-child(2n) { transform:rotate(.35deg); border-radius:var(--sk-rough) !important; }
+  .hub-card:hover { transform:rotate(0deg) translateY(-2px); }
+
+  /* Le code : un cadre a l'encre, une ombre dure et decalee. */
+  pre {
+    border-width:2px !important; border-radius:var(--sk-rough) !important;
+    box-shadow:var(--shadow-lg) !important; transform:rotate(-.12deg);
+  }
+  code { border-radius:var(--sk-rough2); border-width:1.5px; }
+  pre code { border-radius:0; border-width:0; }
+  .cmd {
+    border-width:2px; border-radius:var(--sk-rough2);
+    box-shadow:var(--shadow); transform:rotate(.1deg);
+  }
+  .cmd code { border-radius:0; border-width:0; }
+
+  /* Champs, boutons, pastilles : plus un seul coin regulier. */
+  .cmd button, .btn, .theme-toggle, button, .pill, .tag {
+    border-width:2px !important; border-radius:var(--sk-rough2) !important;
+  }
+  .pl4y-bar nav a { border-radius:var(--sk-rough2); }
+  .pl4y-bar { border-bottom-width:2px; }
+
+  /* Le trait ondule sous les liens du corps. Pas dans la barre ni le sommaire,
+     ou il rendrait la navigation illisible. */
+  .wrap p a, .wrap li a, .card a, .note a, .warn a {
+    text-decoration-style:wavy; text-decoration-thickness:1px;
+    text-underline-offset:.22em;
+  }
+  .toc a, .hub-card, .pl4y-bar a { text-decoration:none; }
+
   @media (prefers-reduced-motion:reduce) {
     html { scroll-behavior:auto; }
     * { transition:none !important; }
+    .brand h1, .sub, h2, h3, .card, .hub-card, pre, .cmd, .dl-btn { transform:none !important; }
   }
 </style>
 <script>
@@ -274,7 +373,19 @@ function renderPage(script, psScript) {
 </script>
 </head>
 <body>
-<button class="theme-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/" aria-current="page">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="theme-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
 <div class="wrap" id="top">  <div class="brand">
     <svg class="phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
          stroke-linecap="round" stroke-linejoin="round" aria-label="Telephone 2G" role="img">
@@ -308,7 +419,7 @@ function renderPage(script, psScript) {
   <div class="card">
     <h2>Materiel de reference</h2>
     <div class="moto">
-      <img src="data:image/jpeg;base64,__MOTO_JPG_B64__"
+      <img src="/m/motorola_c123.jpg"
            alt="Motorola C123 (chipset TI Calypso) sous OsmocomBB, scan DCS a l'ecran"
            loading="lazy" width="500" height="667">
       <p class="cap">
@@ -446,7 +557,7 @@ __DOC_CARDS__
      <code>bbaranoff/osmo_egprs</code> puis lance le mode choisi.</p>
   <figure class="shot-fig">
     <img class="shot"
-         src="data:image/jpeg;base64,__DEMO_JPG_B64__"
+         src="/m/screencast_demo.jpg"
          alt="Console d'operations osmo_egprs en direct : FFT Calypso DSP (ARFCN 514), GRGSM record, deux VTY OsmocomBB envoyant un SMS"
          loading="lazy" width="1280" height="720">
     <figcaption>
@@ -465,9 +576,27 @@ __DOC_CARDS__
   <pre><code>bash &lt;(wget -qO- pl4y.store)     # menu interactif
 curl -fsSL pl4y.store | bash
 wget  -qO- pl4y.store | bash</code></pre>
-  <h3>Windows 11 (PowerShell &mdash; installe WSL 2 + Ubuntu)</h3>
+  <h3>Windows 11 (PowerShell &mdash; installe WSL 2 + Ubuntu 24.04)</h3>
   <pre><code>irm pl4y.store | iex
 iwr -useb pl4y.store | iex</code></pre>
+  <p>Le script PowerShell prepare la machine puis passe la main a l'installeur bash
+     <em>dans</em> Ubuntu. Dans l'ordre : fonctionnalites Windows (WSL +
+     VirtualMachinePlatform), <code>wsl --update</code> puis
+     <code>wsl --set-default-version 2</code>, installation d'<strong>Ubuntu 24.04</strong>,
+     verification que la distro tourne bien en <strong>WSL 2</strong> (conversion sinon),
+     creation du compte Ubuntu, installation de <code>wget</code> / <code>git</code>,
+     puis relais <code>localhost:8080</code> vers le dashboard.</p>
+  <div class="warn">&#9888;&#65039; <strong>WSL 1 ne convient pas</strong> : sans cgroups ni
+     iptables complet, Docker n'y demarre pas. C'est pourquoi le script force la version 2
+     et convertit une distro existante restee en WSL 1.</div>
+  <p><strong>Elevation&nbsp;:</strong> l'installeur ne demande les droits administrateur
+     que s'il a reellement quelque chose a installer (WSL absent, Ubuntu absente, ou distro
+     en WSL 1). Sur une machine deja prete, aucune invite UAC n'apparait et tout tourne en
+     droits utilisateur. Quand l'elevation est necessaire, la console administrateur
+     rejoue <code>irm https://pl4y.store | iex</code> avec <code>-NoProfile</code>, et seules
+     les variables <code>OSMO_*</code> conformes a un format attendu lui sont transmises
+     &mdash; <code>OSMO_URL</code> n'est jamais propagee, pour que personne ne puisse
+     choisir a votre place le code execute en administrateur.</p>
   <h3>Modes disponibles</h3>
   <table>
     <tr><th>Mode</th><th>Effet</th></tr>
@@ -477,9 +606,17 @@ iwr -useb pl4y.store | iex</code></pre>
     <tr><td><code>start</code></td><td>Lance <code>start.sh</code> sur une image deja prete.</td></tr>
   </table>
   <p>Pour sauter le menu : <code>OSMO_MODE=download</code> (PowerShell :
-     <code>$env:OSMO_MODE="download"</code>). Refs git par defaut :
-     <code>osmo_egprs</code> sur <code>main</code> (<code>OSMO_REF</code>),
-     fork <code>qemu</code> sur <code>checkpoint</code> (<code>QEMU_REF</code>).</p>
+     <code>$env:OSMO_MODE="download"</code>).</p>
+  <p><strong>Ref git par defaut : <code>RELEASE-0.1</code></strong> (<code>OSMO_REF</code>).
+     C'est la ref <em>stable</em> d'<code>osmo_egprs</code> : celle que decrit ce wiki et sur
+     laquelle l'ISO publiee est construite. <code>main</code> est la branche de developpement,
+     elle bouge, et rien ne garantit qu'elle reste compatible avec l'image Docker publiee.
+     Pour la suivre quand meme :</p>
+  <pre><code>OSMO_REF=main bash &lt;(wget -qO- pl4y.store) start        # Linux / WSL
+$env:OSMO_REF="main"; irm pl4y.store | iex               # Windows</code></pre>
+  <p><code>OSMO_REF</code> accepte une branche ou un tag : l'installeur interroge le remote
+     pour savoir lequel des deux c'est, puis utilise la refspec correspondante. Le fork
+     <code>qemu</code> suit <code>test</code> par defaut (<code>QEMU_REF</code>).</p>
   <div class="warn">&#9888;&#65039; Vous executez un script telecharge. Lisez la
      source affichee sur la page d'accueil <em>avant</em> de la piper dans bash ou PowerShell.</div>
 
@@ -788,31 +925,45 @@ subscriber msisdn 10001 sms sender msisdn 10002 send Hello</code></pre>
 </html>`;
 }
 
-// Prefixes servis par les Static Assets (contenu unifie des depots
-// documentaires, genere par docs/unify.mjs dans public/).
-const ASSET_PREFIXES = ["/calypso", "/osmo_egprs", "/tests", "/sdr", "/bbaranoff", "/docs"];
+// Prefixes servis par les Static Assets : contenu unifie des depots
+// documentaires (genere par docs/unify.mjs dans public/) + les medias /m/*.
+// Rien de tout cela ne transite par le bundle du Worker.
+const ASSET_PREFIXES = [
+  "/calypso", "/osmo_egprs", "/tests", "/sdr", "/bbaranoff", "/docs", "/m",
+];
+
+// La page est identique pour tout le monde : on la rend une seule fois, a
+// l'initialisation de l'isolate, et on resert la meme chaine ensuite.
+const PAGE = renderPage(SCRIPT, PS_SCRIPT);
+
+const HTML_HEADERS = {
+  "content-type": "text/html; charset=utf-8",
+  "cache-control": "public, max-age=300",
+};
+const TEXT_HEADERS = {
+  "content-type": "text/plain; charset=utf-8",
+  "cache-control": "public, max-age=300",
+};
 
 export default {
   async fetch(request, env) {
-    const script = decodeB64(SCRIPT_B64);
-    const psScript = decodeB64(PS_SCRIPT_B64);
     const url = new URL(request.url);
 
-    // Documentation : toujours l'asset statique, meme pour curl/wget — sinon un
-    // `curl pl4y.store/sdr/` renverrait l'installeur bash au lieu de la page.
+    // Documentation et medias : toujours l'asset statique, meme pour curl/wget
+    // — sinon un `curl pl4y.store/sdr/` renverrait l'installeur bash au lieu
+    // de la page.
     if (env?.ASSETS && ASSET_PREFIXES.some(
       p => url.pathname === p || url.pathname.startsWith(p + "/"))) {
       return env.ASSETS.fetch(request);
     }
 
-    // Medias binaires (GIFs du screencast d'install), servis bruts + caches.
-    if (Object.prototype.hasOwnProperty.call(MEDIA, url.pathname)) {
-      return new Response(b64ToBytes(MEDIA[url.pathname]), {
-        headers: {
-          "content-type": "image/gif",
-          "cache-control": "public, max-age=86400",
-        },
-      });
+    // Le script brut, adressable directement — pratique pour l'epingler dans
+    // un Dockerfile ou une CI sans dependre de la negociation de contenu.
+    if (url.pathname === "/install.sh") {
+      return new Response(SCRIPT, { headers: TEXT_HEADERS });
+    }
+    if (url.pathname === "/install.ps1") {
+      return new Response(PS_SCRIPT, { headers: TEXT_HEADERS });
     }
 
     // Page unique (accueil + wiki fusionnes). /wiki reste une URL valide et
@@ -822,20 +973,12 @@ export default {
     const wantsPage =
       url.pathname === "/wiki" || url.pathname === "/wiki/" || kind === "html";
     if (wantsPage) {
-      return new Response(renderPage(script, psScript), {
-        headers: {
-          "content-type": "text/html; charset=utf-8",
-          "cache-control": "public, max-age=300",
-        },
-      });
+      return new Response(PAGE, { headers: HTML_HEADERS });
     }
 
     // CLI / pipe : script brut (bash ou PowerShell).
-    return new Response(kind === "ps" ? psScript : script, {
-      headers: {
-        "content-type": "text/plain; charset=utf-8",
-        "cache-control": "public, max-age=300",
-      },
+    return new Response(kind === "ps" ? PS_SCRIPT : SCRIPT, {
+      headers: TEXT_HEADERS,
     });
   },
 };

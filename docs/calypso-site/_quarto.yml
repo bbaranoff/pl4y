@@ -25,6 +25,10 @@ website:
             text: "partie 4"
           - href: sec1-05.qmd
             text: "partie 5"
+          - href: sec1-06.qmd
+            text: "partie 6"
+          - href: sec1-07.qmd
+            text: "partie 7"
       - section: "2 - Tests"
         contents:
           - href: sec2-01.qmd
@@ -58,13 +62,10 @@ website:
           - href: sec6-02.qmd
             text: "partie 2"
 
-execute:
-  enabled: false
-  freeze: false
-
 format:
   html:
-    theme: [cosmo]
+    theme: [sketchy]
+    css: sketchy.css
     toc: true
     toc-depth: 2
     toc-location: right

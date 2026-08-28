@@ -28,9 +28,13 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 REPO_URL="https://github.com/bbaranoff/osmo_egprs"
 REPO_DIR="${OSMO_DIR:-$HOME/osmo_egprs}"
-# Ref git (branche ou tag) sur laquelle se cale le depot. Surchargeable :
+# Ref git (branche ou tag) sur laquelle se cale le depot.
+# Defaut : RELEASE-0.1 — la ref STABLE, celle que la doc pl4y.store decrit et
+# celle sur laquelle l'ISO publiee est construite. `main` est la ref de
+# developpement : elle bouge, et rien ne garantit qu'elle marche avec l'image
+# docker publiee. Surchargeable pour suivre le dev :
 #   OSMO_REF=main bash <(wget -qO- pl4y.store) start
-OSMO_REF="${OSMO_REF:-main}"
+OSMO_REF="${OSMO_REF:-RELEASE-0.1}"
 # Mise a jour automatique du depot hote a chaque lancement :
 #   AUTO_UPDATE=1 (defaut) : si l'arbre est PROPRE, on aligne sur origin/$OSMO_REF
 #                            (vraie MAJ). Si l'arbre a des modifs locales, on NE
@@ -296,13 +300,42 @@ ensure_exec() { chmod +x "$1" 2>/dev/null || $SUDO chmod +x "$1" 2>/dev/null || 
 # ---------------------------------------------------------------------------
 # 2. Recuperation du depot
 # ---------------------------------------------------------------------------
+# Determine si $OSMO_REF est une BRANCHE ou un TAG sur le remote. Les deux sont
+# des refs valides mais ne se recuperent pas pareil : une branche se suit via
+# refs/remotes/origin/<ref>, un tag se resout directement par son nom.
+# Repond "branch", "tag", ou "" si le remote est injoignable / la ref inconnue.
+remote_ref_kind() {
+    # GIT_TERMINAL_PROMPT=0 : sans lui, un depot devenu prive (ou une URL
+    # fautive) fait demander un identifiant par git et l'installeur se fige,
+    # sans rien afficher, au milieu d'une mise a jour "automatique".
+    export GIT_TERMINAL_PROMPT=0
+    if git ls-remote --heads "$REPO_URL" "$OSMO_REF" 2>/dev/null | grep -q .; then
+        echo "branch"
+    elif git ls-remote --tags "$REPO_URL" "$OSMO_REF" 2>/dev/null | grep -q .; then
+        echo "tag"
+    else
+        echo ""
+    fi
+}
+
 fetch_repo() {
     command -v git >/dev/null 2>&1 || die "git introuvable (relance sans --no-deps)."
     if [ -d "$REPO_DIR/.git" ]; then
         if [ "$AUTO_UPDATE" != "1" ]; then
             info "Depot present ($REPO_DIR) — AUTO_UPDATE=0, pas de mise a jour."
         else
-            info "Mise a jour auto du depot ($REPO_DIR -> origin/$OSMO_REF)..."
+            local kind target
+            kind="$(remote_ref_kind)"
+            case "$kind" in
+                branch) target="origin/$OSMO_REF" ;;
+                tag)    target="refs/tags/$OSMO_REF" ;;
+                *)      warn "Ref '$OSMO_REF' introuvable sur le remote (ou remote injoignable)."
+                        warn "  MAJ sautee, on garde l'etat local du depot."
+                        ok "Depot pret : $REPO_DIR (ref demandee: $OSMO_REF)"
+                        return 0 ;;
+            esac
+            info "Mise a jour auto du depot ($REPO_DIR -> $target, $kind)..."
+
             # [2026-08-12] REFSPEC EXPLICITE, ne pas revenir a `fetch origin main`.
             # Le remote osmo_egprs porte DEUX refs nommees "main" : la branche
             # (refs/heads/main) et un TAG (refs/tags/main, eb2b7c5, 383 commits
@@ -310,25 +343,31 @@ fetch_repo() {
             # `git fetch origin main` resout vers le TAG :
             #     * tag               main       -> FETCH_HEAD
             # ...et ne met donc JAMAIS a jour refs/remotes/origin/main. Le
-            # `reset --hard origin/$OSMO_REF` plus bas se recale alors sur une
-            # ref perimee = no-op silencieux : le depot HOTE ne bougeait jamais,
-            # alors que le docker (qui fait `git pull`, refspec complet) etait a
-            # jour. La refspec ci-dessous force la BRANCHE et rafraichit
-            # explicitement la ref de suivi.
-            git -C "$REPO_DIR" fetch origin \
-                "+refs/heads/${OSMO_REF}:refs/remotes/origin/${OSMO_REF}" \
-                || warn "git fetch a echoue, on continue."
+            # `reset --hard` plus bas se recalerait alors sur une ref perimee =
+            # no-op silencieux. La refspec ci-dessous leve toute ambiguite en
+            # nommant explicitement refs/heads ou refs/tags.
+            if [ "$kind" = "branch" ]; then
+                git -C "$REPO_DIR" fetch origin \
+                    "+refs/heads/${OSMO_REF}:refs/remotes/origin/${OSMO_REF}" \
+                    || warn "git fetch a echoue, on continue."
+            else
+                git -C "$REPO_DIR" fetch --force origin \
+                    "+refs/tags/${OSMO_REF}:refs/tags/${OSMO_REF}" \
+                    || warn "git fetch a echoue, on continue."
+            fi
+
             git -C "$REPO_DIR" checkout "$OSMO_REF" 2>/dev/null \
-                || warn "checkout '$OSMO_REF' impossible, on garde la branche courante."
+                || warn "checkout '$OSMO_REF' impossible, on garde la ref courante."
+
             if [ "$FORCE_UPDATE" = "1" ]; then
-                warn "FORCE_UPDATE=1 : reset --hard origin/$OSMO_REF (modifs locales ECRASEES)."
-                git -C "$REPO_DIR" reset --hard "origin/$OSMO_REF" \
-                    && ok "Depot force a jour (origin/$OSMO_REF)." \
+                warn "FORCE_UPDATE=1 : reset --hard $target (modifs locales ECRASEES)."
+                git -C "$REPO_DIR" reset --hard "$target" \
+                    && ok "Depot force a jour ($target)." \
                     || warn "reset --hard a echoue, on garde l'etat local."
             elif git -C "$REPO_DIR" diff --quiet && git -C "$REPO_DIR" diff --cached --quiet; then
-                # Arbre propre : on aligne reellement sur origin (vraie MAJ auto).
-                git -C "$REPO_DIR" reset --hard "origin/$OSMO_REF" \
-                    && ok "Depot a jour (origin/$OSMO_REF)." \
+                # Arbre propre : on aligne reellement sur la ref (vraie MAJ auto).
+                git -C "$REPO_DIR" reset --hard "$target" \
+                    && ok "Depot a jour ($target)." \
                     || warn "MAJ a echoue, on garde l'etat local."
             else
                 warn "Modifs locales detectees -> MAJ sautee (preserve le travail)."
@@ -337,6 +376,7 @@ fetch_repo() {
         fi
     else
         info "Clonage de $REPO_URL ($OSMO_REF) -> $REPO_DIR ..."
+        # --branch accepte une branche OU un tag : pas besoin de distinguer ici.
         git clone --branch "$OSMO_REF" "$REPO_URL" "$REPO_DIR" \
             || die "Clonage de '$OSMO_REF' depuis $REPO_URL a echoue."
     fi

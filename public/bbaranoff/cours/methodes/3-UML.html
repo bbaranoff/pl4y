@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Introduction à l'UML &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+<!-- pl4y-sectnav v1 -->
+<nav class="pl4y-sect" aria-label="Sommaire de la section">
+  <div class="pl4y-sect-head">bbaranoff.github.io</div>
+    <details class="pl4y-sect-grp">
+      <summary>Accueil <span class="n">5</span></summary>
+      <ul>
+      <li><a href="../../index.html">Bastien Baranoff — SDR &amp;
+Cybersécurité</a></li>
+      <li><a href="../../GSM_lab.html">Bundled Page</a></li>
+      <li><a href="../../privacy.html">Privacy</a></li>
+      <li><a href="../../README.html">bbaranoff.github.io</a></li>
+      <li><a href="../../whoami.html">Who am I ?</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Projets <span class="n">6</span></summary>
+      <ul>
+      <li><a href="../../projects/index.html">Projets</a></li>
+      <li><a href="../../projects/0-abstract_radio.html">Abstract — Attaques sur les protocoles
+radio</a></li>
+      <li><a href="../../projects/cryptanalyse.html">Cryptanalyse — TEA1 &amp; DST80</a></li>
+      <li><a href="../../projects/qemu-calypso.html">QEMU-Calypso</a></li>
+      <li><a href="../../projects/radio_stuff.html">LoRa — Traqueur GPS via LoRaWAN</a></li>
+      <li><a href="../../projects/telco.html">Redirection LTE / 5G-NSA → 2G</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp" open>
+      <summary>Cours <span class="n">13</span></summary>
+      <ul>
+      <li><a href="../index.html">Cours</a></li>
+      <li><a href="index.html">Méthodes</a></li>
+      <li><a href="../telco/index.html">Télécom &amp;amp; SDR</a></li>
+      <li><a href="1-Agile.html">Methodes Agiles</a></li>
+      <li><a href="2-Agile-TP.html">TP Agile</a></li>
+      <li><a href="3-UML.html" aria-current="page">Introduction à l'UML</a></li>
+      <li><a href="4-UML-TP.html">UML Travaux Pratiques</a></li>
+      <li><a href="5-Git.html">Introduction à GIT</a></li>
+      <li><a href="6-Git-TP.html">Git Travaux Pratiques</a></li>
+      <li><a href="../telco/1-Lab-GSM-multiPLMN.html">Lab GSM multi-opérateur — osmo_egprs</a></li>
+      <li><a href="../telco/2-QEMU-Calypso.html">Émulation du baseband Calypso —
+qemu-calypso</a></li>
+      <li><a href="../telco/3-GSM-etape-par-etape.html">Cours GSM — l'attachement d'un mobile, étape par
+étape</a></li>
+      <li><a href="../telco/4-A5-1-cracking.html">Casser A5/1 — de la capture au Kc, à la
+main</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>CTF <span class="n">3</span></summary>
+      <ul>
+      <li><a href="../../ctf/aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d/index.html">archive aaf4c61d…</a></li>
+      <li><a href="../../ctf/index.html">Password Protected</a></li>
+      <li><a href="../../ctf/ctf.html">Capture the flag</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Infos <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../infos/index.html">Informations gathered</a></li>
+      <li><a href="../../infos/README.html">show my ip</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>archives <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../archives/index.html">Archives</a></li>
+      <li><a href="../../archives/To_Do.html">To Do : Build the portfolio</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>exemples <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../exemples/index.html">Exemples</a></li>
+      <li><a href="../../exemples/gsm-lab-wallpaper.html">GSM Lab — Wallpaper</a></li>
+      </ul>
+    </details>
+</nav>
+
+  <header class="title-block">
+    <h1>Introduction à l'UML</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a></li>
+<li><a href="#historique" id="toc-historique">Historique</a></li>
+<li><a href="#objectifs-de-luml" id="toc-objectifs-de-luml">Objectifs de
+l’UML</a></li>
+<li><a href="#types-de-diagrammes-uml"
+id="toc-types-de-diagrammes-uml">Types de diagrammes UML</a>
+<ul>
+<li><a href="#diagrammes-structurels"
+id="toc-diagrammes-structurels">Diagrammes structurels</a></li>
+<li><a href="#diagramme-comportementaux"
+id="toc-diagramme-comportementaux">Diagramme comportementaux</a></li>
+</ul></li>
+</ul>
+  </nav>
+  <main>
+<p><strong>Comprendre le langage de modélisation unifié</strong></p>
+<h2 id="introduction">Introduction</h2>
+<p><strong>Qu’est-ce que l’UML ?</strong></p>
+<p>L’UML, ou Unified Modeling Language, est un langage de modélisation
+graphique destiné à visualiser, spécifier, construire et documenter les
+artefacts d’un système. Il est largement utilisé dans le développement
+logiciel pour représenter la structure et le comportement d’un système
+de manière standardisée.</p>
+<p><strong>Importance dans le développement logiciel</strong></p>
+<p>L’UML joue un rôle crucial dans le développement de logiciels
+modernes en facilitant la communication entre les différentes parties
+prenantes, telles que les développeurs, les analystes et les clients. En
+fournissant des représentations visuelles, il aide à la compréhension
+des systèmes complexes et permet de clarifier les exigences
+fonctionnelles et non fonctionnelles.</p>
+<h2 id="historique">Historique</h2>
+<p><strong>Origines de l’UML</strong></p>
+<p>L’UML a été développé dans les années 1990 par trois pionniers de
+l’ingénierie logicielle : Grady Booch, Ivar Jacobson et James Rumbaugh.
+Ce langage est le fruit de la fusion de plusieurs méthodes de
+modélisation orientée objet existantes.</p>
+<p><strong>Évolution et standardisation</strong></p>
+<p>Le premier standard UML 1.0 a été publié en 1997 par l’Object
+Management Group (OMG). Depuis lors, UML a évolué pour intégrer des
+améliorations, notamment avec l’introduction de UML 2.x, qui a élargi la
+notation et amélioré la sémantique, rendant le langage plus puissant et
+accessible.</p>
+<h2 id="objectifs-de-luml">Objectifs de l’UML</h2>
+<p><strong>Visualisation</strong></p>
+<p>L’un des principaux objectifs de l’UML est de permettre la création
+de représentations graphiques des systèmes. Ces visualisations rendent
+la structure et le comportement d’un système plus clairs et
+compréhensibles pour tous les intervenants.</p>
+<p><strong>Spécification</strong></p>
+<p>UML fournit également un moyen précis de définir les composants d’un
+système et leurs interactions. Cela permet de s’assurer que toutes les
+parties prenantes ont une compréhension commune des exigences et des
+fonctionnalités.</p>
+<p><strong>Documentation</strong></p>
+<p>Enfin, UML offre une documentation standardisée qui peut être
+utilisée tout au long du cycle de vie du développement. Cette
+documentation facilite la maintenance et l’évolution des systèmes
+logiciels.</p>
+<h2 id="types-de-diagrammes-uml">Types de diagrammes UML</h2>
+<p><strong>Présentation des 14 types de diagrammes</strong></p>
+<p>UML comprend 14 types de diagrammes, divisés en deux catégories
+principales :</p>
+<ul>
+<li><p><strong>Diagrammes structurels</strong> :</p>
+<ul>
+<li><p>Diagramme de classes</p></li>
+<li><p>Diagramme d’objets</p></li>
+<li><p>Diagramme de composants</p></li>
+<li><p>Diagramme de déploiement</p></li>
+<li><p>Diagramme de package</p></li>
+<li><p>Diagramme de profil</p></li>
+</ul></li>
+<li><p><strong>Diagrammes comportementaux</strong> :</p>
+<ul>
+<li><p>Diagramme de cas d’utilisation</p></li>
+<li><p>Diagramme de séquence</p></li>
+<li><p>Diagramme de collaboration</p></li>
+<li><p>Diagramme d’activités</p></li>
+<li><p>Diagramme d’états</p></li>
+<li><p>Diagramme de timing</p></li>
+<li><p>Diagramme d’interaction</p></li>
+<li><p>Diagramme d’interaction générale</p></li>
+</ul>
+<p>Ces diagrammes offrent différentes perspectives sur le système et
+sont utilisés en fonction des besoins spécifiques du projet.</p></li>
+</ul>
+<h3 id="diagrammes-structurels">Diagrammes structurels</h3>
+<h4 id="description-générale-des-diagrammes-structurels">Description
+générale des diagrammes structurels</h4>
+<p>Les diagrammes structurels jouent un rôle fondamental dans la
+modélisation d’un système en mettant l’accent sur sa structure statique.
+Contrairement aux diagrammes comportementaux qui se concentrent sur les
+interactions et les dynamiques, les diagrammes structurels se focalisent
+sur les composants et leurs relations à un moment donné.</p>
+<h4
+id="principales-caractéristiques-des-diagrammes-structurels">Principales
+caractéristiques des diagrammes structurels</h4>
+<ol type="1">
+<li><p><strong>Représentation des composants :</strong> Ils permettent
+de visualiser les différents composants d’un système, tels que les
+classes, les objets, les modules, et comment ils s’assemblent.</p></li>
+<li><p><strong>Relations :</strong> Les diagrammes montrent les
+relations entre les composants, comme l’héritage, l’association et la
+composition. Cela permet de comprendre comment les différentes parties
+d’un système sont interconnectées.</p></li>
+<li><p><strong>Statique vs. dynamique :</strong> Ils fournissent une vue
+statique du système, en opposant les interactions qui peuvent se
+produire à un moment donné. Cela est essentiel pour la conception et
+l’analyse des systèmes.</p></li>
+<li><p><strong>Architecture du système :</strong> Les diagrammes
+structurels aident à décrire l’architecture d’un système, en mettant en
+lumière la disposition physique des objets et leur
+organisation.</p></li>
+</ol>
+<h4 id="types-de-diagrammes-structurels">Types de diagrammes
+structurels</h4>
+<p>Les diagrammes structurels comprennent principalement :</p>
+<ul>
+<li><p><strong>Diagrammes de classes :</strong> Montrent les classes du
+système et leurs relations.</p></li>
+<li><p><strong>Diagrammes d’objets :</strong> Illustrent des instances
+de classes à un moment donné.</p></li>
+<li><p><strong>Diagrammes de composants :</strong> Représentent les
+composants logiciels et leurs interfaces.</p></li>
+<li><p><strong>Diagrammes de déploiement :</strong> Dépeignent
+l’architecture physique d’un système, y compris le matériel et les
+logiciels.</p></li>
+</ul>
+<h4 id="diagramme-de-classes">Diagramme de Classes</h4>
+<p>Description du Diagramme</p>
+<p>Dans cet exemple :</p>
+<ul>
+<li><strong>Classe “Personne”</strong> :
+<ul>
+<li>Attributs : <code>nom</code>, <code>âge</code></li>
+<li>Méthodes : <code>sePresenter()</code></li>
+</ul></li>
+<li><strong>Classe “Étudiant”</strong> (qui hérite de “Personne”) :
+<ul>
+<li>Attributs : <code>numéroEtudiant</code></li>
+<li>Méthodes : <code>s'inscrire()</code></li>
+</ul></li>
+<li><strong>Relation d’héritage</strong> : L’étudiant est une
+spécialisation de la classe Personne, ce qui signifie qu’il hérite des
+attributs et méthodes de la classe Personne.</li>
+</ul>
+<p>Exemple de Diagramme de Classes</p>
+<p>Imaginons un système de gestion de bibliothèque avec les classes
+suivantes : <strong>Livre</strong>, <strong>Auteur</strong>, et
+<strong>Emprunteur</strong>.</p>
+<p>Description des classes :</p>
+<ul>
+<li><strong>Classe “Livre”</strong>
+<ul>
+<li>Attributs :
+<ul>
+<li><code>titre: String</code></li>
+<li><code>isbn: String</code></li>
+<li><code>annéePublication: int</code></li>
+</ul></li>
+<li>Méthodes :
+<ul>
+<li><code>emprunter(emprunteur: Emprunteur): void</code></li>
+<li><code>retourner(): void</code></li>
+</ul></li>
+<li><strong>Classe “Auteur”</strong></li>
+<li>Attributs :
+<ul>
+<li><code>nom: String</code></li>
+<li><code>dateNaissance: Date</code></li>
+</ul></li>
+<li>Méthodes :
+<ul>
+<li><code>écrireLivre(titre: String): Livre</code></li>
+</ul></li>
+</ul></li>
+<li><strong>Classe “Emprunteur”</strong>
+<ul>
+<li>Attributs :
+<ul>
+<li><code>nom: String</code></li>
+<li><code>numéroEmprunteur: String</code></li>
+</ul></li>
+<li>Méthodes :
+<ul>
+<li><code>demanderLivre(livre: Livre): void</code></li>
+<li><code>retournerLivre(livre: Livre): void</code></li>
+</ul></li>
+</ul></li>
+</ul>
+<p>Relations :</p>
+<ul>
+<li><p>Un <strong>Livre</strong> peut avoir un ou plusieurs
+<strong>Auteurs</strong>.</p></li>
+<li><p>Un <strong>Emprunteur</strong> peut emprunter plusieurs
+<strong>Livres</strong>.</p></li>
+</ul>
+<pre class="mermaid"><code>classDiagram
+
+class Livre {
+  +String titre
+  +String isbn
+  +int annéePublication
+  +emprunter(emprunteur: Emprunteur): void
+  +retourner(): void
+}
+
+class Auteur {
+  +String nom
+  +Date dateNaissance
+  +écrireLivre(titre: String): Livre
+}
+
+class Emprunteur {
+  +String nom
+  +String numéroEmprunteur
+  +demanderLivre(livre: Livre): void
+  +retournerLivre(livre: Livre): void
+}
+</code></pre>
+<p>Explication de la syntaxe :</p>
+<ul>
+<li><p><strong>[Livre| …]</strong> : Représentation de la classe Livre
+avec ses attributs et méthodes.</p></li>
+<li><p><strong>[Auteur| …]</strong> : Représentation de la classe Auteur
+avec ses attributs et méthodes.</p></li>
+<li><p><strong>[Emprunteur| …]</strong> : Représentation de la classe
+Emprunteur avec ses attributs et méthodes.</p></li>
+<li><p><strong>[Livre] *– [Auteur]</strong> : Indique qu’un Livre peut
+avoir plusieurs Auteurs (association).</p></li>
+<li><p><strong>[Emprunteur] *– [Livre]</strong> : Indique qu’un
+Emprunteur peut emprunter plusieurs Livres.</p></li>
+</ul>
+<p>Pour créer un diagramme d’objets à partir du diagramme de classes
+fourni, nous allons représenter des instances spécifiques des classes
+<code>Livre</code>, <code>Auteur</code>, et <code>Emprunteur</code>. Un
+diagramme d’objets montre des objets réels (instances de classes) avec
+leurs valeurs d’attributs actuelles et les liens entre eux.</p>
+<p>Voici comment cela peut être traduit :</p>
+<p>#### Diagramme d’Objets</p>
+<p>Instances (Objets) :</p>
+<ul>
+<li><p><strong>Livre</strong> :</p>
+<ul>
+<li><p>Objet : <code>livre1</code></p>
+<ul>
+<li><code>titre: "Les Misérables"</code><br />
+</li>
+<li><code>isbn: "978-2-07-040933-1"</code><br />
+</li>
+<li><code>annéePublication: 1862</code></li>
+</ul></li>
+<li><p>Objet : <code>livre2</code></p>
+<ul>
+<li><code>titre: "1984"</code><br />
+</li>
+<li><code>isbn: "978-0-452-28423-4"</code><br />
+</li>
+<li><code>annéePublication: 1949</code></li>
+</ul></li>
+</ul></li>
+<li><p><strong>Auteur</strong> :</p>
+<ul>
+<li>Objet : <code>auteur1</code>
+<ul>
+<li><code>nom: "Victor Hugo"</code><br />
+</li>
+<li><code>dateNaissance: 1802-02-26</code></li>
+</ul></li>
+<li>Objet : <code>auteur2</code>
+<ul>
+<li><code>nom: "George Orwell"</code><br />
+</li>
+<li><code>dateNaissance: 1903-06-25</code></li>
+</ul></li>
+</ul></li>
+<li><p><strong>Emprunteur</strong> :</p>
+<ul>
+<li>Objet : <code>emprunteur1</code>
+<ul>
+<li><code>nom: "Jean Dupont"</code><br />
+</li>
+<li><code>numéroEmprunteur: "E1234"</code></li>
+</ul></li>
+<li>Objet : <code>emprunteur2</code>
+<ul>
+<li><code>nom: "Marie Curie"</code><br />
+</li>
+<li><code>numéroEmprunteur: "E5678"</code></li>
+</ul></li>
+</ul></li>
+</ul>
+<p>Relations :</p>
+<ul>
+<li><p><strong><code>livre1</code></strong> est écrit par
+<strong><code>auteur1</code></strong>.</p></li>
+<li><p><strong><code>livre2</code></strong> est écrit par
+<strong><code>auteur2</code></strong>.</p></li>
+<li><p><strong><code>emprunteur1</code></strong> a emprunté
+<strong><code>livre1</code></strong>.</p></li>
+<li><p><strong><code>emprunteur2</code></strong> a emprunté
+<strong><code>livre2</code></strong>.</p></li>
+</ul>
+<p>Représentation du Diagramme d’Objets en UML :</p>
+<pre class="mermaid"><code>classDiagram
+    class Livre {
+        + titre: String
+        + isbn: String
+        + annéePublication: Int
+    }
+
+    class Auteur {
+        + nom: String
+        + dateNaissance: Date
+    }
+
+    class Emprunteur {
+        + nom: String
+        + numéroEmprunteur: String
+    }
+
+    %% Instances (Objects)
+    class livre1 {
+        + titre: &quot;Les Misérables&quot;
+        + isbn: &quot;978-2-07-040933-1&quot;
+        + annéePublication: 1862
+    }
+
+    class livre2 {
+        + titre: &quot;1984&quot;
+        + isbn: &quot;978-0-452-28423-4&quot;
+        + annéePublication: 1949
+    }
+
+    class auteur1 {
+        + nom: &quot;Victor Hugo&quot;
+        + dateNaissance: &quot;1802-02-26&quot;
+    }
+
+    class auteur2 {
+        + nom: &quot;George Orwell&quot;
+        + dateNaissance: &quot;1903-06-25&quot;
+    }
+
+    class emprunteur1 {
+        + nom: &quot;Jean Dupont&quot;
+        + numéroEmprunteur: &quot;E1234&quot;
+    }
+
+    class emprunteur2 {
+        + nom: &quot;Marie Curie&quot;
+        + numéroEmprunteur: &quot;E5678&quot;
+    }
+
+    %% Relations
+    livre1 --&gt; auteur1 : &quot;écrit par&quot;
+    livre2 --&gt; auteur2 : &quot;écrit par&quot;
+    emprunteur1 --&gt; livre1 : &quot;a emprunté&quot;
+    emprunteur2 --&gt; livre2 : &quot;a emprunté&quot;
+</code></pre>
+<p>Ce diagramme montre des objets particuliers (les instances
+<code>livre1</code>, <code>livre2</code>, etc.) avec leurs relations
+concrètes, tels que l’emprunt de livres par des emprunteurs et les liens
+entre auteurs et livres.</p>
+<p>Pour créer le diagramme de composants correspondant, nous allons
+représenter les différents composants logiciels impliqués dans le
+système de gestion de bibliothèque et leurs interactions. Un diagramme
+de composants en UML décrit la structure physique d’un système, y
+compris les fichiers, bibliothèques ou services que le système
+utilise.</p>
+<h4 id="diagramme-de-composants">Diagramme de Composants</h4>
+<ol type="1">
+<li><p><strong>Système de gestion de bibliothèque</strong> :</p>
+<ul>
+<li>Principal composant qui orchestre les opérations du système.</li>
+</ul></li>
+<li><p><strong>Composant “Base de Données”</strong> :</p>
+<ul>
+<li>Gère les informations stockées, telles que les livres, les auteurs,
+et les emprunteurs.</li>
+</ul></li>
+<li><p><strong>Composant “Service Emprunt”</strong> :</p>
+<ul>
+<li>Gestion des opérations liées à l’emprunt et au retour de
+livres.</li>
+</ul></li>
+<li><p><strong>Composant “Service Livres”</strong> :</p>
+<ul>
+<li>Gestion des informations relatives aux livres, telles que la
+recherche de livres, et les détails comme le titre et l’ISBN.</li>
+</ul></li>
+<li><p><strong>Composant “Service Auteurs”</strong> :</p>
+<ul>
+<li>Gestion des informations relatives aux auteurs, y compris la
+création et la recherche d’auteurs.</li>
+</ul></li>
+<li><p><strong>Composant “Service Emprunteurs”</strong> :</p>
+<ul>
+<li>Gestion des informations liées aux emprunteurs (enregistrement et
+gestion des emprunts).</li>
+</ul></li>
+</ol>
+<pre class="mermaid"><code>classDiagram
+  class SystèmeGestionBibliothèque {
+    + gérerEmprunt()
+    + gérerLivres()
+    + gérerAuteurs()
+    + gérerEmprunteurs()
+  }
+
+  class ServiceEmprunt {
+    + emprunterLivre()
+    + retournerLivre()
+  }
+
+  class ServiceLivres {
+    + rechercherLivre()
+    + ajouterLivre()
+  }
+
+  class ServiceAuteurs {
+    + rechercherAuteur()
+    + ajouterAuteur()
+  }
+
+  class ServiceEmprunteurs {
+    + rechercherEmprunteur()
+    + enregistrerEmprunteur()
+  }
+
+  class BaseDeDonnées {
+    + stockerDonnées()
+    + récupérerDonnées()
+  }
+
+  SystèmeGestionBibliothèque --&gt; ServiceEmprunt
+  SystèmeGestionBibliothèque --&gt; ServiceLivres
+  SystèmeGestionBibliothèque --&gt; ServiceAuteurs
+  SystèmeGestionBibliothèque --&gt; ServiceEmprunteurs
+
+  ServiceEmprunt --&gt; BaseDeDonnées
+  ServiceLivres --&gt; BaseDeDonnées
+  ServiceAuteurs --&gt; BaseDeDonnées
+  ServiceEmprunteurs --&gt; BaseDeDonnées
+</code></pre>
+<p>Explication du Diagramme :</p>
+<ul>
+<li><p><strong>SystèmeGestionBibliothèque</strong> : C’est le composant
+principal qui gère les différentes fonctionnalités de la
+bibliothèque.</p></li>
+<li><p><strong>ServiceEmprunt</strong> : Ce composant gère toutes les
+actions liées aux emprunts et aux retours de livres.</p></li>
+<li><p><strong>ServiceLivres</strong> : Il gère les informations sur les
+livres (ajout, recherche, etc.).</p></li>
+<li><p><strong>ServiceAuteurs</strong> : Il s’occupe des informations
+relatives aux auteurs.</p></li>
+<li><p><strong>ServiceEmprunteurs</strong> : Gère les données des
+emprunteurs, y compris leur enregistrement et la gestion des
+emprunts.</p></li>
+<li><p><strong>BaseDeDonnées</strong> : Le composant qui stocke et gère
+les données des livres, auteurs, et emprunteurs. Chaque service
+interagit avec la base de données pour récupérer ou stocker des
+informations.</p></li>
+</ul>
+<p>Ce diagramme montre comment les différents composants logiciels
+interagissent pour fournir les fonctionnalités nécessaires au système de
+gestion de bibliothèque.</p>
+<h4 id="diagramme-de-deploiement">Diagramme de deploiement</h4>
+<p>Voici une reformulation de l’explication du diagramme de déploiement
+pour le système de gestion de bibliothèque :</p>
+<p>Explication du Diagramme de Déploiement</p>
+<ol type="1">
+<li><strong>Client Web</strong> :
+<ul>
+<li>Représente un utilisateur qui accède au système de gestion de
+bibliothèque via un navigateur web ou une application mobile.</li>
+<li>Il interagit avec le système à travers une <strong>interface
+utilisateur</strong>.</li>
+</ul></li>
+<li><strong>Internet</strong> :
+<ul>
+<li>Symbolise le réseau qui permet la communication entre le client web
+et le serveur d’application.</li>
+<li>C’est le canal par lequel les données transitent.</li>
+</ul></li>
+<li><strong>Serveur d’Application</strong> :
+<ul>
+<li>Héberge les divers composants du système, y compris :
+<ul>
+<li><strong>Service Emprunt</strong> : Gère les emprunts et retours de
+livres.</li>
+<li><strong>Service Livres</strong> : Responsable de la gestion et de la
+recherche de livres.</li>
+<li><strong>Service Auteurs</strong> : S’occupe des informations
+relatives aux auteurs.</li>
+<li><strong>Service Emprunteurs</strong> : Gère les emprunteurs et leurs
+demandes.</li>
+</ul></li>
+</ul></li>
+<li><strong>Serveur de Base de Données</strong> :
+<ul>
+<li>Contient le composant <strong>Base de Données</strong>, qui stocke
+toutes les informations du système, y compris les livres, les auteurs,
+les emprunteurs et les emprunts.</li>
+</ul></li>
+</ol>
+<p>Scénario de Fonctionnement</p>
+<ul>
+<li><p>Les utilisateurs interagissent avec le système via le
+<strong>Client Web</strong>. Les requêtes sont transmises à travers le
+<strong>réseau Internet</strong> pour atteindre le <strong>Serveur
+d’Application</strong>, où se trouvent les services métiers comme le
+<strong>Service Emprunt</strong> et le <strong>Service
+Livres</strong>.</p></li>
+<li><p>Le <strong>Serveur d’Application</strong> traite ces requêtes et
+les envoie au <strong>Serveur de Base de Données</strong>, qui renvoie
+les informations demandées (telles que les livres disponibles et les
+détails des emprunteurs) à l’application.</p></li>
+</ul>
+<p>Conclusion</p>
+<p>Ce diagramme de déploiement illustre comment les composants du
+système de gestion de bibliothèque sont répartis entre différents nœuds
+matériels et logiciels. Il met en évidence leur communication et leur
+interconnexion au sein de l’infrastructure, offrant une vue d’ensemble
+de la manière dont le système fonctionne.</p>
+<pre class="mermaid"><code>
+flowchart TD
+  subgraph ClientWeb [&quot;Client Web&quot;]
+    IU[Interface Utilisateur]
+  end
+
+  subgraph Internet [&quot;Internet&quot;]
+  end
+
+  subgraph ServeurApplication [&quot;Serveur Application&quot;]
+    SE[Service Emprunt]
+    SL[Service Livres]
+    SA[Service Auteurs]
+    SEmp[Service Emprunteurs]
+  end
+
+  subgraph ServeurBaseDeDonnées [&quot;Serveur Base de Données&quot;]
+    DB[Base De Données]
+  end
+
+  IU --&gt;|Connexion via HTTP/HTTPS| Internet
+  Internet --&gt;|Transfert de requêtes utilisateur| ServeurApplication
+  ServeurApplication --&gt;|Accès et manipulation des données| ServeurBaseDeDonnées
+
+  IU --&gt; SE[&quot;Utilise pour gérer les emprunts&quot;]
+  IU --&gt; SL[&quot;Utilise pour gérer et rechercher les livres&quot;]
+  IU --&gt; SA[&quot;Utilise pour rechercher et ajouter des auteurs&quot;]
+  IU --&gt; SEmp[&quot;Utilise pour enregistrer et rechercher les emprunteurs&quot;]
+
+  SE
+</code></pre>
+<h4 id="diagramme-de-packages">Diagramme de packages</h4>
+<p>Voici un exemple de code Mermaid pour le système de gestion d’une
+bibliothèque que nous avons décrit précédemment :</p>
+<pre class="mermaid"><code>
+graph TD;
+    subgraph Bibliothèque
+        A[GestionLivres]
+        B[GestionMembres]
+        C[GestionEmprunts]
+    end
+
+    C --&gt;|dépend de| A
+    C --&gt;|dépend de| B</code></pre>
+<p>Explication du Code</p>
+<ul>
+<li><strong>graph TD</strong> : Indique que le diagramme est orienté de
+haut en bas (Top Down).</li>
+<li><strong>subgraph Bibliothèque</strong> : Crée un sous-graph qui
+représente le package principal “Bibliothèque”.</li>
+<li><strong>A[GestionLivres], B[GestionMembres],
+C[GestionEmprunts]</strong> : Représentent les différents packages au
+sein du sous-graph.</li>
+<li><code>C --&gt;|dépend de| A</code> : Indique une dépendance du
+package “GestionEmprunts” vers “GestionLivres”.</li>
+<li><code>C --&gt;|dépend de| B</code> : Indique une dépendance du
+package “GestionEmprunts” vers “GestionMembres”.</li>
+</ul>
+<h4 id="diagramme-de-profil">Diagramme de Profil</h4>
+<pre class="mermaid"><code>%%{init: {&#39;theme&#39;: &#39;default&#39;}}%%
+classDiagram
+    class Bibliothèque {
+        +String nom
+        +String adresse
+    }
+
+    class Utilisateur {
+        +String nom
+        +String email
+    }
+
+    class Livre {
+        +String titre
+        +String auteur
+        +String isbn
+    }
+
+    class Emprunt {
+        +Date dateEmprunt
+        +Date dateRetour
+    }
+
+    class Stereotypes {
+        &lt;&lt;BibliothèqueProfile&gt;&gt;
+        &lt;&lt;UtilisateurProfile&gt;&gt;
+        &lt;&lt;LivreProfile&gt;&gt;
+        &lt;&lt;EmpruntProfile&gt;&gt;
+    }
+
+    Bibliothèque &lt;|-- Stereotypes
+    Utilisateur &lt;|-- Stereotypes
+    Livre &lt;|-- Stereotypes
+    Emprunt &lt;|-- Stereotypes</code></pre>
+<p>Explication du Diagramme</p>
+<ol type="1">
+<li><strong>Classes</strong> :
+<ul>
+<li><strong>Bibliothèque</strong> : Représente la bibliothèque avec des
+attributs comme <code>nom</code> et <code>adresse</code>.</li>
+<li><strong>Utilisateur</strong> : Représente les utilisateurs du
+système avec des attributs tels que <code>nom</code> et
+<code>email</code>.</li>
+<li><strong>Livre</strong> : Contient des informations sur les livres,
+avec des attributs comme <code>titre</code>, <code>auteur</code>, et
+<code>isbn</code>.</li>
+<li><strong>Emprunt</strong> : Représente les emprunts de livres avec
+des attributs comme <code>dateEmprunt</code> et
+<code>dateRetour</code>.</li>
+</ul></li>
+<li><strong>Stereotypes</strong> :
+<ul>
+<li>Des stéréotypes comme
+<code>&lt;&lt;BibliothèqueProfile&gt;&gt;</code>,
+<code>&lt;&lt;UtilisateurProfile&gt;&gt;</code>,
+<code>&lt;&lt;LivreProfile&gt;&gt;</code>, et
+<code>&lt;&lt;EmpruntProfile&gt;&gt;</code> sont ajoutés pour chaque
+classe afin de montrer qu’elles font partie d’un profil spécifique à ce
+système.</li>
+</ul></li>
+<li><strong>Relations</strong> :
+<ul>
+<li>Les flèches indiquent que chaque classe est associée au diagramme de
+profil, montrant que ces classes peuvent être stéréotypées pour le
+système de gestion de bibliothèque.</li>
+</ul></li>
+</ol>
+<h3 id="diagramme-comportementaux">Diagramme comportementaux</h3>
+<h4 id="diagramme-de-cas-dutilisation">Diagramme de cas
+d’utilisation</h4>
+<p>Le diagramme de cas d’utilisation représente les interactions entre
+les acteurs (utilisateurs ou systèmes externes) et le système de gestion
+de bibliothèque. Il décrit les fonctionnalités principales du système
+sous forme de cas d’utilisation, illustrant ce que les utilisateurs
+peuvent faire dans le système.</p>
+<p>Acteurs dans le Système :</p>
+<ol type="1">
+<li><p><strong>Emprunteur</strong> : Représente une personne qui peut
+emprunter ou retourner des livres.</p></li>
+<li><p><strong>Bibliothécaire</strong> : Gère les livres, les
+emprunteurs, et les auteurs dans le système.</p></li>
+<li><p><strong>Système de Paiement</strong> (acteur externe) : Gère les
+paiements pour les amendes ou les retards d’emprunt.</p></li>
+</ol>
+<p>Cas d’utilisation principaux :</p>
+<ol type="1">
+<li><p><strong>Emprunter un Livre</strong> : L’emprunteur peut emprunter
+un livre disponible.</p></li>
+<li><p><strong>Retourner un Livre</strong> : L’emprunteur peut retourner
+un livre emprunté.</p></li>
+<li><p><strong>Rechercher un Livre</strong> : L’emprunteur peut
+rechercher un livre dans la bibliothèque.</p></li>
+<li><p><strong>Gérer les Livres</strong> : Le bibliothécaire peut
+ajouter, supprimer, ou modifier des informations sur les
+livres.</p></li>
+<li><p><strong>Gérer les Emprunteurs</strong> : Le bibliothécaire peut
+enregistrer un nouvel emprunteur ou mettre à jour les informations d’un
+emprunteur.</p></li>
+<li><p><strong>Gérer les Auteurs</strong> : Le bibliothécaire peut
+ajouter ou mettre à jour les informations sur un auteur.</p></li>
+<li><p><strong>Payer une Amende</strong> : L’emprunteur peut payer une
+amende via un système de paiement externe.</p></li>
+</ol>
+<pre class="mermaid"><code>flowchart TD
+
+  %% Acteurs
+  Emprunteur([Emprunteur])
+  Bibliothecaire([Bibliothécaire])
+  SystemePaiement([&quot;Système de Paiement&quot;])
+
+  %% Cas d&#39;utilisation
+  EmprunterLivre[[Emprunter un Livre]]
+  RetournerLivre[[Retourner un Livre]]
+  RechercherLivre[[Rechercher un Livre]]
+  PayerAmende[[Payer une Amende]]
+  GererLivres[[Gérer les Livres]]
+  GererEmprunteurs[[Gérer les Emprunteurs]]
+  GererAuteurs[[Gérer les Auteurs]]
+
+  %% Relations entre acteurs et cas d&#39;utilisation
+  Emprunteur --&gt; EmprunterLivre
+  Emprunteur --&gt; RetournerLivre
+  Emprunteur --&gt; RechercherLivre
+  Emprunteur --&gt; PayerAmende
+  PayerAmende --&gt; SystemePaiement
+
+  Bibliothecaire --&gt; GererLivres
+  Bibliothecaire --&gt; GererEmprunteurs
+  Bibliothecaire --&gt; GererAuteurs
+
+  %% Relations include
+  EmprunterLivre -.-&gt; RechercherLivre
+  RetournerLivre -.-&gt; RechercherLivre
+</code></pre>
+<p>Explication du Diagramme :</p>
+<ol type="1">
+<li><strong>Emprunteur</strong> :
+<ul>
+<li>Peut <strong>Emprunter un Livre</strong> : L’utilisateur doit
+d’abord <strong>Rechercher un Livre</strong> avant de l’emprunter.</li>
+<li>Peut <strong>Retourner un Livre</strong> qu’il a emprunté.</li>
+<li>Peut <strong>Rechercher un Livre</strong> dans la base de données
+pour vérifier sa disponibilité.</li>
+<li>Peut <strong>Payer une Amende</strong> s’il a des frais de retard.
+Cette action est connectée au <strong>Système de Paiement</strong>, un
+acteur externe.</li>
+</ul></li>
+<li><strong>Bibliothécaire</strong> :
+<ul>
+<li>Peut <strong>Gérer les Livres</strong> : Ajouter de nouveaux livres,
+modifier les informations existantes, ou supprimer des livres.</li>
+<li>Peut <strong>Gérer les Emprunteurs</strong> : Ajouter de nouveaux
+emprunteurs ou modifier leurs informations.</li>
+<li>Peut <strong>Gérer les Auteurs</strong> : Ajouter ou mettre à jour
+des informations sur les auteurs.</li>
+</ul></li>
+<li><strong>Système de Paiement</strong> : C’est un système externe
+utilisé pour gérer les paiements effectués par les emprunteurs
+lorsqu’ils paient une amende.</li>
+</ol>
+<p>Scénarios :</p>
+<ul>
+<li>Un <strong>Emprunteur</strong> peut rechercher un livre, puis
+l’emprunter s’il est disponible. Il doit le retourner avant une date
+limite pour éviter une amende.</li>
+<li>Le <strong>Bibliothécaire</strong> gère les opérations de gestion
+des livres, des auteurs, et des emprunteurs dans le système.</li>
+<li>Lorsqu’un emprunteur a une amende à payer, il interagit avec le
+<strong>Système de Paiement</strong> externe.</li>
+</ul>
+<p>Ce diagramme de cas d’utilisation montre les principales
+fonctionnalités du système de gestion de bibliothèque et les
+interactions entre les acteurs et le système. Il aide à visualiser les
+tâches possibles et les relations entre les différents utilisateurs et
+les services fournis par le système.</p>
+<h4 id="diagramme-de-séquence">Diagramme de séquence</h4>
+<p>Le diagramme de séquence montre les interactions entre les objets ou
+composants du système sous forme de messages échangés dans le temps. Il
+met en lumière l’ordre d’exécution des opérations et la manière dont les
+différents acteurs interagissent avec le système.</p>
+<p>Scénario du Diagramme de Séquence :</p>
+<p>Prenons le cas d’un <strong>Emprunteur</strong> qui souhaite
+<strong>emprunter un livre</strong>.</p>
+<p>Acteurs et Objets :</p>
+<ol type="1">
+<li><strong>Emprunteur</strong> : L’utilisateur du système.</li>
+<li><strong>Interface Utilisateur</strong> : Le front-end ou l’interface
+avec laquelle interagit l’emprunteur.</li>
+<li><strong>Système de Gestion de Bibliothèque</strong> : Le système
+principal qui orchestre les actions.</li>
+<li><strong>Service Livres</strong> : Service qui gère les opérations
+sur les livres.</li>
+<li><strong>Service Emprunt</strong> : Service qui gère les emprunts et
+les retours de livres.</li>
+<li><strong>Base de Données</strong> : Système de stockage
+d’informations sur les livres et emprunteurs.</li>
+</ol>
+<p>Scénario :</p>
+<ol type="1">
+<li>L’<strong>Emprunteur</strong> cherche un livre à emprunter en
+passant par l’<strong>Interface Utilisateur</strong>.</li>
+<li>L’interface demande au <strong>Système de Gestion de
+Bibliothèque</strong> de rechercher le livre.</li>
+<li>Le <strong>Système de Gestion</strong> interroge le <strong>Service
+Livres</strong>, qui va chercher le livre dans la <strong>Base de
+Données</strong>.</li>
+<li>Une fois trouvé, l’<strong>Emprunteur</strong> choisit d’emprunter
+le livre.</li>
+<li>Le <strong>Système de Gestion</strong> demande au <strong>Service
+Emprunt</strong> de créer l’emprunt pour cet utilisateur.</li>
+<li>Le <strong>Service Emprunt</strong> met à jour la <strong>Base de
+Données</strong> avec les informations sur l’emprunt.</li>
+<li>Un message de confirmation est renvoyé à
+l’<strong>Emprunteur</strong> via l’<strong>Interface
+Utilisateur</strong>.</li>
+</ol>
+<p>Représentation du Diagramme de Séquence en UML :</p>
+<pre class="mermaid"><code>sequenceDiagram
+  participant E as Emprunteur
+  participant IU as Interface Utilisateur
+  participant SGB as Système de Gestion de Bibliothèque
+  participant SL as Service Livres
+  participant SE as Service Emprunt
+  participant DB as Base de Données
+
+  %% Scénario d&#39;emprunt d&#39;un livre
+  E-&gt;&gt;IU: Cherche un livre à emprunter
+  IU-&gt;&gt;SGB: Demande de recherche du livre
+  SGB-&gt;&gt;SL: Rechercher le livre
+  SL-&gt;&gt;DB: Interroger la base de données
+  DB--&gt;&gt;SL: Retourne le livre trouvé
+  SL--&gt;&gt;SGB: Livre trouvé
+  SGB-&gt;&gt;E: Affiche le livre à l&#39;emprunteur
+
+  E-&gt;&gt;IU: Choisit d&#39;emprunter le livre
+  IU-&gt;&gt;SGB: Demande d&#39;emprunt
+  SGB-&gt;&gt;SE: Créer l&#39;emprunt pour l&#39;utilisateur
+  SE-&gt;&gt;DB: Mettre à jour les informations sur l&#39;emprunt
+  DB--&gt;&gt;SE: Confirmation de mise à jour
+  SE--&gt;&gt;SGB: Confirmation de l&#39;emprunt créé
+  SGB-&gt;&gt;IU: Envoi de la confirmation à l&#39;Emprunteur
+  IU--&gt;&gt;E: Message de confirmation de l&#39;emprunt</code></pre>
+<p>Explication du Diagramme de Séquence :</p>
+<ol type="1">
+<li><strong>Interaction entre l’Emprunteur et l’Interface
+Utilisateur</strong> :
+<ul>
+<li>L’emprunteur recherche un livre via l’interface utilisateur. Cette
+demande est transmise au <strong>Système de Gestion de
+Bibliothèque</strong>.</li>
+</ul></li>
+<li><strong>Recherche du livre dans le système</strong> :
+<ul>
+<li>Le <strong>Système de Gestion</strong> demande au <strong>Service
+Livres</strong> de rechercher le livre dans la <strong>Base de
+Données</strong>.</li>
+<li>Une fois le livre trouvé, cette information est transmise de retour
+à l’interface utilisateur, qui l’affiche à l’emprunteur.</li>
+</ul></li>
+<li><strong>Emprunt du livre</strong> :
+<ul>
+<li>L’emprunteur choisit d’emprunter le livre. L’interface utilisateur
+envoie cette demande au <strong>Système de Gestion</strong>.</li>
+<li>Le <strong>Système de Gestion</strong> demande au <strong>Service
+Emprunt</strong> de créer un nouvel emprunt pour cet utilisateur.</li>
+<li>Le <strong>Service Emprunt</strong> met à jour la <strong>Base de
+Données</strong> pour enregistrer l’emprunt et confirme que l’emprunt a
+été créé.</li>
+</ul></li>
+<li><strong>Confirmation de l’emprunt</strong> :
+<ul>
+<li>La confirmation de l’emprunt est renvoyée au <strong>Système de
+Gestion</strong>, puis à l’interface utilisateur, qui informe
+l’emprunteur que le livre a bien été emprunté.</li>
+</ul></li>
+</ol>
+<p>Ce diagramme de séquence illustre le flux des messages entre les
+différents acteurs et composants lors de la réalisation d’un emprunt de
+livre. Il met en avant la chronologie des événements et les interactions
+entre le front-end, le back-end, et la base de données du système.</p>
+<h4 id="diagramme-de-collaboration-uml">Diagramme de Collaboration
+(UML)</h4>
+<p>Le <strong>diagramme de collaboration</strong> (ou <strong>diagramme
+de communication</strong>) montre les relations et les connexions entre
+les objets ou acteurs impliqués dans un scénario. Contrairement au
+diagramme de séquence, il ne met pas l’accent sur la chronologie des
+événements, mais sur <strong>les liens entre les objets</strong>.</p>
+<p>Scénario : <strong>Emprunter un Livre</strong></p>
+<ol type="1">
+<li><strong>Emprunteur</strong> interagit avec
+<strong>InterfaceUtilisateur</strong> pour rechercher et emprunter un
+livre.</li>
+<li><strong>InterfaceUtilisateur</strong> communique avec le
+<strong>SystèmeGestion</strong> pour rechercher et emprunter un
+livre.</li>
+<li><strong>SystèmeGestion</strong> demande des informations au
+<strong>ServiceLivres</strong> et au <strong>ServiceEmprunt</strong>
+pour gérer le processus.</li>
+<li>Le <strong>ServiceEmprunt</strong> met à jour la
+<strong>BaseDeDonnées</strong>.</li>
+</ol>
+<p>Représentation en UML pour le Diagramme de Collaboration :</p>
+<pre class="mermaid"><code>classDiagram
+  class Emprunteur {
+    + rechercherLivre()
+    + emprunterLivre()
+  }
+
+  class InterfaceUtilisateur {
+    + afficherLivre()
+    + demanderEmprunt()
+  }
+
+  class SystèmeGestion {
+    + rechercherLivre()
+    + emprunterLivre()
+  }
+
+  class ServiceLivres {
+    + fournirInfoLivre()
+  }
+
+  class ServiceEmprunt {
+    + créerEmprunt()
+  }
+
+  class BaseDeDonnées {
+    + mettreAJour()
+  }
+
+  %% Relations
+  Emprunteur --&gt; InterfaceUtilisateur : interagir
+  InterfaceUtilisateur --&gt; SystèmeGestion : communiquer
+  SystèmeGestion --&gt; ServiceLivres : demanderInfo
+  SystèmeGestion --&gt; ServiceEmprunt : demanderEmprunt
+  ServiceEmprunt --&gt; BaseDeDonnées : mettreAJour</code></pre>
+<p>Explication du Diagramme :</p>
+<ul>
+<li><strong>Emprunteur</strong> : Initie la recherche et l’emprunt d’un
+livre en interagissant avec l’<strong>Interface
+Utilisateur</strong>.</li>
+<li><strong>Interface Utilisateur</strong> : Transmet les requêtes de
+l’emprunteur au <strong>Système de Gestion</strong>, qui est responsable
+de coordonner les différents services.</li>
+<li><strong>Système de Gestion</strong> : Envoie les requêtes
+spécifiques aux services concernés, comme le <strong>Service
+Livres</strong> et le <strong>Service Emprunt</strong>.</li>
+<li><strong>Service Livres</strong> : Vérifie la disponibilité du livre
+en consultant la <strong>Base de Données</strong>.</li>
+<li><strong>Service Emprunt</strong> : Crée un nouvel emprunt pour
+l’utilisateur et met à jour la <strong>Base de Données</strong> avec les
+informations de l’emprunt.</li>
+</ul>
+<p>Ce diagramme montre les relations et les interactions entre les
+différents acteurs et services lorsqu’un emprunteur effectue une
+opération d’emprunt dans le système de gestion de bibliothèque.</p>
+<h4 id="diagramme-dactivité">Diagramme d’Activité</h4>
+<p>Introduction</p>
+<p>Le diagramme d’activité est un outil essentiel dans le domaine de la
+modélisation des systèmes, en particulier dans le cadre de l’analyse et
+du design de systèmes logiciels. Il permet de représenter les flux de
+contrôle et d’information au sein d’un système à travers une série
+d’activités et de décisions. Ce type de diagramme est souvent utilisé
+pour modéliser des processus métier, des algorithmes, et des workflows,
+fournissant ainsi une vue claire et structurée des interactions au sein
+d’un système.</p>
+<p>Définition et Objectifs</p>
+<p>Un diagramme d’activité est une représentation graphique qui décrit
+le déroulement d’un processus ou d’une activité en utilisant des
+éléments visuels standardisés. Les objectifs principaux de ce type de
+diagramme incluent :</p>
+<ol type="1">
+<li><strong>Visualisation des processus</strong> : Permet de visualiser
+le flux d’activités, facilitant la compréhension des interactions entre
+les différentes parties du système.</li>
+<li><strong>Identification des étapes</strong> : Aide à identifier les
+différentes étapes d’un processus, y compris les points de décision et
+les activités parallèles.</li>
+<li><strong>Facilitation de la communication</strong> : Sert de langage
+commun entre les différentes parties prenantes d’un projet, incluant les
+développeurs, les analystes métier et les clients.</li>
+<li><strong>Documentation des processus</strong> : Fournit une
+documentation claire et précise des processus d’affaires ou des
+algorithmes, utile pour les audits et les améliorations continues.</li>
+</ol>
+<p>Éléments du Diagramme d’Activité</p>
+<p>Les diagrammes d’activité utilisent plusieurs symboles pour
+représenter les différentes composantes d’un processus. Voici les
+éléments clés :</p>
+<ol type="1">
+<li><p><strong>Activité</strong> : Représentée par un rectangle arrondi,
+elle décrit une tâche ou une action à réaliser dans le
+processus.</p></li>
+<li><p><strong>Flèche de contrôle</strong> : Indique le flux d’exécution
+entre les activités. Les flèches montrent la direction du flux de
+travail.</p></li>
+<li><p><strong>Point de décision</strong> : Représenté par un losange,
+il indique un point où le flux peut se diviser en plusieurs chemins en
+fonction d’une condition.</p></li>
+<li><p><strong>État initial</strong> : Symbolisé par un cercle noir, il
+marque le début du processus.</p></li>
+<li><p><strong>État final</strong> : Représenté par un cercle avec un
+cercle concentrique, il indique la fin du processus.</p></li>
+<li><p><strong>Activités parallèles</strong> : Représentées par des
+barres de synchronisation, elles indiquent des activités qui peuvent
+être exécutées simultanément.</p></li>
+<li><p><strong>Sous-activités</strong> : Un diagramme d’activité peut
+inclure d’autres diagrammes d’activité, permettant de décomposer des
+processus complexes en parties plus simples.</p></li>
+</ol>
+<p>Exemple d’un Diagramme d’Activité</p>
+<p>Prenons l’exemple d’un processus d’emprunt de livre dans une
+bibliothèque. Un diagramme d’activité typique pourrait inclure les
+étapes suivantes :</p>
+<ol type="1">
+<li><strong>État Initial</strong> : L’emprunteur se connecte à
+l’interface utilisateur.</li>
+<li><strong>Activité 1</strong> : Rechercher un livre.</li>
+<li><strong>Décision</strong> : Le livre est-il disponible ?
+<ul>
+<li><strong>Oui</strong> : L’emprunteur peut procéder à l’emprunt.</li>
+<li><strong>Non</strong> : Afficher un message indiquant que le livre
+n’est pas disponible.</li>
+</ul></li>
+<li><strong>Activité 2</strong> : L’emprunteur choisit d’emprunter le
+livre.</li>
+<li><strong>Activité 3</strong> : Confirmer l’emprunt et mettre à jour
+la base de données.</li>
+<li><strong>État Final</strong> : Un message de confirmation est envoyé
+à l’emprunteur.</li>
+</ol>
+<p>Le diagramme illustrerait visuellement ces étapes, facilitant ainsi
+la compréhension du processus par toutes les parties prenantes.</p>
+<p>Utilisation et Avantages</p>
+<p>Les diagrammes d’activité sont particulièrement utiles dans les
+phases d’analyse et de conception d’un projet. Ils permettent de :</p>
+<ul>
+<li><strong>Clarifier les exigences</strong> : En visualisant le
+processus, les équipes peuvent mieux comprendre et définir les exigences
+du système.</li>
+<li><strong>Identifier les goulets d’étranglement</strong> : En
+analysant le flux d’activités, il est possible d’identifier les points
+de friction ou d’inefficacité dans un processus.</li>
+<li><strong>Faciliter l’automatisation</strong> : Un diagramme
+d’activité bien conçu peut servir de guide pour l’automatisation des
+processus métier.</li>
+</ul>
+<p>Voici un exemple de diagramme d’activité représentant le processus
+d’emprunt d’un livre dans une bibliothèque, écrit en syntaxe Mermaid
+:</p>
+<pre class="mermaid"><code>flowchart TD
+    A[État Initial: Se connecter à l&#39;interface utilisateur] --&gt; B[Rechercher un livre]
+    B --&gt; C{Le livre est-il disponible ?}
+    C --&gt;|Oui| D[Procéder à l&#39;emprunt]
+    C --&gt;|Non| E[Afficher message: Livre non disponible]
+    D --&gt; F[Confirmer l&#39;emprunt]
+    F --&gt; G[Mise à jour de la base de données]
+    G --&gt; H[État Final: Message de confirmation à l&#39;emprunteur]</code></pre>
+<p>Explication du Diagramme</p>
+<ol type="1">
+<li><strong>État Initial</strong> : L’emprunteur se connecte à
+l’interface utilisateur.</li>
+<li><strong>Recherche</strong> : L’emprunteur effectue une recherche
+pour un livre.</li>
+<li><strong>Décision</strong> : Vérifie la disponibilité du livre.
+<ul>
+<li>Si le livre est <strong>disponible</strong>, il passe à l’étape
+d’emprunt.</li>
+<li>Si le livre n’est <strong>pas disponible</strong>, un message est
+affiché.</li>
+</ul></li>
+<li><strong>Confirmer l’emprunt</strong> : Si l’emprunteur choisit
+d’emprunter le livre, le système confirme l’emprunt.</li>
+<li><strong>Mise à jour</strong> : La base de données est mise à jour
+avec les informations d’emprunt.</li>
+<li><strong>État Final</strong> : Un message de confirmation est envoyé
+à l’emprunteur.</li>
+</ol>
+<p>Un diagramme d’états (ou diagramme d’état-transitions) est utilisé
+pour représenter les différents états d’un objet dans un système et les
+transitions entre ces états. Il est particulièrement utile pour
+modéliser des comportements dynamiques où les objets changent d’état en
+réponse à des événements.</p>
+<h4 id="diagramme-détats-pour-un-emprunt-de-livre">Diagramme d’États
+pour un Emprunt de Livre</h4>
+<p>Voici un exemple de diagramme d’états représentant le cycle de vie
+d’un livre dans un système de gestion de bibliothèque, incluant des
+états comme “Disponible”, “Emprunté”, “Réservé”, et “Retourné”.</p>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; Disponible
+    Disponible --&gt; Emprunté : Emprunter
+    Disponible --&gt; Réservé : Réserver
+    Emprunté --&gt; Retourné : Retourner
+    Emprunté --&gt; Réservé : Réserver
+    Réservé --&gt; Emprunté : Emprunter
+    Réservé --&gt; Disponible : Annuler la réservation
+    Retourné --&gt; Disponible : Mettre à jour la disponibilité</code></pre>
+<p>Explication des États et Transitions</p>
+<ol type="1">
+<li><strong>[Initial State]</strong> : Représente l’état initial avant
+qu’un livre ne soit disponible.</li>
+<li><strong>Disponible</strong> : L’état où le livre est prêt à être
+emprunté ou réservé.
+<ul>
+<li><strong>Transition “Emprunter”</strong> : Un emprunteur peut
+emprunter le livre, ce qui le déplace à l’état “Emprunté”.</li>
+<li><strong>Transition “Réserver”</strong> : Un emprunteur peut
+également réserver le livre s’il est disponible.</li>
+</ul></li>
+<li><strong>Emprunté</strong> : L’état où le livre est actuellement
+emprunté par un emprunteur.
+<ul>
+<li><strong>Transition “Retourner”</strong> : L’emprunteur retourne le
+livre, ce qui le ramène à l’état “Retourné”.</li>
+<li><strong>Transition “Réserver”</strong> : Pendant qu’il est emprunté,
+un autre utilisateur peut réserver le livre, en attendant son
+retour.</li>
+</ul></li>
+<li><strong>Réservé</strong> : L’état où le livre est réservé par un
+emprunteur.
+<ul>
+<li><strong>Transition “Emprunter”</strong> : Une fois que le livre est
+retourné, l’emprunteur peut l’emprunter.</li>
+<li><strong>Transition “Annuler la réservation”</strong> : Si
+l’emprunteur décide de ne plus vouloir le livre, la réservation peut
+être annulée, et le livre redevient “Disponible”.</li>
+</ul></li>
+<li><strong>Retourné</strong> : L’état après qu’un livre a été retourné
+par l’emprunteur, où il doit être mis à jour dans le système.
+<ul>
+<li><strong>Transition “Mettre à jour la disponibilité”</strong> : Après
+le traitement du retour, le livre revient à l’état “Disponible”.</li>
+</ul></li>
+</ol>
+<p>Le diagramme de timing est un type de diagramme de séquence qui se
+concentre sur le timing des événements au fil du temps. Il montre les
+interactions entre les objets, ainsi que le moment précis où ces
+interactions se produisent. Ce type de diagramme est particulièrement
+utile pour représenter les systèmes réactifs où le timing des messages
+est crucial.</p>
+<h4
+id="diagramme-de-timing-pour-le-processus-demprunt-dun-livre">Diagramme
+de Timing pour le Processus d’Emprunt d’un Livre</h4>
+<p>Voici un exemple de diagramme de timing illustrant le processus
+d’emprunt d’un livre dans un système de gestion de bibliothèque.</p>
+<pre class="mermaid"><code>%% Diagramme de Timing pour le Processus d&#39;Emprunt d&#39;un Livre
+
+graph TD
+    A[Emprunteur] --&gt;|Rechercher un livre| B[Interface Utilisateur]
+    B --&gt;|Demande de recherche| C[Système de Gestion]
+    C --&gt;|Rechercher livre| D[Service Livres]
+    D --&gt;|Interroger livres| E[Base de Données]
+    E --&gt;|Résultats de la recherche| D
+    D --&gt;|Livres trouvés| C
+    C --&gt;|Afficher résultats| B
+    B --&gt;|Résultats affichés| A
+
+    A --&gt;|Emprunter un livre| B
+    B --&gt;|Demande d&#39;emprunt| C
+    C --&gt;|Créer emprunt| F[Service Emprunt]
+    F --&gt;|Enregistrer emprunt| E
+    E --&gt;|Confirmation d&#39;enregistrement| F
+    F --&gt;|Confirmation de l&#39;emprunt| C
+    C --&gt;|Emprunt confirmé| B
+    B --&gt;|Confirmation de l&#39;emprunt| A
+
+</code></pre>
+<p>Explication du Diagramme</p>
+<ol type="1">
+<li><p><strong>Acteurs</strong> : Le diagramme représente plusieurs
+participants dans le processus : l’Emprunteur, l’Interface Utilisateur,
+le Système de Gestion, le Service des Livres, le Service d’Emprunt et la
+Base de Données.</p></li>
+<li><p><strong>Événements Chronologiques</strong> :</p>
+<ul>
+<li><strong>Recherche d’un livre</strong> : L’emprunteur initie une
+recherche via l’interface utilisateur, qui transmet la demande au
+système de gestion.</li>
+<li><strong>Interrogation de la Base de Données</strong> : Le système de
+gestion interroge le service des livres, qui à son tour interroge la
+base de données pour obtenir des résultats.</li>
+<li><strong>Affichage des Résultats</strong> : Les résultats sont
+retournés à l’interface utilisateur et affichés à l’emprunteur.</li>
+</ul></li>
+<li><p><strong>Emprunt d’un Livre</strong> :</p>
+<ul>
+<li>L’emprunteur sélectionne un livre à emprunter et envoie une demande
+via l’interface utilisateur.</li>
+<li>Le système de gestion crée l’emprunt en interrogeant le service
+d’emprunt, qui enregistre les informations d’emprunt dans la base de
+données.</li>
+<li>Une fois l’enregistrement effectué, une confirmation est renvoyée à
+l’emprunteur via l’interface utilisateur.</li>
+</ul></li>
+</ol>
+<h4 id="diagramme-dinteraction">Diagramme d’Interaction</h4>
+<pre class="mermaid"><code>sequenceDiagram
+    participant Emprunteur
+    participant InterfaceUtilisateur
+    participant SystemeGestion
+    participant ServiceLivres
+    participant ServiceEmprunt
+    participant BaseDeDonnees
+
+    %% Interaction pour rechercher un livre
+    Emprunteur-&gt;&gt;InterfaceUtilisateur: Rechercher un livre
+    InterfaceUtilisateur-&gt;&gt;SystemeGestion: Demande de recherche
+    SystemeGestion-&gt;&gt;ServiceLivres: Rechercher livre
+    ServiceLivres-&gt;&gt;BaseDeDonnees: Interroger livres
+    BaseDeDonnees--&gt;&gt;ServiceLivres: Résultats de la recherche
+    ServiceLivres--&gt;&gt;SystemeGestion: Livres trouvés
+    SystemeGestion--&gt;&gt;InterfaceUtilisateur: Afficher résultats
+    InterfaceUtilisateur--&gt;&gt;Emprunteur: Résultats affichés
+
+    %% Interaction pour emprunter un livre
+    Emprunteur-&gt;&gt;InterfaceUtilisateur: Emprunter un livre
+    InterfaceUtilisateur-&gt;&gt;SystemeGestion: Demande d&#39;emprunt
+    SystemeGestion-&gt;&gt;ServiceEmprunt: Créer emprunt
+    ServiceEmprunt-&gt;&gt;BaseDeDonnees: Enregistrer emprunt
+    BaseDeDonnees--&gt;&gt;ServiceEmprunt: Confirmation d&#39;enregistrement
+    ServiceEmprunt--&gt;&gt;SystemeGestion: Confirmation de l&#39;emprunt
+    SystemeGestion--&gt;&gt;InterfaceUtilisateur: Emprunt confirmé
+    InterfaceUtilisateur--&gt;&gt;Emprunteur: Confirmation de l&#39;emprunt</code></pre>
+<p>Explication du Diagramme</p>
+<ol type="1">
+<li><strong>Participants</strong> :
+<ul>
+<li><strong>Emprunteur</strong> : L’utilisateur qui souhaite emprunter
+un livre.</li>
+<li><strong>Interface Utilisateur</strong> : L’interface par laquelle
+l’emprunteur interagit avec le système.</li>
+<li><strong>Système de Gestion</strong> : Le système principal qui gère
+les demandes et les opérations.</li>
+<li><strong>Service Livres</strong> : Le service qui gère les livres
+disponibles.</li>
+<li><strong>Service Emprunt</strong> : Le service responsable de la
+gestion des emprunts.</li>
+<li><strong>Base de Données</strong> : Le système de stockage où les
+informations sur les livres et les emprunteurs sont conservées.</li>
+</ul></li>
+<li><strong>Flux d’Interactions</strong> :
+<ul>
+<li>L’emprunteur effectue une recherche de livre via l’interface
+utilisateur.</li>
+<li>La demande est transmise au système de gestion, qui interroge le
+service des livres.</li>
+<li>Le service des livres interroge la base de données pour récupérer
+les informations sur les livres.</li>
+<li>Une fois les résultats trouvés, ils sont renvoyés à l’emprunteur via
+l’interface.</li>
+<li>Si l’emprunteur souhaite emprunter un livre, une nouvelle demande
+est envoyée au système de gestion.</li>
+<li>Le service d’emprunt enregistre l’emprunt dans la base de données et
+renvoie une confirmation à l’emprunteur.</li>
+</ul></li>
+</ol>
+<h4 id="diagramme-dinteraction-générale">Diagramme d’Interaction
+Générale</h4>
+<p>Voici un exemple d’un diagramme d’interaction générale utilisant
+Mermaid pour le système de gestion d’une bibliothèque :</p>
+<pre class="mermaid"><code>%%{init: {&#39;theme&#39;: &#39;default&#39;}}%%
+sequenceDiagram
+    participant Utilisateur
+    participant ClientWeb
+    participant ServeurApplication
+    participant ServeurBaseDeDonnées
+
+    Utilisateur-&gt;&gt;ClientWeb: Se connecte
+    ClientWeb-&gt;&gt;ServeurApplication: Envoie requête de recherche de livres
+    ServeurApplication-&gt;&gt;ServeurBaseDeDonnées: Récupère liste des livres
+    ServeurBaseDeDonnées--&gt;&gt;ServeurApplication: Renvoie liste des livres
+    ServeurApplication--&gt;&gt;ClientWeb: Affiche liste des livres
+    ClientWeb--&gt;&gt;Utilisateur: Montre résultats de recherche</code></pre>
+<p>Explication du Diagramme</p>
+<ol type="1">
+<li><strong>Participants</strong> :
+<ul>
+<li><strong>Utilisateur</strong> : L’utilisateur du système qui effectue
+des actions.</li>
+<li><strong>ClientWeb</strong> : L’interface à partir de laquelle
+l’utilisateur interagit avec le système.</li>
+<li><strong>ServeurApplication</strong> : Le serveur qui traite les
+requêtes de l’utilisateur et gère la logique métier.</li>
+<li><strong>ServeurBaseDeDonnées</strong> : Le serveur qui stocke les
+données et les informations de la bibliothèque.</li>
+</ul></li>
+<li><strong>Flux d’Interactions</strong> :
+<ul>
+<li><strong>Se connecte</strong> : L’utilisateur se connecte via le
+client web.</li>
+<li><strong>Envoie requête de recherche de livres</strong> : Le client
+web envoie une requête au serveur d’application pour rechercher des
+livres.</li>
+<li><strong>Récupère liste des livres</strong> : Le serveur
+d’application demande la liste des livres au serveur de base de
+données.</li>
+<li><strong>Renvoie liste des livres</strong> : Le serveur de base de
+données renvoie la liste des livres au serveur d’application.</li>
+<li><strong>Affiche liste des livres</strong> : Le serveur d’application
+envoie la liste des livres au client web pour affichage.</li>
+<li><strong>Montre résultats de recherche</strong> : Le client web
+montre les résultats à l’utilisateur.</li>
+</ul></li>
+</ol>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

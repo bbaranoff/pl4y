@@ -3,11 +3,14 @@
 #
 # Fait, dans l'ordre :
 #   1. (re)lance PowerShell en administrateur si besoin ;
-#   2. installe WSL 2 + une distribution Ubuntu ;
-#   3. cree l'utilisateur Ubuntu au premier demarrage si necessaire ;
-#   4. lance le vrai installeur bash dans Ubuntu avec le mode choisi :
+#   2. active les fonctionnalites Windows, force WSL **2** par defaut,
+#      met a jour le noyau WSL, puis installe **Ubuntu 24.04** ;
+#   3. verifie que la distro tourne bien en version 2 (convertit sinon) ;
+#   4. cree l'utilisateur Ubuntu au premier demarrage si necessaire ;
+#   5. s'assure que wget/curl/git existent dans la distro ;
+#   6. lance le vrai installeur bash dans Ubuntu avec le mode choisi :
 #        - BUILD     : construction locale de l'image
-#        - BUILD-ISO : construction d'une ISO bootable (build-iso.sh)
+#        - BUILD-ISO : NON supporte sous Windows (hote Linux requis)
 #        - DOWNLOAD  : recuperation de l'image pre-construite (rapide)
 #        - START     : lance seulement start.sh (image deja prete)
 #
@@ -16,15 +19,32 @@
 #   iwr -useb pl4y.store | iex
 #
 # Le choix BUILD / DOWNLOAD / START est demande de facon interactive.
-# Surcharge possible sans menu via la variable d'environnement OSMO_MODE :
-#   $env:OSMO_MODE = "download"; irm pl4y.store | iex
+# Surcharges possibles sans menu, via variables d'environnement :
+#   $env:OSMO_MODE = "download"       # saute le menu
+#   $env:OSMO_REF  = "main"           # ref git suivie (defaut: RELEASE-0.1)
+#   $env:OSMO_WSL_DISTRO = "Ubuntu"   # autre distro WSL
+# Elles sont propagees a la fenetre elevee ET au bash dans Ubuntu.
 
 $ErrorActionPreference = "Stop"
 
-# Distribution WSL utilisee (doit exposer apt : Ubuntu).
-$WSL_DISTRO = if ($env:OSMO_WSL_DISTRO) { $env:OSMO_WSL_DISTRO } else { "Ubuntu" }
+# Sortie UTF-8 de wsl.exe au lieu d'UTF-16 : sans ca, chaque chaine renvoyee par
+# wsl.exe arrive truffee de \0 et tous les tests de comparaison echouent.
+$env:WSL_UTF8 = "1"
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+# Distribution WSL utilisee. Ubuntu 24.04 LTS : c'est la version sur laquelle
+# l'installeur bash est teste (paquets docker.io, linphone, whiptail). Le nom
+# doit etre EXACTEMENT celui de `wsl --list --online` / `wsl --list --quiet`.
+$WSL_DISTRO = if ($env:OSMO_WSL_DISTRO) { $env:OSMO_WSL_DISTRO } else { "Ubuntu-24.04" }
+# Repli si 24.04 n'est pas proposee par le catalogue WSL de cette machine.
+$WSL_FALLBACK = @("Ubuntu-24.04", "Ubuntu-22.04", "Ubuntu")
 # URL d'ou Ubuntu va re-telecharger le script bash (source de verite unique).
 $INSTALL_URL = if ($env:OSMO_URL) { $env:OSMO_URL } else { "https://pl4y.store" }
+# Ref git suivie par l'installeur bash. Defaut aligne sur celui du bash :
+# RELEASE-0.1, la ref stable.
+$OSMO_REF = if ($env:OSMO_REF) { $env:OSMO_REF } else { "RELEASE-0.1" }
 # Dashboard osmo-egprs-web : ecoute sur :8080 dans le conteneur osmo-operator-1
 # (= 172.20.0.11). On relaie ce service vers localhost:8080 cote Windows.
 $DASH_PORT   = if ($env:OSMO_DASH_PORT)   { $env:OSMO_DASH_PORT }   else { "8080" }
@@ -36,10 +56,21 @@ $DASH_TARGET = if ($env:OSMO_DASH_TARGET) { $env:OSMO_DASH_TARGET } else { "172.
 function Info($m) { Write-Host "[*] $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "[+] $m" -ForegroundColor Green }
 function Warn($m) { Write-Host "[!] $m" -ForegroundColor Yellow }
-function Fail($m) { Write-Host "[x] $m" -ForegroundColor Red; exit 1 }
+
+# Arret fatal. `irm ... | iex` s'execute DANS la session PowerShell de la
+# fenetre : un `exit` sec la fermerait avant que le message ait ete lu. On
+# marque donc une pause quand la console est interactive, puis on sort.
+function Fail($m) {
+    Write-Host "[x] $m" -ForegroundColor Red
+    if ($Host.UI.RawUI -and -not [Console]::IsInputRedirected) {
+        Write-Host ""
+        Read-Host "Appuie sur Entree pour fermer"
+    }
+    exit 1
+}
 
 # ---------------------------------------------------------------------------
-# Verifie qu'on est bien sur Windows 10/11 (WSL 2 requis -> 11 recommande).
+# Verifie qu'on est bien sur Windows 10 2004+ / 11 (WSL 2 requis).
 # ---------------------------------------------------------------------------
 function Assert-Windows {
     if (-not [System.Environment]::OSVersion.Platform.ToString().StartsWith("Win")) {
@@ -52,25 +83,128 @@ function Assert-Windows {
 }
 
 # ---------------------------------------------------------------------------
-# Test : la session courante est-elle administrateur ?
+# ELEVATION DE PRIVILEGES
+#
+# Ce script s'execute typiquement via `irm pl4y.store | iex`, et une partie du
+# travail (DISM, `wsl --install`, `wsl --update`) exige l'administrateur. On
+# reouvre donc une console elevee qui refait `irm <url> | iex`.
+#
+# C'est, litteralement, "telecharger du code sur le reseau et l'executer en
+# Administrateur". Trois regles encadrent ce chemin, et il ne faut pas les
+# relacher :
+#
+#   R1. L'URL doit etre HTTPS. En HTTP, n'importe quel intermediaire reseau
+#       choisit le code qui tournera en Administrateur. Seul un loopback
+#       explicite (wrangler dev) est tolere, et jamais pour la session elevee.
+#   R2. Rien n'est interpole tel quel dans la ligne de commande elevee. Les
+#       variables d'environnement reportees sont validees contre une regex
+#       stricte ; tout ce qui ne matche pas est ABANDONNE, pas echappe. Sans
+#       cela, une valeur contenant un guillemet sortirait de sa chaine et
+#       injecterait des commandes arbitraires dans une console Administrateur
+#       (Start-Process re-quote les arguments -> double niveau de parsing).
+#   R3. On n'eleve que si c'est reellement necessaire. Une machine ou WSL 2 et
+#       Ubuntu sont deja en place n'a besoin d'aucun droit particulier : pas
+#       d'UAC, et tout le reste du script tourne en utilisateur normal.
 # ---------------------------------------------------------------------------
+
+# Variables reportees vers la session elevee, avec leur forme AUTORISEE (R2).
+# OSMO_URL est volontairement ABSENTE : elle designe le code qui sera execute
+# en Administrateur. La reporter laisserait quiconque peut poser une variable
+# d'environnement dans la session utilisateur (ou faire coller une ligne a
+# l'utilisateur) choisir ce que la console elevee va telecharger et executer.
+$ELEVATE_CARRY = [ordered]@{
+    OSMO_MODE        = '^(build|build-iso|download|start)$'
+    OSMO_REF         = '^[A-Za-z0-9][A-Za-z0-9._/-]{0,100}$'
+    OSMO_WSL_DISTRO  = '^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$'
+    OSMO_DASH_PORT   = '^[0-9]{1,5}$'
+    OSMO_DASH_TARGET = '^[A-Za-z0-9._-]{1,100}:[0-9]{1,5}$'
+}
+
+# R1 : l'URL d'installation doit etre HTTPS. Exception loopback pour le
+# developpement local (`wrangler dev` sur 127.0.0.1) — jamais propagee a la
+# session elevee, puisque OSMO_URL n'est pas dans $ELEVATE_CARRY.
+function Assert-SafeInstallUrl {
+    if ($INSTALL_URL -match '^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$') { return }
+    if ($INSTALL_URL -match '^http://(localhost|127\.0\.0\.1)(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$') {
+        Warn "OSMO_URL pointe sur le loopback en clair ($INSTALL_URL) — mode developpement."
+        return
+    }
+    Fail "OSMO_URL invalide ou non chiffree : '$INSTALL_URL'. Le script telecharge et execute du code : seul HTTPS est accepte."
+}
+
+# Meme exigence que R2, mais pour l'usage LOCAL des variables : $WSL_DISTRO part
+# dans une ligne de commande `wsl.exe`, $OSMO_REF et $DASH_* dans un `bash -c`.
+# Start-Process re-quote ses arguments, donc une valeur contenant un guillemet
+# s'echapperait de sa chaine — exactement le meme vecteur, sans passer par
+# l'elevation. On valide donc a la source plutot qu'a chaque point d'usage.
+function Assert-SafeConfig {
+    Assert-SafeInstallUrl
+    if ($WSL_DISTRO -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$') {
+        Fail "OSMO_WSL_DISTRO invalide : '$WSL_DISTRO' (attendu : nom de distro WSL, ex. Ubuntu-24.04)."
+    }
+    if ($OSMO_REF -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,100}$') {
+        Fail "OSMO_REF invalide : '$OSMO_REF' (attendu : nom de branche ou de tag git)."
+    }
+    if ($DASH_PORT -notmatch '^[0-9]{1,5}$' -or [int]$DASH_PORT -lt 1 -or [int]$DASH_PORT -gt 65535) {
+        Fail "OSMO_DASH_PORT invalide : '$DASH_PORT'."
+    }
+    if ($DASH_TARGET -notmatch '^[A-Za-z0-9._-]{1,100}:[0-9]{1,5}$') {
+        Fail "OSMO_DASH_TARGET invalide : '$DASH_TARGET' (attendu : hote:port)."
+    }
+}
+
+# La session courante est-elle administrateur ?
 function Test-Admin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($id)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-# ---------------------------------------------------------------------------
-# Elevation : si on n'est pas admin, on ouvre un PowerShell administrateur et on
-# y relance simplement `irm pl4y.store | iex`.
-# ---------------------------------------------------------------------------
+# R3 : l'elevation ne sert qu'a installer/reparer WSL. Si wsl.exe existe, que la
+# distro est la, qu'elle demarre et qu'elle est en version 2, il n'y a rien a
+# faire en Administrateur — on evite l'UAC et on tourne en droits utilisateur.
+function Test-ElevationNeeded {
+    if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) { return $true }
+    if (-not (Test-DistroInstalled $WSL_DISTRO)) { return $true }
+    if (-not (Test-WslVmUsable $WSL_DISTRO))     { return $true }
+    if ((Get-DistroWslVersion $WSL_DISTRO) -ne 2) { return $true }
+    return $false
+}
+
+# Construit le prefixe `$env:X = '...';` de la commande elevee. Toute valeur qui
+# ne respecte pas sa regex est ABANDONNEE avec un avertissement : on ne tente
+# jamais de "reparer" une valeur suspecte par echappement (R2).
+function Get-ElevationCarry {
+    $carry = ""
+    foreach ($name in $ELEVATE_CARRY.Keys) {
+        $val = [Environment]::GetEnvironmentVariable($name)
+        if (-not $val) { continue }
+        if ($val -notmatch $ELEVATE_CARRY[$name]) {
+            Warn "$name='$val' a une forme inattendue : non transmise a la session administrateur."
+            continue
+        }
+        $carry += "`$env:$name = '$val'; "
+    }
+    return $carry
+}
+
+# Ouvre un PowerShell administrateur qui relance `irm <url> | iex`.
 function Assert-Admin {
     if (Test-Admin) { Ok "Privileges administrateur : OK."; return }
 
-    Warn "Droits administrateur requis (installation WSL / reseau / Docker)."
+    if (-not (Test-ElevationNeeded)) {
+        Ok "WSL 2 + $WSL_DISTRO deja operationnels : aucun droit administrateur requis."
+        return
+    }
+
+    Warn "Droits administrateur requis (installation de WSL 2 et d'Ubuntu)."
     Info "Ouverture d'un PowerShell administrateur — accepte l'invite UAC..."
 
-    $psArgs = @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm $INSTALL_URL | iex")
+    # -NoProfile : le profil de l'utilisateur ne doit PAS s'executer en
+    # Administrateur (un $PROFILE modifiable par un compte non privilegie
+    # deviendrait sinon une elevation gratuite).
+    $psArgs = @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-Command", (Get-ElevationCarry) + "irm $INSTALL_URL | iex")
     try {
         Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $psArgs | Out-Null
     } catch {
@@ -84,24 +218,60 @@ function Assert-Admin {
 }
 
 # ---------------------------------------------------------------------------
-# Installe WSL + Ubuntu. Sur Windows 11, `wsl --install -d Ubuntu` active les
-# fonctionnalites necessaires et telecharge la distribution.
-# Renvoie $true si un redemarrage est requis avant de continuer.
+# Inventaire WSL
 # ---------------------------------------------------------------------------
-function Test-WslReady {
-    # WSL pret si la commande existe ET qu'au moins une distro est installee.
-    if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) { return $false }
-    $distros = (& wsl.exe --list --quiet) 2>$null
-    if ($LASTEXITCODE -ne 0) { return $false }
-    # Nettoie les caracteres nuls (sortie UTF-16 de wsl.exe).
-    $clean = ($distros -join "`n") -replace "`0", ""
-    return ($clean -match $WSL_DISTRO)
+# Liste les distros installees, une par ligne, sans blancs parasites.
+function Get-WslDistros {
+    if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) { return @() }
+    $out = (& wsl.exe --list --quiet) 2>$null
+    if ($LASTEXITCODE -ne 0) { return @() }
+    # Ceinture et bretelles : $env:WSL_UTF8 gere le cas normal, mais un wsl.exe
+    # ancien ignore la variable et repond toujours en UTF-16.
+    return @($out) | ForEach-Object { ($_ -replace "`0", "").Trim() } |
+        Where-Object { $_ -ne "" }
 }
 
-# Active les fonctionnalites Windows requises via DISM (idempotent). `wsl
-# --install` le fait en general seul, mais pas sur les Windows plus anciens ni
-# sur certaines images d'entreprise. DISM renvoie 3010 si un redemarrage est
-# necessaire pour finaliser -> on pose alors $script:NeedReboot.
+# Distro installee ? Comparaison EXACTE, pas un `-match`.
+# `"Ubuntu" -match "Ubuntu"` est vrai meme quand seule "Ubuntu-22.04" existe :
+# on croyait alors la distro prete, et tous les `wsl -d Ubuntu` suivants
+# echouaient avec "There is no distribution with the supplied name".
+function Test-DistroInstalled($name) {
+    return (Get-WslDistros) -contains $name
+}
+
+# Version WSL (1 ou 2) d'une distro, ou 0 si inconnue. `wsl -l -v` est le seul
+# endroit qui expose cette colonne.
+function Get-DistroWslVersion($name) {
+    $out = (& wsl.exe --list --verbose) 2>$null
+    if ($LASTEXITCODE -ne 0) { return 0 }
+    foreach ($line in @($out)) {
+        $clean = ($line -replace "`0", "").Trim()
+        # Format : "* Ubuntu-24.04    Running    2"  (l'etoile marque le defaut)
+        if ($clean -match "^\*?\s*$([regex]::Escape($name))\s+\S+\s+(\d)\s*$") {
+            return [int]$Matches[1]
+        }
+    }
+    return 0
+}
+
+# La VM WSL2 DEMARRE-t-elle reellement (pas juste "la distro est listee") ?
+# Echoue avec HCS_E_SERVICE_NOT_AVAILABLE si VirtualMachinePlatform n'est pas
+# active/finalise ou si la virtualisation est desactivee dans le BIOS/UEFI.
+function Test-WslVmUsable($name) {
+    # IMPORTANT : `2>$null` et PAS `2>&1`. Sous Windows PowerShell 5.1 avec
+    # $ErrorActionPreference='Stop', fusionner le stderr d'un .exe dans le flux
+    # succes (2>&1) leve un NativeCommandError FATAL des que wsl.exe ecrit une
+    # ligne d'erreur -> la fenetre se fermerait. On jette donc stderr.
+    & wsl.exe -d $name -- true 2>$null | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
+# ---------------------------------------------------------------------------
+# Fonctionnalites Windows requises (idempotent). `wsl --install` le fait en
+# general seul, mais pas sur les Windows plus anciens ni sur certaines images
+# d'entreprise. DISM renvoie 3010 si un redemarrage est necessaire pour
+# finaliser -> on pose alors $script:NeedReboot.
+# ---------------------------------------------------------------------------
 function Enable-WslFeatures {
     Info "Activation des fonctionnalites Windows (WSL + VirtualMachinePlatform)..."
     & dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart | Out-Host
@@ -110,21 +280,48 @@ function Enable-WslFeatures {
     if ($LASTEXITCODE -eq 3010) { $script:NeedReboot = $true }
 }
 
-# Verifie que la VM WSL2 DEMARRE reellement (pas juste que la distro est listee).
-# Echoue avec HCS_E_SERVICE_NOT_AVAILABLE si VirtualMachinePlatform n'est pas
-# active/finalisee ou si la virtualisation est desactivee dans le BIOS/UEFI.
-function Test-WslVmUsable {
-    # IMPORTANT : `2>$null` et PAS `2>&1`. Sous Windows PowerShell 5.1 avec
-    # $ErrorActionPreference='Stop', fusionner le stderr d'un .exe dans le flux
-    # succes (2>&1) leve un NativeCommandError FATAL des que wsl.exe ecrit une
-    # ligne d'erreur -> la fenetre se fermerait. On jette donc stderr.
-    & wsl.exe -d $WSL_DISTRO -- true 2>$null | Out-Null
-    return ($LASTEXITCODE -eq 0)
+# WSL **2** : c'est ce qu'on veut, et il faut le dire explicitement.
+#   - `--update` installe/actualise le noyau Linux WSL2. Sans lui, une machine
+#     ou WSL1 seul a deja servi n'a pas de noyau et `--set-default-version 2`
+#     echoue avec WSL_E_KERNEL_NOT_FOUND (0x8007019e).
+#   - `--set-default-version 2` fait que TOUTE distro installee ensuite naitra
+#     en version 2. Par defaut sur d'anciennes installations, c'est encore 1 —
+#     et en WSL1 il n'y a ni cgroups ni iptables complet : docker ne demarre
+#     pas, donc rien de ce que fait osmo_egprs ne fonctionne.
+function Set-Wsl2Default {
+    Info "Mise a jour du noyau WSL 2..."
+    & wsl.exe --update 2>$null | Out-Host
+    Info "WSL 2 en version par defaut..."
+    & wsl.exe --set-default-version 2 2>$null | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Warn "'wsl --set-default-version 2' a renvoye $LASTEXITCODE — on verifiera la version de la distro apres installation."
+    } else {
+        Ok "WSL 2 est la version par defaut."
+    }
 }
 
+# Une distro en WSL1 est inutilisable ici (docker). On la convertit.
+function Assert-Wsl2Distro($name) {
+    $v = Get-DistroWslVersion $name
+    if ($v -eq 2) { Ok "$name tourne en WSL 2."; return }
+    if ($v -eq 0) { Warn "Version WSL de $name indeterminee, on continue."; return }
+
+    Warn "$name tourne en WSL $v : docker ne peut pas fonctionner (ni cgroups ni iptables complets)."
+    Info "Conversion de $name en WSL 2 (peut prendre plusieurs minutes)..."
+    & wsl.exe --set-version $name 2 2>$null | Out-Host
+    if ((Get-DistroWslVersion $name) -eq 2) {
+        Ok "$name convertie en WSL 2."
+    } else {
+        Fail "Conversion de $name en WSL 2 impossible. Verifie la virtualisation (VT-x / AMD-V / SVM) dans le BIOS/UEFI, puis relance : irm $INSTALL_URL | iex"
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Installation de la distribution.
 # Pose $script:NeedReboot a $true si Windows doit redemarrer avant de continuer.
 # (On evite un type [bool] en valeur de retour : la sortie native de wsl.exe
 # polluerait le pipeline de la fonction.)
+# ---------------------------------------------------------------------------
 function Install-Wsl {
     $script:NeedReboot = $false
 
@@ -132,12 +329,22 @@ function Install-Wsl {
         Fail "wsl.exe introuvable. Active la 'Plateforme de machine virtuelle' puis relance."
     }
 
-    if (Test-WslReady) {
-        # WSL + distro presents : verifier que la VM peut REELLEMENT demarrer.
-        # Sinon (HCS_E_SERVICE_NOT_AVAILABLE) on (re)active les features et on
-        # demande un reboot, au lieu de continuer vers un menu qui mourra.
-        if (Test-WslVmUsable) {
+    if (Test-DistroInstalled $WSL_DISTRO) {
+        # Distro presente : verifier que la VM peut REELLEMENT demarrer. Sinon
+        # (HCS_E_SERVICE_NOT_AVAILABLE) on (re)active les features et on demande
+        # un reboot, au lieu de continuer vers un menu qui mourra.
+        if (Test-WslVmUsable $WSL_DISTRO) {
             Ok "WSL + $WSL_DISTRO deja installes."
+            # `wsl --update` / `--set-default-version` exigent l'administrateur.
+            # Sur une machine deja en WSL 2, on ne les appelle pas : c'est
+            # precisement le cas ou Test-ElevationNeeded a evite l'UAC, et les
+            # lancer ici echouerait bruyamment pour rien.
+            if ((Get-DistroWslVersion $WSL_DISTRO) -eq 2) {
+                Ok "$WSL_DISTRO tourne en WSL 2."
+            } else {
+                Set-Wsl2Default
+                Assert-Wsl2Distro $WSL_DISTRO
+            }
             return
         }
         Warn "WSL est present mais la VM ne demarre pas (fonctionnalite requise manquante)."
@@ -149,30 +356,61 @@ function Install-Wsl {
         return
     }
 
-    # Pas encore installe : on active les features puis on installe.
+    # Pas encore installee : features, puis noyau WSL2 + version par defaut 2,
+    # PUIS seulement l'installation de la distro — dans cet ordre, la distro
+    # nait directement en version 2 et aucune conversion n'est necessaire.
     Enable-WslFeatures
+    if ($script:NeedReboot) {
+        Warn "Les fonctionnalites WSL viennent d'etre activees : un REDEMARRAGE est requis avant d'installer Ubuntu."
+        Warn "Redemarre Windows, puis relance : irm $INSTALL_URL | iex"
+        return
+    }
+    Set-Wsl2Default
 
-    Info "Installation de WSL 2 + $WSL_DISTRO (cela peut prendre quelques minutes)..."
-    # --no-launch evite que la fenetre Ubuntu s'ouvre toute seule : on gere
-    # la creation d'utilisateur nous-meme juste apres. Out-Host : la sortie de
+    # Choix effectif de la distro : celle demandee si le catalogue la propose,
+    # sinon le premier repli disponible. `wsl --list --online` peut echouer
+    # (reseau, politique d'entreprise) : dans ce cas on tente quand meme le nom
+    # demande plutot que d'abandonner.
+    $target = $WSL_DISTRO
+    $online = (& wsl.exe --list --online) 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $catalog = @($online) | ForEach-Object { ($_ -replace "`0", "").Trim() }
+        $blob = $catalog -join "`n"
+        if ($blob -notmatch "(?m)^\s*$([regex]::Escape($WSL_DISTRO))\s") {
+            Warn "$WSL_DISTRO absente du catalogue WSL de cette machine."
+            foreach ($cand in $WSL_FALLBACK) {
+                if ($blob -match "(?m)^\s*$([regex]::Escape($cand))\s") {
+                    $target = $cand
+                    Warn "Repli sur $target."
+                    break
+                }
+            }
+        }
+    }
+    $script:WSL_DISTRO = $target
+
+    Info "Installation de WSL 2 + $target (cela peut prendre quelques minutes)..."
+    # --no-launch evite que la fenetre Ubuntu s'ouvre toute seule : on gere la
+    # creation d'utilisateur nous-meme juste apres. Out-Host : la sortie de
     # wsl.exe s'affiche sans polluer la valeur de retour de la fonction.
-    & wsl.exe --install -d $WSL_DISTRO --no-launch | Out-Host
+    & wsl.exe --install -d $target --no-launch | Out-Host
     if ($LASTEXITCODE -ne 0) {
         # Anciennes versions : pas de --no-launch. On reessaie sans.
         Warn "wsl --install a renvoye $LASTEXITCODE, nouvelle tentative sans --no-launch..."
-        & wsl.exe --install -d $WSL_DISTRO | Out-Host
+        & wsl.exe --install -d $target | Out-Host
     }
 
     # Reboot requis si DISM l'a signale, si la distro n'apparait pas encore, ou
     # si la VM ne demarre toujours pas (features pas finalisees avant reboot).
-    if ($script:NeedReboot -or -not (Test-WslReady) -or -not (Test-WslVmUsable)) {
-        Warn "WSL/Ubuntu vient d'etre active : un REDEMARRAGE est requis."
+    if ($script:NeedReboot -or -not (Test-DistroInstalled $target) -or -not (Test-WslVmUsable $target)) {
+        Warn "WSL/$target vient d'etre active : un REDEMARRAGE est requis."
         Warn "Redemarre Windows, puis relance : irm $INSTALL_URL | iex"
         $script:NeedReboot = $true
         return
     }
 
-    Ok "WSL + $WSL_DISTRO installes."
+    Assert-Wsl2Distro $target
+    Ok "WSL 2 + $target installes."
 }
 
 # ---------------------------------------------------------------------------
@@ -200,6 +438,28 @@ function Initialize-Ubuntu {
     # Lance l'installeur de la distro (cree le user) en mode interactif bloquant.
     Start-Process -FilePath "wsl.exe" -ArgumentList @("-d", $WSL_DISTRO) -Wait
     Ok "Configuration Ubuntu terminee."
+}
+
+# ---------------------------------------------------------------------------
+# Amorce minimale dans la distro.
+#
+# L'invocation `bash <(wget -qO- URL)` presuppose wget. Les rootfs Ubuntu WSL
+# recents sont minimaux et n'embarquent PAS wget : sans ce controle, le premier
+# lancement mourait sur "wget: command not found" apres tout le travail
+# d'installation de WSL — le pire moment pour echouer.
+# ---------------------------------------------------------------------------
+function Initialize-Bootstrap {
+    Info "Verification des outils de base dans $WSL_DISTRO (wget, ca-certificates, git)..."
+    & wsl.exe -d $WSL_DISTRO -u root -- bash -c "command -v wget >/dev/null && command -v git >/dev/null" 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { Ok "Outils de base presents."; return }
+
+    Info "Installation de wget / ca-certificates / git..."
+    & wsl.exe -d $WSL_DISTRO -u root -- bash -c "apt-get update -qq && apt-get install -y -qq wget ca-certificates git" 2>$null | Out-Host
+    & wsl.exe -d $WSL_DISTRO -u root -- bash -c "command -v wget >/dev/null" 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Fail "Impossible d'installer wget dans $WSL_DISTRO (pas de reseau dans la VM ?). Verifie la connexion, puis relance : irm $INSTALL_URL | iex"
+    }
+    Ok "Outils de base installes."
 }
 
 # ---------------------------------------------------------------------------
@@ -237,7 +497,7 @@ function Get-Mode {
 # On re-telecharge depuis $INSTALL_URL : source de verite unique.
 # ---------------------------------------------------------------------------
 function Invoke-Installer($mode) {
-    Info "Lancement de l'installeur osmo_egprs dans $WSL_DISTRO (mode: $mode)..."
+    Info "Lancement de l'installeur osmo_egprs dans $WSL_DISTRO (mode: $mode, ref: $OSMO_REF)..."
     # MIROIR EXACT de l'invocation Linux qui marche sans lag :
     #     bash <(wget -qO- pl4y.store) <mode>
     # La substitution de processus `<(...)` donne au script fd 0 = le terminal
@@ -246,7 +506,12 @@ function Invoke-Installer($mode) {
     # On lance WSL EN LIGNE dans la console courante (PAS de Start-Process : pas de
     # fenetre Ubuntu separee). Les TUI whiptail et sudo de start.sh heritent du pty
     # de cette console -> navigation fluide, comme `bash <(wget ...)` natif.
-    $bash = "bash <(wget -qO- '$INSTALL_URL') $mode"
+    #
+    # OSMO_REF est passe en prefixe d'environnement : le bash a le meme defaut
+    # (RELEASE-0.1), mais le poser ici rend le choix Windows explicite et permet
+    # a `$env:OSMO_REF = "main"` de traverser jusqu'a git.
+    $ref = $OSMO_REF -replace "'", "'\''"
+    $bash = "OSMO_REF='$ref' bash <(wget -qO- '$INSTALL_URL') $mode"
     & wsl.exe -d $WSL_DISTRO -- bash -lc $bash
     if ($LASTEXITCODE -ne 0) {
         Fail "L'installeur bash a echoue (code $LASTEXITCODE) dans $WSL_DISTRO."
@@ -300,16 +565,18 @@ function Start-DashboardForward {
 # Main
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "pl4y.store - installeur osmo_egprs pour Windows 11 (WSL + Ubuntu)" -ForegroundColor Green
+Write-Host "pl4y.store - installeur osmo_egprs pour Windows 11 (WSL 2 + Ubuntu 24.04)" -ForegroundColor Green
 Write-Host ""
 
 Assert-Windows
+Assert-SafeConfig
 Assert-Admin
 
 Install-Wsl
 if ($script:NeedReboot) { exit 0 }
 
 Initialize-Ubuntu
+Initialize-Bootstrap
 
 $mode = Get-Mode
 # BUILD-ISO ne fonctionne pas sous Windows (WSL n'a ni loop devices, ni les

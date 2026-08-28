@@ -1,0 +1,98 @@
+/* ---------------------------------------------------------------------------
+ * pl4y-tokens.css — palette et identite visuelle de TOUT pl4y.store.
+ *
+ * SOURCE UNIQUE. Ce fichier est :
+ *   - injecte dans la page d'accueil par build.mjs (placeholder __THEME_TOKENS__
+ *     dans worker.template.js) ;
+ *   - prefixe a pl4y-doc.css par docs/skin.mjs, dans chaque arbre documentaire.
+ * Modifier la palette ici la change partout, d'un coup. Ne pas redefinir ces
+ * variables ailleurs.
+ *
+ * THEME "SKETCHY" — papier quadrille, encre, ombres portees dures (sans flou),
+ * bordures epaisses, coins irreguliers, titres manuscrits. C'est le theme des
+ * bundles Quarto (sketchy.css de full_qmd.sh), etendu a l'ensemble du site.
+ *
+ * Le clair est du PAPIER, le sombre un TABLEAU NOIR : meme grammaire, encre et
+ * fond echanges. Les deux partagent la meme cle localStorage (pl4y-theme).
+ * ------------------------------------------------------------------------- */
+
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Architects+Daughter&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+  /* --- encre & papier --- */
+  --sk-ink:#20242e;
+  --sk-paper:#fffdf6;
+  --sk-red:#e4572e;
+  --sk-teal:#17968a;
+  --sk-yellow:#ffd469;
+  /* Coins "traces a la main" : deux rayons asymetriques, alternes selon les
+     elements pour qu'aucun bord ne soit exactement parallele au voisin. */
+  --sk-rough:255px 12px 225px 15px / 15px 225px 15px 255px;
+  --sk-rough2:15px 225px 15px 255px / 255px 15px 225px 15px;
+  --sk-grid:rgba(32,36,46,.05);
+
+  /* --- tokens du site, remappes sur la palette sketchy --- */
+  --bg:var(--sk-paper); --bg-2:#fffef9; --panel:#fffef9;
+  --border:var(--sk-ink);
+  --fg:var(--sk-ink); --muted:#5a6070;
+  --accent:var(--sk-red); --accent-2:var(--sk-teal);
+  --green:#12786e; --yellow:#a16207; --red:var(--sk-red);
+  --code-bg:#fffef9; --code-fg:var(--sk-ink);
+  --btn-bg:var(--sk-yellow); --btn-hover:#ffdf8f;
+  /* Les halos radiaux de l'ancien theme sont remplaces par le quadrillage :
+     on les neutralise plutot que de retirer les regles qui les utilisent. */
+  --glow-1:transparent; --glow-2:transparent;
+  /* Ombres DURES, decalees, sans flou : le trait du theme. */
+  --shadow:3px 3px 0 rgba(32,36,46,.85);
+  --shadow-lg:5px 5px 0 rgba(32,36,46,.9), 10px 10px 0 rgba(228,87,46,.18);
+  --on-accent:#fffdf6; --on-green:#fffdf6;
+
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:'Architects Daughter','Neucha',ui-rounded,system-ui,sans-serif;
+  --display:'Caveat','Architects Daughter',cursive;
+}
+
+:root[data-theme="dark"] {
+  --sk-ink:#f2ede0;          /* la craie */
+  --sk-paper:#161a20;        /* l'ardoise */
+  --sk-red:#ff8a5c;
+  --sk-teal:#4fd6c4;
+  --sk-yellow:#ffd469;
+  --sk-grid:rgba(242,237,224,.06);
+
+  --bg:var(--sk-paper); --bg-2:#1b2027; --panel:#1b2027;
+  --border:var(--sk-ink);
+  --fg:var(--sk-ink); --muted:#a9a294;
+  --accent:var(--sk-red); --accent-2:var(--sk-teal);
+  --green:#4fd6c4; --yellow:#e0b64a; --red:var(--sk-red);
+  --code-bg:#11151a; --code-fg:var(--sk-ink);
+  --btn-bg:#2a2f38; --btn-hover:#39404b;
+  --glow-1:transparent; --glow-2:transparent;
+  --shadow:3px 3px 0 rgba(242,237,224,.45);
+  --shadow-lg:5px 5px 0 rgba(242,237,224,.5), 10px 10px 0 rgba(255,138,92,.22);
+  --on-accent:#161a20; --on-green:#161a20;
+}
+
+/* --------------------------------------------------- traits structurels ---
+ * Le papier quadrille, les titres manuscrits et les bordures a l'encre. Pose
+ * ici (et pas dans chaque feuille) pour que l'accueil et les sections aient
+ * exactement le meme grain.
+ * ------------------------------------------------------------------------ */
+
+.pl4y-paper {
+  background-color:var(--bg);
+  background-image:
+    linear-gradient(var(--sk-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--sk-grid) 1px, transparent 1px);
+  background-size:28px 28px;
+  background-attachment:fixed;
+}
+
+/* Titres a la main. `font-synthesis:none` evite que le navigateur fabrique un
+   faux gras baveux quand Caveat 700 n'a pas encore ete telecharge. */
+.pl4y-display {
+  font-family:var(--display);
+  font-weight:700;
+  font-synthesis:none;
+  letter-spacing:0;
+}

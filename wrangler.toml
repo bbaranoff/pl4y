@@ -14,6 +14,10 @@ command = "node build.mjs"
 #   /sdr/*        software-defined-radio (Sphinx)
 #   /bbaranoff/*  bbaranoff.github.io (pandoc + sommaire de section)
 #   /docs/        hub + feuille de style commune
+#   /m/*          images et GIFs de la page d'accueil (copies par build.mjs)
+#
+# /m/ existe pour que le Worker reste leger : ces medias etaient encodes en
+# base64 dans le bundle (~880 Kio a eux seuls, sur un plafond de 1 Mio).
 # Genere par `node docs/unify.mjs` (voir docs/README.md). Le Worker garde la
 # main sur "/" : les assets ne contiennent volontairement pas d'index racine.
 [assets]

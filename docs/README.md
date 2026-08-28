@@ -6,12 +6,25 @@ unique, `public/`, servi par le Worker en **Cloudflare Static Assets**.
 
 | URL | Source | Chaîne |
 |---|---|---|
-| `/calypso/` | `~/qemu-calypso` | `full-qmd.sh` (bundle) → **Quarto** |
-| `/osmo_egprs/` | `~/osmo_egprs` | `full_qmd.sh` (même bundle) → **Quarto** |
-| `/tests/` | `~/qemu/tests` | instantané de `test_results.qmd` → **Quarto** |
-| `/sdr/` | `~/software-defined-radio` | **Sphinx** + MyST (thème RTD) |
-| `/bbaranoff/` | `~/bbaranoff.github.io` | **pandoc** + sommaire de section reconstruit |
+| `/calypso/` | `../qemu-calypso` | `full-qmd.sh` (bundle) → **Quarto** |
+| `/osmo_egprs/` | `../osmo_egprs` | `full_qmd.sh` (même bundle) → **Quarto** |
+| `/tests/` | `../qemu/tests` | instantané de `test_results.qmd` → **Quarto** |
+| `/sdr/` | `../software-defined-radio` | **Sphinx** + MyST (thème RTD) |
+| `/bbaranoff/` | `../bbaranoff.github.io` | **pandoc** + sommaire de section reconstruit |
 | `/docs/` | — | hub généré + feuille de style commune |
+
+### Où sont cherchées les sources
+
+`sourceDir()` résout dans cet ordre, et s'arrête au premier hit :
+
+1. `PL4Y_SRC_<SECTION>` (ex. `PL4Y_SRC_SDR=/srv/software-defined-radio`) ;
+2. **`../<nom>`**, relatif à ce dépôt — le cas normal, les dépôts sont clonés
+   côte à côte ;
+3. `$HOME/<nom>`, repli pour les configurations où ils ne le sont pas.
+
+Le chemin relatif passe en premier pour que le workflow marche à l'identique
+quel que soit l'utilisateur ou le point de montage (clone dans `/srv`, CI,
+conteneur) sans dépendre de `$HOME`.
 
 ## Lancer le workflow
 
@@ -22,7 +35,7 @@ FORCE=1 node docs/unify.mjs         # re-rend même si déjà construit
 ```
 
 Prérequis : `quarto`, `pandoc`, et `sphinx-build` (cherché dans `$PL4Y_VENV`,
-par défaut `~/.env` — sinon `pip install -r ~/software-defined-radio/requirements.txt`).
+par défaut `~/.env` — sinon `pip install -r ../software-defined-radio/requirements.txt`).
 Une section dont l'outil manque est **sautée** avec un avertissement : le reste
 du site se construit quand même.
 

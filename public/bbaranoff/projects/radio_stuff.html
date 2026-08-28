@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>LoRa — Traqueur GPS via LoRaWAN &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+<!-- pl4y-sectnav v1 -->
+<nav class="pl4y-sect" aria-label="Sommaire de la section">
+  <div class="pl4y-sect-head">bbaranoff.github.io</div>
+    <details class="pl4y-sect-grp">
+      <summary>Accueil <span class="n">5</span></summary>
+      <ul>
+      <li><a href="../index.html">Bastien Baranoff — SDR &amp;
+Cybersécurité</a></li>
+      <li><a href="../GSM_lab.html">Bundled Page</a></li>
+      <li><a href="../privacy.html">Privacy</a></li>
+      <li><a href="../README.html">bbaranoff.github.io</a></li>
+      <li><a href="../whoami.html">Who am I ?</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp" open>
+      <summary>Projets <span class="n">6</span></summary>
+      <ul>
+      <li><a href="index.html">Projets</a></li>
+      <li><a href="0-abstract_radio.html">Abstract — Attaques sur les protocoles
+radio</a></li>
+      <li><a href="cryptanalyse.html">Cryptanalyse — TEA1 &amp; DST80</a></li>
+      <li><a href="qemu-calypso.html">QEMU-Calypso</a></li>
+      <li><a href="radio_stuff.html" aria-current="page">LoRa — Traqueur GPS via LoRaWAN</a></li>
+      <li><a href="telco.html">Redirection LTE / 5G-NSA → 2G</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Cours <span class="n">13</span></summary>
+      <ul>
+      <li><a href="../cours/index.html">Cours</a></li>
+      <li><a href="../cours/methodes/index.html">Méthodes</a></li>
+      <li><a href="../cours/telco/index.html">Télécom &amp;amp; SDR</a></li>
+      <li><a href="../cours/methodes/1-Agile.html">Methodes Agiles</a></li>
+      <li><a href="../cours/methodes/2-Agile-TP.html">TP Agile</a></li>
+      <li><a href="../cours/methodes/3-UML.html">Introduction à l'UML</a></li>
+      <li><a href="../cours/methodes/4-UML-TP.html">UML Travaux Pratiques</a></li>
+      <li><a href="../cours/methodes/5-Git.html">Introduction à GIT</a></li>
+      <li><a href="../cours/methodes/6-Git-TP.html">Git Travaux Pratiques</a></li>
+      <li><a href="../cours/telco/1-Lab-GSM-multiPLMN.html">Lab GSM multi-opérateur — osmo_egprs</a></li>
+      <li><a href="../cours/telco/2-QEMU-Calypso.html">Émulation du baseband Calypso —
+qemu-calypso</a></li>
+      <li><a href="../cours/telco/3-GSM-etape-par-etape.html">Cours GSM — l'attachement d'un mobile, étape par
+étape</a></li>
+      <li><a href="../cours/telco/4-A5-1-cracking.html">Casser A5/1 — de la capture au Kc, à la
+main</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>CTF <span class="n">3</span></summary>
+      <ul>
+      <li><a href="../ctf/aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d/index.html">archive aaf4c61d…</a></li>
+      <li><a href="../ctf/index.html">Password Protected</a></li>
+      <li><a href="../ctf/ctf.html">Capture the flag</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Infos <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../infos/index.html">Informations gathered</a></li>
+      <li><a href="../infos/README.html">show my ip</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>archives <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../archives/index.html">Archives</a></li>
+      <li><a href="../archives/To_Do.html">To Do : Build the portfolio</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>exemples <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../exemples/index.html">Exemples</a></li>
+      <li><a href="../exemples/gsm-lab-wallpaper.html">GSM Lab — Wallpaper</a></li>
+      </ul>
+    </details>
+</nav>
+
+  <header class="title-block">
+    <h1>LoRa — Traqueur GPS via LoRaWAN</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#architecture" id="toc-architecture">Architecture</a></li>
+<li><a href="#la-passerelle-dragino-ttn"
+id="toc-la-passerelle-dragino-ttn">1. La passerelle Dragino →
+TTN</a></li>
+<li><a href="#lobjet-connecté-raspberry-pi"
+id="toc-lobjet-connecté-raspberry-pi">2. L’objet connecté — Raspberry
+Pi</a>
+<ul>
+<li><a href="#carte-sd" id="toc-carte-sd">2.1 Carte SD</a></li>
+<li><a href="#paquets-gps" id="toc-paquets-gps">2.2 Paquets &amp;
+GPS</a></li>
+<li><a href="#script-démission-gps-cayennelpp-lorawan"
+id="toc-script-démission-gps-cayennelpp-lorawan">2.3 Script d’émission —
+GPS → CayenneLPP → LoRaWAN</a></li>
+<li><a href="#clés-lorawan-otaa" id="toc-clés-lorawan-otaa">2.4 Clés
+LoRaWAN (OTAA)</a></li>
+</ul></li>
+<li><a href="#enregistrer-lend-device-sur-ttn"
+id="toc-enregistrer-lend-device-sur-ttn">3. Enregistrer l’end-device sur
+TTN</a></li>
+<li><a href="#visualiser-sur-cayenne" id="toc-visualiser-sur-cayenne">4.
+Visualiser sur Cayenne</a></li>
+<li><a href="#ads-b-recevoir-les-avions"
+id="toc-ads-b-recevoir-les-avions">ADS-B — recevoir les avions</a>
+<ul>
+<li><a href="#recevoir" id="toc-recevoir">Recevoir</a></li>
+<li><a href="#le-point-de-sécurité" id="toc-le-point-de-sécurité">Le
+point de sécurité</a></li>
+</ul></li>
+</ul>
+  </nav>
+  <main>
+<blockquote>
+<p>Un objet connecté <strong>Raspberry Pi + GPS + HAT LoRa
+Dragino</strong> qui remonte sa position en <strong>LoRaWAN</strong>
+jusqu’à <strong>The Things Network (TTN)</strong>, visualisée en direct
+sur <strong>Cayenne</strong> — portée kilométrique, consommation
+minime.</p>
+</blockquote>
+<p><a href="assets/uml.png"><img src="assets/uml.png"
+alt="Diagramme UML" /></a></p>
+<h2 id="architecture">Architecture</h2>
+<pre class="mermaid"><code>flowchart LR
+    GPS[&quot;GPS (gpsd)&quot;] --&gt; RPI[&quot;Raspberry Pi&lt;br/&gt;+ HAT LoRa Dragino&quot;]
+    RPI --&gt;|&quot;LoRaWAN (OTAA)&quot;| GW[&quot;Passerelle Dragino&quot;]
+    GW --&gt;|&quot;UDP 1700&quot;| TTN[&quot;The Things Network&lt;br/&gt;eu1.cloud.thethings.network&quot;]
+    TTN --&gt;|&quot;intégration&quot;| CAY[&quot;Cayenne&lt;br/&gt;(carte GPS live)&quot;]</code></pre>
+<p>Image ISO prête à l’emploi : <a
+href="https://drive.google.com/file/d/1YTdmb8JlvePSKiniwBKYyqXx-m-NhzIe/view">Google
+Drive</a>.</p>
+<h2 id="la-passerelle-dragino-ttn">1. La passerelle Dragino → TTN</h2>
+<pre class="note"><code>
+**Astuce réseau (UPVD).** Le port **1700** (passerelle → TTN) est souvent bloqué
+par les pare-feux d&#39;établissement. La passerelle Dragino est donc connectée à
+Internet **via WiFi** (partage de connexion smartphone), qui laisse passer le 1700.
+</code></pre>
+<ol type="1">
+<li>Alimenter la passerelle (USB-C 5 V / 2 A) → un réseau WiFi
+<code>dragino-XXXXXX</code> apparaît ; s’y connecter (mot de passe
+<code>dragino+dragino</code>).</li>
+<li>Ouvrir <code>http://10.130.1.1</code> (identifiants par défaut
+<code>root</code> / <code>dragino</code>) et connecter la Dragino, en
+<strong>client WiFi</strong>, à votre box ou partage smartphone.</li>
+<li>Relever le <strong>Gateway EUI</strong> (onglet LoRa), choisir
+<strong>TTN v3</strong> et le serveur
+<strong><code>eu1.cloud.thethings.network</code></strong>.</li>
+</ol>
+<p><a href="assets/WiFi_Dragino.png"><img src="assets/WiFi_Dragino.png"
+alt="WiFi Dragino" /></a> <a href="assets/config_gw_ttn.png"><img
+src="assets/config_gw_ttn.png" alt="Config passerelle TTN" /></a></p>
+<p>Côté TTN, créer la passerelle avec ce <strong>Gateway EUI</strong>,
+un ID unique, et le serveur <code>eu1.cloud.thethings.network</code>. La
+passerelle est alors connectée au réseau LoRaWAN.</p>
+<p><a href="assets/config_ttn_gw.png"><img
+src="assets/config_ttn_gw.png" alt="Passerelle connectée" /></a></p>
+<h2 id="lobjet-connecté-raspberry-pi">2. L’objet connecté — Raspberry
+Pi</h2>
+<h3 id="carte-sd">2.1 Carte SD</h3>
+<p>Avec <strong>Raspberry Pi Imager</strong>
+(<code>sudo snap install rpi-imager</code>), écrire <strong>Debian
+Bullseye</strong> ; dans les options, activer <strong>SSH</strong>
+(<code>pi</code> / <code>raspberry</code>), le <strong>WiFi</strong> et
+le hostname <code>raspberry.local</code>.</p>
+<p><a href="assets/choose_os.png"><img src="assets/choose_os.png"
+alt="Choix OS" /></a> <a href="assets/options_sd_rpi.png"><img
+src="assets/options_sd_rpi.png" alt="Options SD" /></a></p>
+<p>Trouver le Pi sur le réseau puis s’y connecter :</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">nmap</span> 192.168.1.1-254 <span class="at">-p</span> 22          <span class="co"># ou : sudo arp -a</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ssh</span> pi@raspberrypi.local</span></code></pre></div>
+<h3 id="paquets-gps">2.2 Paquets &amp; GPS</h3>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt update <span class="kw">&amp;&amp;</span> <span class="fu">sudo</span> apt upgrade</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install git device-tree-compiler python3-crypto python3-nmea2 <span class="dt">\</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  python3-rpi.gpio python3-serial python3-spidev python3-configobj <span class="dt">\</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  gpsd libgps-dev gpsd-clients python3-pip</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pip3</span> install simplecayennelpp</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/bbaranoff/libgps <span class="kw">&amp;&amp;</span> <span class="bu">cd</span> libgps <span class="kw">&amp;&amp;</span> <span class="fu">make</span> <span class="kw">&amp;&amp;</span> <span class="fu">sudo</span> make install <span class="kw">&amp;&amp;</span> <span class="fu">sudo</span> ldconfig</span></code></pre></div>
+<p>Configurer <strong>gpsd</strong> (<code>/etc/default/gpsd</code>) sur
+le port série, puis activer l’UART et le SPI dans
+<code>/boot/config.txt</code> :</p>
+<pre class="text"><code># /etc/default/gpsd
+START_DAEMON=&quot;true&quot;
+DEVICES=&quot;/dev/ttyAMA0&quot;
+GPSD_OPTIONS=&quot;-n&quot;</code></pre>
+<pre class="text"><code># /boot/config.txt
+enable_uart=1
+dtoverlay=miniuart-bt
+dtoverlay=spi-gpio-cs</code></pre>
+<p>Compiler l’overlay SPI du HAT Dragino :</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/computenodes/dragino <span class="kw">&amp;&amp;</span> <span class="bu">cd</span> dragino/overlay</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">dtc</span> <span class="at">-@</span> <span class="at">-I</span> dts <span class="at">-O</span> dtb <span class="at">-o</span> spi-gpio-cs.dtbo spi-gpio-cs-overlay.dts</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> cp spi-gpio-cs.dtbo /boot/overlays/ <span class="kw">&amp;&amp;</span> <span class="fu">sudo</span> reboot</span></code></pre></div>
+<h3 id="script-démission-gps-cayennelpp-lorawan">2.3 Script d’émission —
+GPS → CayenneLPP → LoRaWAN</h3>
+<p><code>test_cayenne.py</code> lit la position via
+<strong>gpsd</strong>, l’emballe au format <strong>CayenneLPP</strong>,
+et l’émet en LoRaWAN :</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> gpsd, binascii</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dragino <span class="im">import</span> Dragino</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> simplecayennelpp <span class="im">import</span> CayenneLPP</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>gpsd.<span class="ex">connect</span>()</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>p <span class="op">=</span> gpsd.get_current()</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>lpp <span class="op">=</span> CayenneLPP()<span class="op">;</span> lpp.addGPS(<span class="dv">1</span>, p.lat, p.lon, p.alt)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>payload <span class="op">=</span> <span class="bu">list</span>(lpp.getBuffer())</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>D <span class="op">=</span> Dragino(<span class="st">&quot;/home/pi/dragino/dragino.ini&quot;</span>)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>D.join()</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="kw">not</span> D.registered():</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;Waiting for JOIN ACCEPT&quot;</span>)<span class="op">;</span> sleep(<span class="dv">2</span>)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>D.send_bytes(payload)          <span class="co"># position envoyée</span></span></code></pre></div>
+<p>Planifié chaque minute par <code>cron</code>
+(<code>* * * * * /home/pi/gpscron</code>).</p>
+<h3 id="clés-lorawan-otaa">2.4 Clés LoRaWAN (OTAA)</h3>
+<p>Dans <code>/home/pi/dragino/dragino.ini</code>, mode
+<strong>OTAA</strong> avec <strong>DevEUI / AppEUI / AppKey</strong>
+(clé à <strong>haute entropie</strong>, attention à l’ordre MSB/LSB
+entre le Pi et TTN) :</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode ini"><code class="sourceCode ini"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="dt">auth_mode </span><span class="ot">=</span><span class="st"> otaa</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="dt">deveui </span><span class="ot">=</span><span class="st"> 0xFF,0xFE,0xFD,0xFC,0xFC,0xFD,0xFE,0xFF</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="dt">appeui </span><span class="ot">=</span><span class="st"> 0x70,0xB3,0xD5,0x00,0x00,0xD5,0xB3,0x70</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="dt">appkey </span><span class="ot">=</span><span class="st"> 0x3D,0x83,0xC3,0x16,0x2C,0xAD,0x44,0xB7,0xB0,0x50,0x6C,0x3C,0xA1,0x54,0x36,0xB7</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="dt">spreading_factor </span><span class="ot">=</span><span class="st"> </span><span class="dv">7</span></span></code></pre></div>
+<h2 id="enregistrer-lend-device-sur-ttn">3. Enregistrer l’end-device sur
+TTN</h2>
+<p>Application → <em>Create</em>, puis <em>End devices</em> → <strong>+
+Add</strong>, en reportant les mêmes <strong>DevEUI / AppEUI /
+AppKey</strong>. Choisir le format <strong>CayenneLPP</strong>.</p>
+<p><a href="assets/add_enddevice.png"><img
+src="assets/add_enddevice.png" alt="Ajout end-device" /></a> <a
+href="assets/register_enddevice.png"><img
+src="assets/register_enddevice.png" alt="Enregistrement" /></a> <a
+href="assets/format_cayenne.png"><img src="assets/format_cayenne.png"
+alt="Format Cayenne" /></a></p>
+<pre class="tip"><code>
+**Faire accrocher le GPS.** Mettre le Pi à l&#39;heure (`sudo ntpdate fr.pool.ntp.org`),
+le sortir en extérieur, **retirer le jumper Tx** de la Dragino et attendre le **fix
+3D** (LED verte clignotante), puis **remettre le jumper Tx**.
+</code></pre>
+<p>Les trames remontent alors sur TTN :</p>
+<p><a href="assets/coordonnees_ttn.png"><img
+src="assets/coordonnees_ttn.png" alt="Coordonnées TTN" /></a></p>
+<h2 id="visualiser-sur-cayenne">4. Visualiser sur Cayenne</h2>
+<p>Sur <a href="https://mydevices.com/">mydevices.com</a>, créer un
+compte Cayenne, sélectionner <strong>The Things Network</strong>,
+ajouter un <strong>Dragino RPi Hat</strong> avec son
+<strong>DevEUI</strong>.</p>
+<p><a href="assets/add_new_cayenne.png"><img
+src="assets/add_new_cayenne.png" alt="Ajout Cayenne" /></a> <a
+href="assets/dragino_cayenne.png"><img src="assets/dragino_cayenne.png"
+alt="Dragino Cayenne" /></a> <a href="assets/gps_live.png"><img
+src="assets/gps_live.png" alt="GPS live" /></a></p>
+<p><strong>Position GPS en direct sur la carte.</strong> 🛰️</p>
+<p>→ Dépôts : <a
+href="https://github.com/bbaranoff/ttn-gps"><code>ttn-gps</code></a> ·
+<a href="https://github.com/bbaranoff/lora"><code>lora</code></a>
+(install ChirpStack + ThingsBoard) · <a
+href="https://github.com/bbaranoff/libgps"><code>libgps</code></a>.</p>
+<h1 id="ads-b-recevoir-les-avions">ADS-B — recevoir les avions</h1>
+<blockquote>
+<p><strong>ADS-B</strong> (Automatic Dependent Surveillance–Broadcast) :
+chaque avion <strong>diffuse en clair</strong> sa position à
+<strong>1090 MHz</strong>, sans authentification ni chiffrement. Un
+simple SDR suffit pour tout recevoir — et la même ouverture rend, en
+principe, l’<strong>injection d’aéronefs fantômes</strong> possible.</p>
+</blockquote>
+<p><a href="assets/avion.png"><img src="assets/avion.png"
+alt="Avion" /></a></p>
+<h2 id="recevoir">Recevoir</h2>
+<p>Avec une <strong>RTL-SDR</strong> (~10 €) et
+<strong>dump1090</strong> :</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># décodage Mode S / ADS-B + carte temps réel (http://localhost:8080)</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="ex">dump1090</span> <span class="at">--interactive</span> <span class="at">--net</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># antenne accordée 1090 MHz ; un filtre SAW améliore nettement la portée</span></span></code></pre></div>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;Avions&quot;] --&gt;|&quot;1090 MHz (en clair)&quot;| SDR[&quot;RTL-SDR&quot;]
+    SDR --&gt; D[&quot;dump1090&quot;]
+    D --&gt; M[&quot;carte temps réel&quot;]</code></pre>
+<p>Les trames décodées livrent l’<strong>ICAO</strong> (identifiant 24
+bits), l’indicatif, l’altitude, la vitesse, le cap et la
+<strong>position</strong> (encodée en CPR) — tracés en direct sur une
+carte, à la manière d’un Flightradar maison.</p>
+<h2 id="le-point-de-sécurité">Le point de sécurité</h2>
+<p>L’ADS-B remplace peu à peu le radar secondaire, mais <strong>rien
+n’authentifie</strong> l’émetteur :</p>
+<ul>
+<li><strong>écoute</strong> passive triviale (surveillance du ciel local
+sans aucun accès) ;</li>
+<li><strong>spoofing</strong> — injecter des trames d’aéronefs
+inexistants est réalisable avec un SDR émetteur ; à ne démontrer qu’en
+<strong>laboratoire / bande de test</strong>, jamais sur l’air
+réel.</li>
+</ul>
+<p>→ Outils : <a
+href="https://github.com/flightaware/dump1090"><code>dump1090</code></a>
+· <a
+href="https://github.com/bbaranoff/software-defined-radio">software-defined-radio</a>.
+Vue d’ensemble : <a href="0-abstract_radio.html">Abstract radio</a>.</p>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Émulation du baseband Calypso —
+`qemu-calypso` &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+<!-- pl4y-sectnav v1 -->
+<nav class="pl4y-sect" aria-label="Sommaire de la section">
+  <div class="pl4y-sect-head">bbaranoff.github.io</div>
+    <details class="pl4y-sect-grp">
+      <summary>Accueil <span class="n">5</span></summary>
+      <ul>
+      <li><a href="../../index.html">Bastien Baranoff — SDR &amp;
+Cybersécurité</a></li>
+      <li><a href="../../GSM_lab.html">Bundled Page</a></li>
+      <li><a href="../../privacy.html">Privacy</a></li>
+      <li><a href="../../README.html">bbaranoff.github.io</a></li>
+      <li><a href="../../whoami.html">Who am I ?</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Projets <span class="n">6</span></summary>
+      <ul>
+      <li><a href="../../projects/index.html">Projets</a></li>
+      <li><a href="../../projects/0-abstract_radio.html">Abstract — Attaques sur les protocoles
+radio</a></li>
+      <li><a href="../../projects/cryptanalyse.html">Cryptanalyse — TEA1 &amp; DST80</a></li>
+      <li><a href="../../projects/qemu-calypso.html">QEMU-Calypso</a></li>
+      <li><a href="../../projects/radio_stuff.html">LoRa — Traqueur GPS via LoRaWAN</a></li>
+      <li><a href="../../projects/telco.html">Redirection LTE / 5G-NSA → 2G</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp" open>
+      <summary>Cours <span class="n">13</span></summary>
+      <ul>
+      <li><a href="../index.html">Cours</a></li>
+      <li><a href="../methodes/index.html">Méthodes</a></li>
+      <li><a href="index.html">Télécom &amp;amp; SDR</a></li>
+      <li><a href="../methodes/1-Agile.html">Methodes Agiles</a></li>
+      <li><a href="../methodes/2-Agile-TP.html">TP Agile</a></li>
+      <li><a href="../methodes/3-UML.html">Introduction à l'UML</a></li>
+      <li><a href="../methodes/4-UML-TP.html">UML Travaux Pratiques</a></li>
+      <li><a href="../methodes/5-Git.html">Introduction à GIT</a></li>
+      <li><a href="../methodes/6-Git-TP.html">Git Travaux Pratiques</a></li>
+      <li><a href="1-Lab-GSM-multiPLMN.html">Lab GSM multi-opérateur — osmo_egprs</a></li>
+      <li><a href="2-QEMU-Calypso.html" aria-current="page">Émulation du baseband Calypso —
+qemu-calypso</a></li>
+      <li><a href="3-GSM-etape-par-etape.html">Cours GSM — l'attachement d'un mobile, étape par
+étape</a></li>
+      <li><a href="4-A5-1-cracking.html">Casser A5/1 — de la capture au Kc, à la
+main</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>CTF <span class="n">3</span></summary>
+      <ul>
+      <li><a href="../../ctf/aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d/index.html">archive aaf4c61d…</a></li>
+      <li><a href="../../ctf/index.html">Password Protected</a></li>
+      <li><a href="../../ctf/ctf.html">Capture the flag</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Infos <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../infos/index.html">Informations gathered</a></li>
+      <li><a href="../../infos/README.html">show my ip</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>archives <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../archives/index.html">Archives</a></li>
+      <li><a href="../../archives/To_Do.html">To Do : Build the portfolio</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>exemples <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../exemples/index.html">Exemples</a></li>
+      <li><a href="../../exemples/gsm-lab-wallpaper.html">GSM Lab — Wallpaper</a></li>
+      </ul>
+    </details>
+</nav>
+
+  <header class="title-block">
+    <h1>Émulation du baseband Calypso — `qemu-calypso`</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#ce-que-fait-ce-projet-en-une-phrase"
+id="toc-ce-que-fait-ce-projet-en-une-phrase">Ce que fait ce projet, en
+une phrase</a></li>
+<li><a href="#les-deux-familles-de-modes"
+id="toc-les-deux-familles-de-modes">1. Les deux familles de
+modes</a></li>
+<li><a href="#piloter-le-lab" id="toc-piloter-le-lab">2. Piloter le
+lab</a>
+<ul>
+<li><a href="#où-sont-les-journaux-le-piège-n1"
+id="toc-où-sont-les-journaux-le-piège-n1">Où sont les journaux — le
+piège n°1</a></li>
+<li><a href="#linstrument-à-dégainer-en-premier"
+id="toc-linstrument-à-dégainer-en-premier">L’instrument à dégainer en
+premier</a></li>
+</ul></li>
+<li><a href="#la-discipline-anti-illusion"
+id="toc-la-discipline-anti-illusion">3. La discipline
+anti-illusion</a></li>
+<li><a href="#pour-aller-plus-loin" id="toc-pour-aller-plus-loin">4.
+Pour aller plus loin</a></li>
+</ul>
+  </nav>
+  <main>
+<blockquote>
+<p>Faire tourner le <strong>vrai firmware GSM</strong> d’un téléphone
+(Motorola C1xx / Compal E88) <strong>sans aucun matériel</strong>, en
+émulant son baseband <strong>TI Calypso</strong> dans QEMU. Code : <a
+href="https://github.com/bbaranoff/qemu-calypso">github.com/bbaranoff/qemu-calypso</a>
+— Quick Start : <a
+href="https://github.com/bbaranoff/qemu-calypso/blob/main/QUICK_START.md"><code>QUICK_START.md</code></a></p>
+</blockquote>
+<pre class="danger"><code>
+**Le point d&#39;avancement (campagne du 2026-08-24)**
+
+- **Mode `shunt_legit` (défaut)** : la pile GSM complète fonctionne **de bout en
+  bout** — synchro, camp, Location Update, authentification COMP128v1, chiffrement
+  **A5/1**, **SMS** dans les deux sens et **appel voix avec audio** entre deux
+  abonnés. Le firmware ARM osmocom-bb **non patché** tourne réellement ; c&#39;est
+  gr-gsm, côté hôte, qui démodule.
+- **Mode `native` (le vrai DSP)** : **avancée majeure — le Frequency Burst (FB) est
+  désormais acquis par le vrai DSP mask-ROM** (437 transitions mesurées, écrites
+  par la ROM elle-même à `PC=0x79e4`, sans aucune injection). Le **mur actuel** est
+  le **décodage du SCH** : la tâche tourne mais son décodeur sort une valeur
+  constante (`0xf8d8`) indépendante de l&#39;entrée — donc il ne décode pas encore.
+</code></pre>
+<h2 id="ce-que-fait-ce-projet-en-une-phrase">Ce que fait ce projet, en
+une phrase</h2>
+<p>QEMU-Calypso émule le SoC GSM <strong>TI Calypso</strong> en faisant
+tourner <strong>deux cœurs en même temps</strong>, exactement comme le
+silicium réel :</p>
+<ul>
+<li>un <strong>ARM</strong> qui exécute le firmware <a
+href="https://osmocom.org/projects/baseband">osmocom-bb</a>
+<strong>d’origine, non patché</strong> (la Layer 1 temps réel) ;</li>
+<li>un <strong>DSP TMS320C54x</strong> qui exécute la <strong>vraie
+mask-ROM DSP de TI</strong>.</li>
+</ul>
+<p>Les deux communiquent par la <strong>mailbox API RAM</strong> à
+l’adresse <code>0xFFD00000</code>, comme sur la puce. À la connaissance
+de l’auteur, aucun autre émulateur ne fait tourner <em>à la fois</em> le
+firmware constructeur intact <em>et</em> le DSP de couche 1.</p>
+<pre class="mermaid"><code>flowchart LR
+    NET[&quot;Réseau GSM de test&lt;br/&gt;osmo-bts / fake_trx&quot;] --&gt;|&quot;downlink I/Q&quot;| QEMU
+    subgraph QEMU[&quot;QEMU-Calypso (machine calypso)&quot;]
+        direction TB
+        ARM[&quot;ARM7&lt;br/&gt;firmware osmocom-bb&lt;br/&gt;layer1.highram.elf&quot;]
+        DSP[&quot;DSP C54x&lt;br/&gt;mask-ROM TI&quot;]
+        ARM &lt;--&gt;|&quot;mailbox API RAM 0xFFD00000&quot;| DSP
+    end
+    QEMU --&gt;|&quot;L1CTL /tmp/osmocom_l2&quot;| MOBILE[&quot;mobile (layer23)&quot;]</code></pre>
+<pre class="tip"><code>
+**Le firmware est interchangeable.** N&#39;importe quel `layer1.highram.elf` construit
+depuis n&#39;importe quel commit d&#39;osmocom-bb boote sans adaptation ni patch. C&#39;est le
+test qui distingue « j&#39;émule la plateforme » de « j&#39;ai fait marcher *ce* binaire ».
+</code></pre>
+<hr />
+<p><strong>🎥 PoC — qemu-calypso</strong></p>
+<iframe src="https://www.youtube.com/embed/gwXdmwdqZqs" title="PoC qemu-calypso" width="560" height="315" style="width:min(560px,100%);aspect-ratio:16/9;height:auto;border:0;border-radius:10px;margin:.4rem 0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy">
+</iframe>
+<h2 id="les-deux-familles-de-modes">1. Les deux familles de modes</h2>
+<p>C’est le concept central. Un mode répond à une seule question :
+<strong>qui fait quoi ?</strong></p>
+<table>
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 24%" />
+<col style="width: 10%" />
+<col style="width: 43%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>profil</th>
+<th>FB / SB</th>
+<th>SI</th>
+<th>ce qu’il prouve</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>shunt_legit</code></td>
+<td><strong>hôte</strong></td>
+<td>gr-gsm</td>
+<td><strong>le défaut</strong> — la pile de bout en bout, jusqu’à la
+voix. <em>Rien sur le DSP.</em></td>
+</tr>
+<tr class="even">
+<td><code>native_twl</code></td>
+<td>hôte / TWL</td>
+<td><strong>DSP</strong></td>
+<td>le DSP traite-t-il le SI ? On lui donne la synchro pour poser la
+question</td>
+</tr>
+<tr class="odd">
+<td><code>native</code></td>
+<td><strong>DSP</strong></td>
+<td><strong>DSP</strong></td>
+<td>la vérité sur l’acquisition. <strong>FB acquis</strong>, SCH pas
+encore décodé</td>
+</tr>
+<tr class="even">
+<td><code>native_helped</code></td>
+<td>DSP, entrée reroutée</td>
+<td>DSP</td>
+<td>⚠️ sous béquille — toute mesure ici est à citer comme telle</td>
+</tr>
+<tr class="odd">
+<td><code>empty</code></td>
+<td>rien</td>
+<td>rien</td>
+<td>banc gate par gate</td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid"><code>flowchart TD
+    Q{&quot;Qui acquiert&lt;br/&gt;la synchro FB/SB ?&quot;}
+    Q --&gt;|&quot;l&#39;hôte (gr-gsm)&quot;| S[&quot;famille SHUNT&lt;br/&gt;→ prouve la pile complète&lt;br/&gt;ne prouve rien sur le DSP&quot;]
+    Q --&gt;|&quot;le vrai DSP&quot;| N[&quot;famille NATIVE&lt;br/&gt;→ prouve l&#39;acquisition&lt;br/&gt;ne campe pas encore&quot;]</code></pre>
+<pre class="warning"><code>
+**Frontière à ne jamais franchir sans changer de nom** : dès que les System
+Information viennent de gr-gsm, on court-circuite le DSP — c&#39;est `shunt_legit`,
+pas un mode natif. La seule source de vérité sur ce qu&#39;un run a réellement obtenu
+est le **manifeste** imprimé par le modèle (`qemu-manifest.log`), **jamais** la
+ligne de commande.
+</code></pre>
+<hr />
+<h2 id="piloter-le-lab">2. Piloter le lab</h2>
+<p>Tout vit dans le conteneur <code>osmo-operator-1</code>.
+<strong>Chaque mode a sa porte d’entrée — elles ne sont pas
+interchangeables</strong>, et c’est pourquoi les journaux atterrissent à
+deux endroits différents.</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># shunt_legit (le défaut) — la pile complète, jusqu&#39;à l&#39;appel voix</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /opt/GSM/osmo_egprs <span class="kw">&amp;&amp;</span> <span class="va">CALYPSO_BRIDGE</span><span class="op">=</span>pont <span class="va">ENCRYPTION</span><span class="op">=</span><span class="st">&#39;a5 1&#39;</span> <span class="ex">./start-direct.sh</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># native — le vrai DSP à la manœuvre</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /opt/GSM/qemu-src <span class="kw">&amp;&amp;</span> <span class="va">CALYPSO_MODE</span><span class="op">=</span>native <span class="ex">./run.sh</span></span></code></pre></div>
+<p>Arrêt : la même porte avec <code>--stop</code>. <strong>Si une
+relance coince</strong> (port pris, pile à moitié morte), faire le
+<code>--stop</code> puis tuer les python restants, qui survivent au
+teardown et retiennent les FIFO I/Q :</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pkill</span> <span class="at">-f</span> python3 <span class="kw">;</span> <span class="ex">pkill</span> <span class="at">-f</span> python <span class="kw">;</span> <span class="fu">sleep</span> 2 <span class="kw">;</span> <span class="ex">pgrep</span> <span class="at">-af</span> <span class="st">&#39;python|qemu-system-arm&#39;</span></span></code></pre></div>
+<pre class="warning"><code>
+**Le lancement n&#39;est pas cosmétique.** `shunt_legit` démarré par `run.sh` sans
+`CALYPSO_BRIDGE=pont` **ne monte pas** : la BTS n&#39;atteint pas le transceiver
+(`send() failed on TRXD … Connection refused` ×1268 mesuré), le réseau ne répond
+jamais, et la Location Update **expire** (`T3211` ×74). Par la bonne porte : 3
+erreurs BTS, LU acceptée.
+</code></pre>
+<h3 id="où-sont-les-journaux-le-piège-n1">Où sont les journaux — le
+piège n°1</h3>
+<table>
+<thead>
+<tr class="header">
+<th>lanceur</th>
+<th><code>LOG_DIR</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>run.sh</code> (native)</td>
+<td><code>/tmp/calypso/logs</code></td>
+</tr>
+<tr class="even">
+<td><code>start-direct.sh</code> (shunt_legit)</td>
+<td><strong><code>/tmp/osmo-nitb/logs</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p>Analyser le mauvais répertoire donne des compteurs périmés qui
+<strong>ressemblent à des pannes</strong>.</p>
+<h3 id="linstrument-à-dégainer-en-premier">L’instrument à dégainer en
+premier</h3>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tools/rapport-run.sh</span>          <span class="co"># état complet du run courant, lecture seule</span></span></code></pre></div>
+<p>Sa règle de conception : <strong>un compteur nul n’est jamais une
+absence prouvée</strong>. Il affiche pour chaque grandeur une ligne
+témoin et annonce un zéro comme « motif jamais vu ».</p>
+<hr />
+<h2 id="la-discipline-anti-illusion">3. La discipline anti-illusion</h2>
+<p>Ce qui distingue ce projet, c’est une <strong>méthode de
+rétro-ingénierie vérifiable</strong> — chaque affirmation est présentée
+pour être cassée :</p>
+<ul>
+<li><strong>MESURE</strong> (relevé, avec sa commande) /
+<strong>HYPOTHÈSE</strong> (déduite du code) / <strong>INVALIDE</strong>
+(affirmation retirée, à ne pas réintroduire).</li>
+<li>Les sondes de diagnostic sont <strong>inertes par défaut</strong> et
+en <strong>lecture seule</strong>.</li>
+<li>Un système de « sas » (<code>CALYPSO_FIX_*</code>) met en
+quarantaine les correctifs non encore validés.</li>
+<li>Toute sonde muette doit s’accompagner d’un <strong>contrôle
+armé</strong> sur un site dont on sait qu’il s’exécute — sans lui, « la
+sonde n’a rien vu » et « le code ne tourne pas » sont
+indiscernables.</li>
+</ul>
+<pre class="tip"><code>
+**Vérifier soi-même** que le FB natif vient bien du DSP (aucune injection posée) :
+compter les écritures faites par la mask-ROM elle-même, et confirmer qu&#39;elles
+sortent toutes du même PC.
+</code></pre>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="at">-c</span> <span class="st">&#39;FBDET-WR .*0x0000 -&gt; 0x0001&#39;</span> /tmp/calypso/logs/qemu.log   <span class="co"># ~437</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span>    <span class="st">&#39;FBDET-WR .*0x0000 -&gt; 0x0001&#39;</span> /tmp/calypso/logs/qemu.log <span class="kw">|</span> <span class="dt">\</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">grep</span> <span class="at">-oE</span> <span class="st">&#39;PC=0x[0-9a-f]+&#39;</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-u</span>                              <span class="co"># PC=0x79e4</span></span></code></pre></div>
+<hr />
+<h2 id="pour-aller-plus-loin">4. Pour aller plus loin</h2>
+<ul>
+<li><strong><a href="3-GSM-etape-par-etape.html">Cours GSM étape par
+étape</a></strong> — chaque étape de l’attachement d’un mobile, avec sa
+version <em>shunt_legit</em> et sa version <em>DSP natif</em>.</li>
+<li><strong><a href="1-Lab-GSM-multiPLMN.html">Lab GSM
+multi-opérateur</a></strong> — le réseau dans lequel ce baseband émulé
+s’attache.</li>
+<li>La <strong>source de vérité par mode</strong> est <a
+href="https://github.com/bbaranoff/qemu-calypso/blob/main/run_results.md"><code>run_results.md</code></a>.</li>
+</ul>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

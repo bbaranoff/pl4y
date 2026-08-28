@@ -1,14 +1,14 @@
 ---
 title: "Calypso QEMU"
 subtitle: "Full source bundle - DSP C54x / osmocom-bb / SHUNT_LEGIT"
-date: "2026-08-14T11:07:59+02:00"
+date: "2026-08-28T15:32:00+02:00"
 date-format: "YYYY-MM-DD HH:mm"
 ---
 
 ::: {.callout-note appearance="simple" icon=false}
 **Bundle du depot** - doc, tests, headers, sources, python, shell.
-Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
-- exclusions `subprojects|build|pc-bios|tests/functional|tests/qtest|tests/unit|tests/migration|tests/qemu-iotests|node_modules|\.git|\.pytest_cache` - troncature 512 ko/fichier - pages de 350 ko max.
+Scope `.` - git `main@93c370d` - genere 2026-08-28T15:32:00+02:00
+- exclusions `subprojects|build|pc-bios|tests/functional|tests/qtest|tests/unit|tests/migration|tests/qemu-iotests|node_modules|\.git|\.pytest_cache` - troncature 512 ko/fichier - pages de 400 ko max.
 :::
 
 ::: {.sk-filter}
@@ -21,49 +21,53 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 
 | Fichier | Lignes | Taille |
 |:---|---:|---:|
-| [`calypso-full.qmd`](sec1-01.html#f-calypso-full-qmd) | 88906 | 4,2MB |
-| [`environnement/README.md`](sec1-02.html#f-environnement-readme-md) | 85 | 3,7KB |
-| [`hw/arm/calypso/CLAUDE.md`](sec1-02.html#f-hw-arm-calypso-claude-md) | 94 | 3,6KB |
-| [`hw/arm/calypso/doc/C54X_INSTRUCTIONS.md`](sec1-02.html#f-hw-arm-calypso-doc-c54x-instructions-md) | 76 | 3,5KB |
-| [`hw/arm/calypso/doc/CALYPSO_HW.md`](sec1-02.html#f-hw-arm-calypso-doc-calypso-hw-md) | 113 | 3,6KB |
-| [`hw/arm/calypso/doc/CHAINE_RF_MATERIELLE.md`](sec1-02.html#f-hw-arm-calypso-doc-chaine-rf-materielle-md) | 309 | 18KB |
-| [`hw/arm/calypso/doc/datasheets/README.md`](sec1-02.html#f-hw-arm-calypso-doc-datasheets-readme-md) | 187 | 9,1KB |
-| [`hw/arm/calypso/doc/DOC_TI_INDEX.md`](sec1-02.html#f-hw-arm-calypso-doc-doc-ti-index-md) | 86 | 6,4KB |
-| [`hw/arm/calypso/doc/DSP_ADDRESS_MAP.md`](sec1-02.html#f-hw-arm-calypso-doc-dsp-address-map-md) | 226 | 19KB |
-| [`hw/arm/calypso/doc/DSP_ARM_LINKAGE.md`](sec1-02.html#f-hw-arm-calypso-doc-dsp-arm-linkage-md) | 320 | 19KB |
-| [`hw/arm/calypso/doc/DSP_CALYPSO_REFERENCE.md`](sec1-02.html#f-hw-arm-calypso-doc-dsp-calypso-reference-md) | 218 | 13KB |
-| [`hw/arm/calypso/doc/DSP_ROM_MAP.md`](sec1-02.html#f-hw-arm-calypso-doc-dsp-rom-map-md) | 65 | 2,7KB |
-| [`hw/arm/calypso/doc/ETAT_ACTUEL.md`](sec1-02.html#f-hw-arm-calypso-doc-etat-actuel-md) | 1812 | 109KB |
-| [`hw/arm/calypso/doc/hardware-map.md`](sec1-02.html#f-hw-arm-calypso-doc-hardware-map-md) | 66 | 2,4KB |
-| [`hw/arm/calypso/doc/opcodes/0x68_0x6F.md`](sec1-02.html#f-hw-arm-calypso-doc-opcodes-0x68-0x6f-md) | 388 | 14KB |
-| [`hw/arm/calypso/doc/opcodes/0xF3.md`](sec1-02.html#f-hw-arm-calypso-doc-opcodes-0xf3-md) | 358 | 15KB |
-| [`hw/arm/calypso/doc/opcodes/tic54x_hi8_map.md`](sec1-02.html#f-hw-arm-calypso-doc-opcodes-tic54x-hi8-map-md) | 240 | 9,7KB |
-| [`hw/arm/calypso/doc/project/AUDIT_DECODER_20260508.md`](sec1-02.html#f-hw-arm-calypso-doc-project-audit-decoder-20260508-md) | 147 | 7,4KB |
-| [`hw/arm/calypso/doc/project/BUGS_AND_FIXES.md`](sec1-02.html#f-hw-arm-calypso-doc-project-bugs-and-fixes-md) | 93 | 5,4KB |
-| [`hw/arm/calypso/doc/project/REPORT_CLAUDE_WEB_PIPELINE.md`](sec1-02.html#f-hw-arm-calypso-doc-project-report-claude-web-pipeline-md) | 222 | 12KB |
-| [`hw/arm/calypso/doc/project/STEP2_BC_CONDS.md`](sec1-02.html#f-hw-arm-calypso-doc-project-step2-bc-conds-md) | 86 | 3,9KB |
-| [`hw/arm/calypso/doc/RAPPORT_DFBDET.md`](sec1-02.html#f-hw-arm-calypso-doc-rapport-dfbdet-md) | 509 | 29KB |
-| [`hw/arm/calypso/doc/RAPPORT_OPCODES.md`](sec1-03.html#f-hw-arm-calypso-doc-rapport-opcodes-md) | 2369 | 215KB |
-| [`hw/arm/calypso/doc/README.md`](sec1-03.html#f-hw-arm-calypso-doc-readme-md) | 223 | 14KB |
-| [`hw/arm/calypso/doc/SERCOMM_GATE_ARCHITECTURE.md`](sec1-03.html#f-hw-arm-calypso-doc-sercomm-gate-architecture-md) | 271 | 12KB |
-| [`hw/arm/calypso/doc/SHUNT_LEGIT_ADDRESS_MAP.md`](sec1-03.html#f-hw-arm-calypso-doc-shunt-legit-address-map-md) | 275 | 22KB |
-| [`hw/arm/calypso/doc/TODO.md`](sec1-03.html#f-hw-arm-calypso-doc-todo-md) | 149 | 8,8KB |
-| [`hw/arm/calypso/doc/VARIABLES_ENVIRONNEMENT.md`](sec1-04.html#f-hw-arm-calypso-doc-variables-environnement-md) | 2126 | 211KB |
-| [`hw/arm/calypso/doc/VOIX_PLAN.md`](sec1-04.html#f-hw-arm-calypso-doc-voix-plan-md) | 194 | 14KB |
-| [`PLAN_APPLICATION.md`](sec1-04.html#f-plan-application-md) | 999 | 59KB |
-| [`QUICK_START.md`](sec1-04.html#f-quick-start-md) | 619 | 34KB |
-| [`README.md`](sec1-04.html#f-readme-md) | 210 | 11KB |
-| [`run_results.md`](sec1-04.html#f-run-results-md) | 307 | 20KB |
-| [`tests/detail.mmd`](sec1-05.html#f-tests-detail-mmd) | 187 | 14KB |
-| [`tests/detail.qmd.mmd`](sec1-05.html#f-tests-detail-qmd-mmd) | 392 | 26KB |
-| [`tests/full.mmd`](sec1-05.html#f-tests-full-mmd) | 225 | 15KB |
-| [`tests/pipeline.mmd`](sec1-05.html#f-tests-pipeline-mmd) | 33 | 1,1KB |
-| [`tests/pipeline.qmd.mmd`](sec1-05.html#f-tests-pipeline-qmd-mmd) | 63 | 1,9KB |
-| [`tests/report.md`](sec1-05.html#f-tests-report-md) | 168 | 11KB |
-| [`tests/test_results.md`](sec1-05.html#f-tests-test-results-md) | 476 | 28KB |
-| [`tests/test_results.qmd`](sec1-05.html#f-tests-test-results-qmd) | 499 | 29KB |
-| [`tmux_modules/README.md`](sec1-05.html#f-tmux-modules-readme-md) | 39 | 1,8KB |
-| [`TODO.md`](sec1-05.html#f-todo-md) | 1380 | 80KB |
+| [`environnement/README.md`](sec1-01.html#f-environnement-readme-md) | 85 | 3,7KB |
+| [`hw/arm/calypso/CLAUDE.md`](sec1-01.html#f-hw-arm-calypso-claude-md) | 94 | 3,6KB |
+| [`hw/arm/calypso/doc/C54X_INSTRUCTIONS.md`](sec1-01.html#f-hw-arm-calypso-doc-c54x-instructions-md) | 76 | 3,5KB |
+| [`hw/arm/calypso/doc/CALYPSO_HW.md`](sec1-01.html#f-hw-arm-calypso-doc-calypso-hw-md) | 113 | 3,6KB |
+| [`hw/arm/calypso/doc/CHAINE_RF_MATERIELLE.md`](sec1-01.html#f-hw-arm-calypso-doc-chaine-rf-materielle-md) | 309 | 18KB |
+| [`hw/arm/calypso/doc/datasheets/README.md`](sec1-01.html#f-hw-arm-calypso-doc-datasheets-readme-md) | 187 | 9,1KB |
+| [`hw/arm/calypso/doc/DOC_TI_INDEX.md`](sec1-01.html#f-hw-arm-calypso-doc-doc-ti-index-md) | 86 | 6,4KB |
+| [`hw/arm/calypso/doc/DSP_ADDRESS_MAP.md`](sec1-01.html#f-hw-arm-calypso-doc-dsp-address-map-md) | 226 | 19KB |
+| [`hw/arm/calypso/doc/DSP_ARM_LINKAGE.md`](sec1-01.html#f-hw-arm-calypso-doc-dsp-arm-linkage-md) | 320 | 19KB |
+| [`hw/arm/calypso/doc/DSP_CALYPSO_REFERENCE.md`](sec1-01.html#f-hw-arm-calypso-doc-dsp-calypso-reference-md) | 218 | 13KB |
+| [`hw/arm/calypso/doc/DSP_ROM_MAP.md`](sec1-01.html#f-hw-arm-calypso-doc-dsp-rom-map-md) | 65 | 2,7KB |
+| [`hw/arm/calypso/doc/ETAT_ACTUEL.md`](sec1-01.html#f-hw-arm-calypso-doc-etat-actuel-md) | 1812 | 109KB |
+| [`hw/arm/calypso/doc/hardware-map.md`](sec1-01.html#f-hw-arm-calypso-doc-hardware-map-md) | 66 | 2,4KB |
+| [`hw/arm/calypso/doc/opcodes/0x68_0x6F.md`](sec1-01.html#f-hw-arm-calypso-doc-opcodes-0x68-0x6f-md) | 388 | 14KB |
+| [`hw/arm/calypso/doc/opcodes/0xF3.md`](sec1-01.html#f-hw-arm-calypso-doc-opcodes-0xf3-md) | 358 | 15KB |
+| [`hw/arm/calypso/doc/opcodes/tic54x_hi8_map.md`](sec1-01.html#f-hw-arm-calypso-doc-opcodes-tic54x-hi8-map-md) | 240 | 9,7KB |
+| [`hw/arm/calypso/doc/project/AUDIT_DECODER_20260508.md`](sec1-01.html#f-hw-arm-calypso-doc-project-audit-decoder-20260508-md) | 147 | 7,4KB |
+| [`hw/arm/calypso/doc/project/BUGS_AND_FIXES.md`](sec1-01.html#f-hw-arm-calypso-doc-project-bugs-and-fixes-md) | 93 | 5,4KB |
+| [`hw/arm/calypso/doc/project/REPORT_CLAUDE_WEB_PIPELINE.md`](sec1-01.html#f-hw-arm-calypso-doc-project-report-claude-web-pipeline-md) | 222 | 12KB |
+| [`hw/arm/calypso/doc/project/STEP2_BC_CONDS.md`](sec1-01.html#f-hw-arm-calypso-doc-project-step2-bc-conds-md) | 86 | 3,9KB |
+| [`hw/arm/calypso/doc/RAPPORT_COMPLET_20260824.md`](sec1-01.html#f-hw-arm-calypso-doc-rapport-complet-20260824-md) | 330 | 11KB |
+| [`hw/arm/calypso/doc/RAPPORT_DFBDET.md`](sec1-01.html#f-hw-arm-calypso-doc-rapport-dfbdet-md) | 509 | 29KB |
+| [`hw/arm/calypso/doc/RAPPORT_OPCODES.md`](sec1-02.html#f-hw-arm-calypso-doc-rapport-opcodes-md) | 2369 | 215KB |
+| [`hw/arm/calypso/doc/RAPPORT_RUN_SHUNT_LEGIT_20260824.md`](sec1-02.html#f-hw-arm-calypso-doc-rapport-run-shunt-legit-20260824-md) | 179 | 6,5KB |
+| [`hw/arm/calypso/doc/README.md`](sec1-02.html#f-hw-arm-calypso-doc-readme-md) | 223 | 14KB |
+| [`hw/arm/calypso/doc/SERCOMM_GATE_ARCHITECTURE.md`](sec1-02.html#f-hw-arm-calypso-doc-sercomm-gate-architecture-md) | 271 | 12KB |
+| [`hw/arm/calypso/doc/SHUNT_LEGIT_ADDRESS_MAP.md`](sec1-02.html#f-hw-arm-calypso-doc-shunt-legit-address-map-md) | 275 | 22KB |
+| [`hw/arm/calypso/doc/spru172c.md`](sec1-03.html#f-hw-arm-calypso-doc-spru172c-md) | 25270 | 1,1MB |
+| [`hw/arm/calypso/doc/ti-calypso1.md`](sec1-04.html#f-hw-arm-calypso-doc-ti-calypso1-md) | 2894 | 167KB |
+| [`hw/arm/calypso/doc/ti-calypso2.md`](sec1-05.html#f-hw-arm-calypso-doc-ti-calypso2-md) | 9116 | 559KB |
+| [`hw/arm/calypso/doc/TODO.md`](sec1-06.html#f-hw-arm-calypso-doc-todo-md) | 149 | 8,8KB |
+| [`hw/arm/calypso/doc/VARIABLES_ENVIRONNEMENT.md`](sec1-06.html#f-hw-arm-calypso-doc-variables-environnement-md) | 2126 | 211KB |
+| [`hw/arm/calypso/doc/VOIX_PLAN.md`](sec1-06.html#f-hw-arm-calypso-doc-voix-plan-md) | 194 | 14KB |
+| [`PLAN_APPLICATION.md`](sec1-06.html#f-plan-application-md) | 999 | 59KB |
+| [`QUICK_START.md`](sec1-06.html#f-quick-start-md) | 619 | 34KB |
+| [`README.md`](sec1-06.html#f-readme-md) | 311 | 16KB |
+| [`run_results.md`](sec1-06.html#f-run-results-md) | 307 | 20KB |
+| [`tests/detail.mmd`](sec1-06.html#f-tests-detail-mmd) | 187 | 14KB |
+| [`tests/detail.qmd.mmd`](sec1-07.html#f-tests-detail-qmd-mmd) | 392 | 26KB |
+| [`tests/full.mmd`](sec1-07.html#f-tests-full-mmd) | 225 | 15KB |
+| [`tests/pipeline.mmd`](sec1-07.html#f-tests-pipeline-mmd) | 33 | 1,1KB |
+| [`tests/pipeline.qmd.mmd`](sec1-07.html#f-tests-pipeline-qmd-mmd) | 63 | 1,9KB |
+| [`tests/report.md`](sec1-07.html#f-tests-report-md) | 168 | 11KB |
+| [`tests/test_results.md`](sec1-07.html#f-tests-test-results-md) | 476 | 28KB |
+| [`tests/test_results.qmd`](sec1-07.html#f-tests-test-results-qmd) | 499 | 29KB |
+| [`tmux_modules/README.md`](sec1-07.html#f-tmux-modules-readme-md) | 39 | 1,8KB |
+| [`TODO.md`](sec1-07.html#f-todo-md) | 1380 | 80KB |
 
 :::
 
@@ -102,8 +106,9 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 |:---|---:|---:|
 | [`hw/arm/calypso/calypso_arm2dsp.h`](sec3-01.html#f-hw-arm-calypso-calypso-arm2dsp-h) | 37 | 1,9KB |
 | [`hw/arm/calypso/calypso_c54x.h`](sec3-01.html#f-hw-arm-calypso-calypso-c54x-h) | 396 | 18KB |
+| [`hw/arm/calypso/calypso_c54x_trace.h`](sec3-01.html#f-hw-arm-calypso-calypso-c54x-trace-h) | 44 | 1,5KB |
 | [`hw/arm/calypso/calypso_dma.h`](sec3-01.html#f-hw-arm-calypso-calypso-dma-h) | 75 | 3,7KB |
-| [`hw/arm/calypso/calypso_dsp_shunt.h`](sec3-01.html#f-hw-arm-calypso-calypso-dsp-shunt-h) | 69 | 3,3KB |
+| [`hw/arm/calypso/calypso_dsp_shunt.h`](sec3-01.html#f-hw-arm-calypso-calypso-dsp-shunt-h) | 73 | 3,5KB |
 | [`hw/arm/calypso/calypso_fbsb.h`](sec3-01.html#f-hw-arm-calypso-calypso-fbsb-h) | 144 | 6,7KB |
 | [`hw/arm/calypso/calypso_full_pcb.h`](sec3-01.html#f-hw-arm-calypso-calypso-full-pcb-h) | 112 | 5,1KB |
 | [`hw/arm/calypso/calypso_layer1.h`](sec3-01.html#f-hw-arm-calypso-calypso-layer1-h) | 31 | 1,4KB |
@@ -114,11 +119,15 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 | [`hw/arm/calypso/calypso_tint0.h`](sec3-01.html#f-hw-arm-calypso-calypso-tint0-h) | 51 | 1,8KB |
 | [`hw/arm/calypso/calypso_trf6151.h`](sec3-01.html#f-hw-arm-calypso-calypso-trf6151-h) | 34 | 1,6KB |
 | [`hw/arm/calypso/calypso_xio.h`](sec3-01.html#f-hw-arm-calypso-calypso-xio-h) | 20 | 671B |
+| [`include/hw/arm/calypso/calypso_asm4532.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-asm4532-h) | 46 | 2,0KB |
 | [`include/hw/arm/calypso/calypso_bsp.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-bsp-h) | 75 | 2,9KB |
 | [`include/hw/arm/calypso/calypso_debug.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-debug-h) | 115 | 5,0KB |
+| [`include/hw/arm/calypso/calypso_dsp_internal.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-dsp-internal-h) | 306 | 17KB |
+| [`include/hw/arm/calypso/calypso_gsm0502.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-gsm0502-h) | 60 | 2,1KB |
 | [`include/hw/arm/calypso/calypso_inth.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-inth-h) | 47 | 1,6KB |
 | [`include/hw/arm/calypso/calypso_invariants.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-invariants-h) | 9 | 415B |
 | [`include/hw/arm/calypso/calypso_iota.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-iota-h) | 48 | 1,8KB |
+| [`include/hw/arm/calypso/calypso_rf3166.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-rf3166-h) | 50 | 2,2KB |
 | [`include/hw/arm/calypso/calypso_sim.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-sim-h) | 51 | 1,7KB |
 | [`include/hw/arm/calypso/calypso_soc.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-soc-h) | 48 | 1,1KB |
 | [`include/hw/arm/calypso/calypso_spi.h`](sec3-01.html#f-include-hw-arm-calypso-calypso-spi-h) | 53 | 1,4KB |
@@ -152,36 +161,38 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 | [`diag/source_resolve_smem.c`](sec4-01.html#f-diag-source-resolve-smem-c) | 117 | 4,7KB |
 | [`hw/arm/calypso/calypso_arm2dsp.c`](sec4-01.html#f-hw-arm-calypso-calypso-arm2dsp-c) | 348 | 19KB |
 | [`hw/arm/calypso/calypso_asm4532.c`](sec4-01.html#f-hw-arm-calypso-calypso-asm4532-c) | 77 | 3,1KB |
-| [`hw/arm/calypso/calypso_bsp.c`](sec4-01.html#f-hw-arm-calypso-calypso-bsp-c) | 2265 | 110KB |
-| [`hw/arm/calypso/calypso_c54x.c`](sec4-02.html#f-hw-arm-calypso-calypso-c54x-c) | 19796 | 1,1MB |
+| [`hw/arm/calypso/calypso_bsp.c`](sec4-01.html#f-hw-arm-calypso-calypso-bsp-c) | 2319 | 113KB |
+| [`hw/arm/calypso/calypso_c54x.c`](sec4-02.html#f-hw-arm-calypso-calypso-c54x-c) | 21296 | 1,2MB |
+| [`hw/arm/calypso/calypso_c54x_trace.c`](sec4-03.html#f-hw-arm-calypso-calypso-c54x-trace-c) | 1017 | 44KB |
 | [`hw/arm/calypso/calypso_dbg.c`](sec4-03.html#f-hw-arm-calypso-calypso-dbg-c) | 98 | 2,8KB |
 | [`hw/arm/calypso/calypso_debug.c`](sec4-03.html#f-hw-arm-calypso-calypso-debug-c) | 147 | 4,8KB |
 | [`hw/arm/calypso/calypso_dma.c`](sec4-03.html#f-hw-arm-calypso-calypso-dma-c) | 193 | 6,6KB |
-| [`hw/arm/calypso/calypso_dsp_helper.c`](sec4-03.html#f-hw-arm-calypso-calypso-dsp-helper-c) | 947 | 53KB |
-| [`hw/arm/calypso/calypso_dsp_shunt.c`](sec4-03.html#f-hw-arm-calypso-calypso-dsp-shunt-c) | 4379 | 240KB |
+| [`hw/arm/calypso/calypso_dsp_helper.c`](sec4-03.html#f-hw-arm-calypso-calypso-dsp-helper-c) | 966 | 54KB |
+| [`hw/arm/calypso/calypso_dsp_legit.c`](sec4-03.html#f-hw-arm-calypso-calypso-dsp-legit-c) | 210 | 12KB |
+| [`hw/arm/calypso/calypso_dsp_shunt.c`](sec4-03.html#f-hw-arm-calypso-calypso-dsp-shunt-c) | 4662 | 256KB |
 | [`hw/arm/calypso/calypso_fbsb.c`](sec4-03.html#f-hw-arm-calypso-calypso-fbsb-c) | 177 | 7,7KB |
 | [`hw/arm/calypso/calypso_full_pcb.c`](sec4-03.html#f-hw-arm-calypso-calypso-full-pcb-c) | 210 | 6,5KB |
 | [`hw/arm/calypso/calypso_invariants.c`](sec4-03.html#f-hw-arm-calypso-calypso-invariants-c) | 93 | 2,8KB |
-| [`hw/arm/calypso/calypso_iota.c`](sec4-03.html#f-hw-arm-calypso-calypso-iota-c) | 101 | 3,4KB |
-| [`hw/arm/calypso/calypso_layer1.c`](sec4-03.html#f-hw-arm-calypso-calypso-layer1-c) | 181 | 7,7KB |
-| [`hw/arm/calypso/calypso_mailbox.c`](sec4-03.html#f-hw-arm-calypso-calypso-mailbox-c) | 309 | 12KB |
+| [`hw/arm/calypso/calypso_iota.c`](sec4-04.html#f-hw-arm-calypso-calypso-iota-c) | 101 | 3,4KB |
+| [`hw/arm/calypso/calypso_layer1.c`](sec4-04.html#f-hw-arm-calypso-calypso-layer1-c) | 181 | 7,7KB |
+| [`hw/arm/calypso/calypso_mailbox.c`](sec4-04.html#f-hw-arm-calypso-calypso-mailbox-c) | 377 | 14KB |
 | [`hw/arm/calypso/calypso_mb.c`](sec4-04.html#f-hw-arm-calypso-calypso-mb-c) | 353 | 15KB |
 | [`hw/arm/calypso/calypso_rf3166.c`](sec4-04.html#f-hw-arm-calypso-calypso-rf3166-c) | 80 | 2,5KB |
-| [`hw/arm/calypso/calypso_rhea_dma.c`](sec4-04.html#f-hw-arm-calypso-calypso-rhea-dma-c) | 659 | 32KB |
+| [`hw/arm/calypso/calypso_rhea_dma.c`](sec4-04.html#f-hw-arm-calypso-calypso-rhea-dma-c) | 689 | 34KB |
 | [`hw/arm/calypso/calypso_rif.c`](sec4-04.html#f-hw-arm-calypso-calypso-rif-c) | 481 | 21KB |
 | [`hw/arm/calypso/calypso_sim.c`](sec4-04.html#f-hw-arm-calypso-calypso-sim-c) | 794 | 31KB |
 | [`hw/arm/calypso/calypso_soc.c`](sec4-04.html#f-hw-arm-calypso-calypso-soc-c) | 454 | 19KB |
 | [`hw/arm/calypso/calypso_tint0.c`](sec4-04.html#f-hw-arm-calypso-calypso-tint0-c) | 134 | 4,2KB |
 | [`hw/arm/calypso/calypso_tpu.c`](sec4-04.html#f-hw-arm-calypso-calypso-tpu-c) | 349 | 17KB |
 | [`hw/arm/calypso/calypso_trf6151.c`](sec4-04.html#f-hw-arm-calypso-calypso-trf6151-c) | 101 | 3,5KB |
-| [`hw/arm/calypso/calypso_trx.c`](sec4-04.html#f-hw-arm-calypso-calypso-trx-c) | 2454 | 120KB |
+| [`hw/arm/calypso/calypso_trx.c`](sec4-04.html#f-hw-arm-calypso-calypso-trx-c) | 2485 | 121KB |
 | [`hw/arm/calypso/calypso_tsp.c`](sec4-04.html#f-hw-arm-calypso-calypso-tsp-c) | 134 | 5,8KB |
-| [`hw/arm/calypso/calypso_twl3025.c`](sec4-04.html#f-hw-arm-calypso-calypso-twl3025-c) | 232 | 11KB |
+| [`hw/arm/calypso/calypso_twl3025.c`](sec4-04.html#f-hw-arm-calypso-calypso-twl3025-c) | 258 | 13KB |
 | [`hw/arm/calypso/calypso_xio.c`](sec4-04.html#f-hw-arm-calypso-calypso-xio-c) | 206 | 8,6KB |
 | [`hw/arm/calypso/doc/opcodes/tic54x-opc.c`](sec4-04.html#f-hw-arm-calypso-doc-opcodes-tic54x-opc-c) | 496 | 26KB |
 | [`hw/arm/calypso/fw_console.c`](sec4-04.html#f-hw-arm-calypso-fw-console-c) | 81 | 2,7KB |
 | [`hw/arm/calypso/l1ctl_sock.c`](sec4-04.html#f-hw-arm-calypso-l1ctl-sock-c) | 710 | 31KB |
-| [`hw/arm/calypso/sercomm_gate.c`](sec4-05.html#f-hw-arm-calypso-sercomm-gate-c) | 268 | 9,6KB |
+| [`hw/arm/calypso/sercomm_gate.c`](sec4-04.html#f-hw-arm-calypso-sercomm-gate-c) | 268 | 9,6KB |
 | [`hw/char/calypso_uart.c`](sec4-05.html#f-hw-char-calypso-uart-c) | 925 | 30KB |
 | [`hw/intc/calypso_inth.c`](sec4-05.html#f-hw-intc-calypso-inth-c) | 386 | 15KB |
 | [`hw/ssi/calypso_i2c.c`](sec4-05.html#f-hw-ssi-calypso-i2c-c) | 69 | 1,8KB |
@@ -191,7 +202,7 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 | [`tools/calypso-ipc-device/ipc_chan.c`](sec4-05.html#f-tools-calypso-ipc-device-ipc-chan-c) | 254 | 6,2KB |
 | [`tools/calypso-ipc-device/ipc_shm.c`](sec4-05.html#f-tools-calypso-ipc-device-ipc-shm-c) | 200 | 5,6KB |
 | [`tools/calypso-ipc-device/ipc_sock.c`](sec4-05.html#f-tools-calypso-ipc-device-ipc-sock-c) | 266 | 6,2KB |
-| [`tools/calypso-ipc-device/qemu_wrap.c`](sec4-05.html#f-tools-calypso-ipc-device-qemu-wrap-c) | 2887 | 153KB |
+| [`tools/calypso-ipc-device/qemu_wrap.c`](sec4-05.html#f-tools-calypso-ipc-device-qemu-wrap-c) | 2867 | 150KB |
 | [`tools/calypso-ipc-device/_ref_ipc-driver-test.c`](sec4-05.html#f-tools-calypso-ipc-device-ref-ipc-driver-test-c) | 492 | 13KB |
 | [`tools/calypso-ipc-device/_ref_uhdwrap.cpp`](sec4-05.html#f-tools-calypso-ipc-device-ref-uhdwrap-cpp) | 255 | 7,5KB |
 | [`tools/calypso-ipc-device/shm.c`](sec4-05.html#f-tools-calypso-ipc-device-shm-c) | 149 | 6,0KB |
@@ -210,7 +221,7 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 | [`opt-gsm-scripts/gsm_sniff.py`](sec5-01.html#f-opt-gsm-scripts-gsm-sniff-py) | 129 | 5,4KB |
 | [`opt-gsm-scripts/gsmtap_relay.py`](sec5-01.html#f-opt-gsm-scripts-gsmtap-relay-py) | 14 | 633B |
 | [`opt-gsm-scripts/record_drain.py`](sec5-01.html#f-opt-gsm-scripts-record-drain-py) | 119 | 5,6KB |
-| [`opt-gsm-scripts/si_bridge.py`](sec5-01.html#f-opt-gsm-scripts-si-bridge-py) | 565 | 28KB |
+| [`opt-gsm-scripts/si_bridge.py`](sec5-01.html#f-opt-gsm-scripts-si-bridge-py) | 670 | 33KB |
 | [`python_scripts/abstract.py`](sec5-01.html#f-python-scripts-abstract-py) | 344 | 12KB |
 | [`python_scripts/air_burst_player.py`](sec5-01.html#f-python-scripts-air-burst-player-py) | 111 | 3,5KB |
 | [`python_scripts/analyze_api_rx.py`](sec5-01.html#f-python-scripts-analyze-api-rx-py) | 94 | 3,9KB |
@@ -238,11 +249,11 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 | [`python_scripts/sercomm_relay.py`](sec5-01.html#f-python-scripts-sercomm-relay-py) | 475 | 14KB |
 | [`python_scripts/sercomm_udp.py`](sec5-01.html#f-python-scripts-sercomm-udp-py) | 227 | 8,8KB |
 | [`python_scripts/si_bridge.py`](sec5-01.html#f-python-scripts-si-bridge-py) | 389 | 19KB |
-| [`python_scripts/verify_si_inject.py`](sec5-02.html#f-python-scripts-verify-si-inject-py) | 197 | 7,1KB |
-| [`scripts/inject_fb.py`](sec5-02.html#f-scripts-inject-fb-py) | 90 | 2,9KB |
-| [`scripts/make_dsp_bin_L1.py`](sec5-02.html#f-scripts-make-dsp-bin-l1-py) | 233 | 8,5KB |
-| [`scripts/replay_pm_payload.py`](sec5-02.html#f-scripts-replay-pm-payload-py) | 211 | 6,6KB |
-| [`tools/calypso-ipc-device/tch_dl_inject.py`](sec5-02.html#f-tools-calypso-ipc-device-tch-dl-inject-py) | 49 | 2,1KB |
+| [`python_scripts/verify_si_inject.py`](sec5-01.html#f-python-scripts-verify-si-inject-py) | 197 | 7,1KB |
+| [`scripts/inject_fb.py`](sec5-01.html#f-scripts-inject-fb-py) | 90 | 2,9KB |
+| [`scripts/make_dsp_bin_L1.py`](sec5-01.html#f-scripts-make-dsp-bin-l1-py) | 233 | 8,5KB |
+| [`scripts/replay_pm_payload.py`](sec5-01.html#f-scripts-replay-pm-payload-py) | 211 | 6,6KB |
+| [`tools/calypso-ipc-device/tch_dl_inject.py`](sec5-01.html#f-tools-calypso-ipc-device-tch-dl-inject-py) | 49 | 2,1KB |
 | [`tools/corr_iq.py`](sec5-02.html#f-tools-corr-iq-py) | 399 | 20KB |
 | [`tools/doppler.py`](sec5-02.html#f-tools-doppler-py) | 157 | 5,3KB |
 | [`tools/dsp_txt2bin.py`](sec5-02.html#f-tools-dsp-txt2bin-py) | 156 | 5,5KB |
@@ -264,7 +275,7 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 
 | Fichier | Lignes | Taille |
 |:---|---:|---:|
-| [`full-qmd.sh`](sec6-01.html#f-full-qmd-sh) | 549 | 19KB |
+| [`full_qmd.sh`](sec6-01.html#f-full-qmd-sh) | 596 | 21KB |
 | [`full_text.sh`](sec6-01.html#f-full-text-sh) | 166 | 5,9KB |
 | [`make-overlay.sh`](sec6-01.html#f-make-overlay-sh) | 138 | 7,0KB |
 | [`opt-gsm-scripts/burst.sh`](sec6-01.html#f-opt-gsm-scripts-burst-sh) | 7 | 383B |
@@ -281,16 +292,16 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 | [`run_modules/06-pipeline.sh`](sec6-01.html#f-run-modules-06-pipeline-sh) | 206 | 11KB |
 | [`run_modules/07-coherence.sh`](sec6-01.html#f-run-modules-07-coherence-sh) | 188 | 9,8KB |
 | [`run_modules/08-accel.sh`](sec6-01.html#f-run-modules-08-accel-sh) | 151 | 6,7KB |
-| [`run_modules/08-gabarits.sh`](sec6-01.html#f-run-modules-08-gabarits-sh) | 177 | 8,6KB |
+| [`run_modules/08-gabarits.sh`](sec6-01.html#f-run-modules-08-gabarits-sh) | 185 | 9,0KB |
 | [`run_modules/09-logs.sh`](sec6-01.html#f-run-modules-09-logs-sh) | 244 | 12KB |
-| [`run_modules/09-teardown.sh`](sec6-01.html#f-run-modules-09-teardown-sh) | 208 | 8,5KB |
+| [`run_modules/09-teardown.sh`](sec6-01.html#f-run-modules-09-teardown-sh) | 272 | 13KB |
 | [`run_modules/10-reseau.sh`](sec6-01.html#f-run-modules-10-reseau-sh) | 164 | 7,2KB |
 | [`run_modules/10-stp.sh`](sec6-01.html#f-run-modules-10-stp-sh) | 77 | 3,7KB |
 | [`run_modules/11-hlr.sh`](sec6-01.html#f-run-modules-11-hlr-sh) | 79 | 3,7KB |
 | [`run_modules/12-mgw.sh`](sec6-01.html#f-run-modules-12-mgw-sh) | 73 | 3,3KB |
 | [`run_modules/12-netns.sh`](sec6-01.html#f-run-modules-12-netns-sh) | 185 | 8,1KB |
 | [`run_modules/13-msc.sh`](sec6-01.html#f-run-modules-13-msc-sh) | 87 | 4,0KB |
-| [`run_modules/13-sidecar-cfg.sh`](sec6-01.html#f-run-modules-13-sidecar-cfg-sh) | 129 | 5,5KB |
+| [`run_modules/13-sidecar-cfg.sh`](sec6-01.html#f-run-modules-13-sidecar-cfg-sh) | 136 | 5,8KB |
 | [`run_modules/14-bsc.sh`](sec6-01.html#f-run-modules-14-bsc-sh) | 94 | 4,4KB |
 | [`run_modules/15-apn0.sh`](sec6-01.html#f-run-modules-15-apn0-sh) | 66 | 3,2KB |
 | [`run_modules/15-dsp-roms.sh`](sec6-01.html#f-run-modules-15-dsp-roms-sh) | 245 | 12KB |
@@ -309,24 +320,24 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 | [`run_modules/30-core.sh`](sec6-01.html#f-run-modules-30-core-sh) | 179 | 8,7KB |
 | [`run_modules/31-hlr-feed.sh`](sec6-01.html#f-run-modules-31-hlr-feed-sh) | 147 | 6,8KB |
 | [`run_modules/35-tmux.sh`](sec6-01.html#f-run-modules-35-tmux-sh) | 116 | 5,5KB |
-| [`run_modules/40-qemu.sh`](sec6-01.html#f-run-modules-40-qemu-sh) | 239 | 12KB |
+| [`run_modules/40-qemu.sh`](sec6-01.html#f-run-modules-40-qemu-sh) | 289 | 15KB |
 | [`run_modules/41-pty.sh`](sec6-01.html#f-run-modules-41-pty-sh) | 140 | 6,7KB |
 | [`run_modules/42-irda.sh`](sec6-01.html#f-run-modules-42-irda-sh) | 93 | 4,1KB |
 | [`run_modules/43-mailbox-dissam.sh`](sec6-01.html#f-run-modules-43-mailbox-dissam-sh) | 121 | 5,5KB |
-| [`run_modules/50-osmocon.sh`](sec6-01.html#f-run-modules-50-osmocon-sh) | 131 | 6,6KB |
+| [`run_modules/50-osmocon.sh`](sec6-01.html#f-run-modules-50-osmocon-sh) | 132 | 6,8KB |
 | [`run_modules/55-ipc-device.sh`](sec6-01.html#f-run-modules-55-ipc-device-sh) | 151 | 8,3KB |
 | [`run_modules/56-trx-ipc.sh`](sec6-01.html#f-run-modules-56-trx-ipc-sh) | 153 | 7,4KB |
 | [`run_modules/57-bridge-py.sh`](sec6-01.html#f-run-modules-57-bridge-py-sh) | 99 | 4,7KB |
 | [`run_modules/58-sidecar-faketrx.sh`](sec6-01.html#f-run-modules-58-sidecar-faketrx-sh) | 74 | 3,2KB |
 | [`run_modules/59-sidecar-bts.sh`](sec6-01.html#f-run-modules-59-sidecar-bts-sh) | 88 | 3,7KB |
 | [`run_modules/60-bts.sh`](sec6-01.html#f-run-modules-60-bts-sh) | 140 | 6,3KB |
-| [`run_modules/60-fake-trx.sh`](sec6-02.html#f-run-modules-60-fake-trx-sh) | 106 | 4,3KB |
-| [`run_modules/61-osmo-trx.sh`](sec6-02.html#f-run-modules-61-osmo-trx-sh) | 122 | 5,6KB |
-| [`run_modules/62-demod-bridge.sh`](sec6-02.html#f-run-modules-62-demod-bridge-sh) | 123 | 5,9KB |
-| [`run_modules/62-osmo-bts-trx.sh`](sec6-02.html#f-run-modules-62-osmo-bts-trx-sh) | 139 | 6,5KB |
-| [`run_modules/63-osmo-bts-virtual.sh`](sec6-02.html#f-run-modules-63-osmo-bts-virtual-sh) | 106 | 4,8KB |
-| [`run_modules/64-trxcon.sh`](sec6-02.html#f-run-modules-64-trxcon-sh) | 112 | 4,2KB |
-| [`run_modules/65-record-drain.sh`](sec6-02.html#f-run-modules-65-record-drain-sh) | 134 | 6,3KB |
+| [`run_modules/60-fake-trx.sh`](sec6-01.html#f-run-modules-60-fake-trx-sh) | 106 | 4,3KB |
+| [`run_modules/61-osmo-trx.sh`](sec6-01.html#f-run-modules-61-osmo-trx-sh) | 122 | 5,6KB |
+| [`run_modules/62-demod-bridge.sh`](sec6-01.html#f-run-modules-62-demod-bridge-sh) | 123 | 5,9KB |
+| [`run_modules/62-osmo-bts-trx.sh`](sec6-01.html#f-run-modules-62-osmo-bts-trx-sh) | 139 | 6,5KB |
+| [`run_modules/63-osmo-bts-virtual.sh`](sec6-01.html#f-run-modules-63-osmo-bts-virtual-sh) | 106 | 4,8KB |
+| [`run_modules/64-trxcon.sh`](sec6-01.html#f-run-modules-64-trxcon-sh) | 112 | 4,2KB |
+| [`run_modules/65-record-drain.sh`](sec6-01.html#f-run-modules-65-record-drain-sh) | 134 | 6,3KB |
 | [`run_modules/65-virtphy.sh`](sec6-02.html#f-run-modules-65-virtphy-sh) | 108 | 3,9KB |
 | [`run_modules/66-grgsm-decode.sh`](sec6-02.html#f-run-modules-66-grgsm-decode-sh) | 150 | 7,2KB |
 | [`run_modules/66-mobile.sh`](sec6-02.html#f-run-modules-66-mobile-sh) | 166 | 7,4KB |
@@ -334,7 +345,7 @@ Scope `.` - git `main@a17c193` - genere 2026-08-14T11:07:59+02:00
 | [`run_modules/68-sidecar-mobile.sh`](sec6-02.html#f-run-modules-68-sidecar-mobile-sh) | 82 | 4,0KB |
 | [`run_modules/70-l2.sh`](sec6-02.html#f-run-modules-70-l2-sh) | 250 | 13KB |
 | [`run_modules/75-gsmtap.sh`](sec6-02.html#f-run-modules-75-gsmtap-sh) | 107 | 4,8KB |
-| [`run_modules/80-panes.sh`](sec6-02.html#f-run-modules-80-panes-sh) | 141 | 6,9KB |
+| [`run_modules/80-panes.sh`](sec6-02.html#f-run-modules-80-panes-sh) | 143 | 7,1KB |
 | [`run_modules/85-gen-doc.sh`](sec6-02.html#f-run-modules-85-gen-doc-sh) | 139 | 6,2KB |
 | [`run_modules/90-gdb.sh`](sec6-02.html#f-run-modules-90-gdb-sh) | 131 | 5,7KB |
 | [`run_modules/95-summary.sh`](sec6-02.html#f-run-modules-95-summary-sh) | 118 | 6,1KB |

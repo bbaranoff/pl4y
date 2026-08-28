@@ -3,13 +3,13 @@ title: "6 - Shell"
 ---
 
 
-## `full-qmd.sh` {#f-full-qmd-sh}
+## `full_qmd.sh` {#f-full-qmd-sh}
 
 ::: {.file-meta}
-[.sh]{.tag} 549 lignes - 19KB
+[.sh]{.tag} 596 lignes - 21KB
 :::
 
-```{.bash .numberLines filename="full-qmd.sh"}
+```{.bash .numberLines filename="full_qmd.sh"}
 #!/bin/bash
 # full_qmd.sh - Bundle du depot en Quarto : doc + tests + .h + .c + .py + .sh,
 # chaque fichier dans un bloc code type, theme "sketchy".
@@ -23,24 +23,41 @@ title: "6 - Shell"
 #                          recherche plein-texte integree, index global.
 #
 # Usage :
-#   MODE=site ./full_qmd.sh              # -> ./calypso-qmd/ puis quarto render
-#   ./full_qmd.sh                        # -> ./calypso-full.qmd
-#   ./full_qmd.sh out.qmd                # custom output (mode single)
+# TOUT EST ECRIT DANS UN SEUL DOSSIER ($OUTDIR, par defaut ./bundle-qmd/) :
+# le .qmd, sketchy.css, sk-filter.html, et le rendu quarto. Le depot reste
+# propre, et une seconde execution ne rescanne pas sa propre sortie.
+#
+# Usage :
+#   MODE=site ./full_qmd.sh              # -> ./bundle-qmd/ (multi-pages)
+#   ./full_qmd.sh                        # -> ./bundle-qmd/<depot>-full.qmd
+#   ./full_qmd.sh out.qmd                # chemin explicite (mode single)
+#   OUTDIR=/tmp/x ./full_qmd.sh          # ailleurs
+#   PL4Y_SECTION=calypso ./full_qmd.sh   # section pl4y.store visee
 #   SCOPE=hw/arm/calypso ./full_qmd.sh   # only this subdir
 #   EXCLUDE='build|pc-bios' ./full_qmd.sh
 #   MAX_KB=256 ./full_qmd.sh             # troncature par fichier
 #   SPLIT_KB=300 MODE=site ./full_qmd.sh # taille max d'une page
 #   EMBED=true ./full_qmd.sh             # html self-contained (risque de crash)
 #   RENDER_MERMAID=0 ./full_qmd.sh       # .mmd en code au lieu de diagramme
-#   RENDER=1 ./full_qmd.sh               # enchaine quarto render
+#   RENDER=0 MODE=site ./full_qmd.sh     # sources .qmd seules, sans rendu
 
 set -uo pipefail
 
 case "${1:-}" in -h|--help) sed -n '2,30p' "$0"; exit 0;; esac
 
 MODE="${MODE:-single}"
-OUT="${1:-./calypso-full.qmd}"
-OUTDIR="${OUTDIR:-./calypso-qmd}"
+# Dossier unique de sortie, pour les DEUX modes. Le mode single ecrivait avant
+# a la racine du depot (calypso-full.qmd + sketchy.css + sk-filter.html, puis
+# calypso-full.html et calypso-full_files/ au rendu) : quatre artefacts laches
+# dans le depot, que la passe suivante rescannait comme des sources.
+# Nom derive du depot (osmo_egprs -> ./osmo_egprs-qmd) : les bundles de deux
+# depots differents peuvent ainsi etre deposes cote a cote sans collision.
+OUTDIR="${OUTDIR:-./$(basename "$(cd "$(dirname "$0")" && pwd)")-qmd}"
+# Section pl4y.store visee par ce bundle : ecrite dans .pl4y-section a la racine
+# du dossier de sortie. build.mjs (dans pl4y) la lit pour savoir sous quelle URL
+# publier, plutot que de deviner d'apres le nom du dossier.
+PL4Y_SECTION="${PL4Y_SECTION:-}"
+OUT="${1:-}"
 SCOPE="${SCOPE:-.}"
 TITLE="${TITLE:-Calypso QEMU}"
 SUBTITLE="${SUBTITLE:-Full source bundle - DSP C54x / osmocom-bb / SHUNT_LEGIT}"
@@ -48,13 +65,38 @@ MAX_KB="${MAX_KB:-512}"
 SPLIT_KB="${SPLIT_KB:-400}"
 RENDER_MERMAID="${RENDER_MERMAID:-1}"
 EMBED="${EMBED:-false}"
-RENDER="${RENDER:-0}"
+# En mode site on rend par defaut : le dossier produit est alors DIRECTEMENT
+# deposable dans pl4y/bundles/ (il contient _site/, du HTML). Sans rendu, ce
+# n'est qu'un projet Quarto, que rien en aval ne sait publier.
+# RENDER=0 pour ne generer que les sources .qmd.
+if [ "$MODE" = "site" ]; then RENDER="${RENDER:-1}"; else RENDER="${RENDER:-0}"; fi
 EXCLUDE_RE="${EXCLUDE:-subprojects|build|pc-bios|tests/functional|tests/qtest|tests/unit|tests/migration|tests/qemu-iotests|node_modules|\.git|\.pytest_cache}"
-
-if [ -d "$OUT" ]; then OUT="${OUT%/}/calypso-full.qmd"; fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
+
+# Le dossier existe avant toute chose : les deux modes ecrivent dedans.
+mkdir -p "$OUTDIR" || { echo "ERROR: mkdir '$OUTDIR'" >&2; exit 1; }
+OUTDIR="$(cd "$OUTDIR" && pwd)"
+
+# Slug de section : explicite via PL4Y_SECTION, sinon derive du depot.
+# qemu-calypso est publie sous /calypso/ — d'ou la seule correspondance
+# particuliere.
+if [ -z "$PL4Y_SECTION" ]; then
+    case "$(basename "$HERE")" in
+        qemu-calypso) PL4Y_SECTION="calypso" ;;
+        *)            PL4Y_SECTION="$(basename "$HERE")" ;;
+    esac
+fi
+printf '%s\n' "$PL4Y_SECTION" > "$OUTDIR/.pl4y-section"
+
+# Sans argument, le .qmd va dans $OUTDIR. Un argument explicite reste
+# respecte : `./full_qmd.sh /tmp/x.qmd` ecrit bien la (et son css/js a cote).
+if [ -z "$OUT" ]; then
+    OUT="$OUTDIR/$(basename "$HERE")-full.qmd"
+elif [ -d "$OUT" ]; then
+    OUT="${OUT%/}/$(basename "$HERE")-full.qmd"
+fi
 
 MAXB=$(( MAX_KB * 1024 ))
 SPLITB=$(( SPLIT_KB * 1024 ))
@@ -69,14 +111,19 @@ NOW="$(date -Iseconds)"
 SELF_FIXED=""      # fichier a exclure du scan (mode single)
 SELF_PREFIX=""     # prefixe de dossier a exclure (mode site)
 
+# $OUTDIR est exclu du scan dans LES DEUX modes. Auparavant le mode single
+# n'excluait que le .qmd lui-meme : sketchy.css, sk-filter.html et le
+# repertoire *_files/ du rendu precedent etaient reavales comme des sources a
+# chaque execution, et le bundle grossissait a chaque passe.
+SELF_PREFIX="${OUTDIR#"$HERE"/}/"
+[ "$SELF_PREFIX" = "$OUTDIR/" ] && SELF_PREFIX=""   # $OUTDIR hors du depot
+
 if [ "$MODE" = "site" ]; then
-    mkdir -p "$OUTDIR" || { echo "ERROR: mkdir '$OUTDIR'" >&2; exit 1; }
-    OUTDIR="$(cd "$OUTDIR" && pwd)"
-    SELF_PREFIX="${OUTDIR#"$HERE"/}/"
     DEST=""
 else
+    mkdir -p "$(dirname "$OUT")" || { echo "ERROR: mkdir pour '$OUT'" >&2; exit 1; }
     : > "$OUT" || { echo "ERROR: cannot write '$OUT'" >&2; exit 1; }
-    OUT_ABS="$(cd "$(dirname "$OUT")" 2>/dev/null && pwd)/$(basename "$OUT")"
+    OUT_ABS="$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")"
     SELF_FIXED="${OUT_ABS#"$HERE"/}"
     DEST="$OUT"
 fi
@@ -543,8 +590,8 @@ if [ "$MODE" = "site" ]; then
     echo "Preview: (cd \"$OUTDIR\" && quarto preview)"
 else
     echo "Output : $OUT ($(du -h "$OUT" | cut -f1), $(wc -l < "$OUT") lignes)"
-    echo "         + sketchy.css + sk-filter.html a cote"
-    echo "Rendu  : quarto render \"$OUT\""
+    echo "         + sketchy.css + sk-filter.html dans $(dirname "$OUT")/"
+    echo "Rendu  : quarto render \"$OUT\"   (sortie dans $(dirname "$OUT")/)"
     if [ "$(wc -c < "$OUT")" -gt 1500000 ]; then
         echo
         echo "!! $(du -h "$OUT" | cut -f1) dans un seul document : Deno risque de casser"
@@ -2412,7 +2459,7 @@ mod_accel_stop() { return 0; }
 ## `run_modules/08-gabarits.sh` {#f-run-modules-08-gabarits-sh}
 
 ::: {.file-meta}
-[.sh]{.tag} 177 lignes - 8,6KB
+[.sh]{.tag} 185 lignes - 9,0KB
 :::
 
 ```{.bash .numberLines filename="run_modules/08-gabarits.sh"}
@@ -2579,13 +2626,21 @@ mod_gabarits_wait() {
 
     # Le chiffrement demandé est-il VRAIMENT dans la configuration posée ?
     # C'est le point 1 du POURQUOI : la panne silencieuse à supprimer.
-    local bsc="${OSMOCOM_CFG:-/etc/osmocom}/osmo-bsc.cfg"
-    if grep -q '__ENCRYPTION__' "$bsc" 2>/dev/null || ! grep -qF "$ENCRYPTION" "$bsc" 2>/dev/null; then
-        mod_hint "attendu « $ENCRYPTION » dans $bsc ; vérifiez que le gabarit porte bien __ENCRYPTION__"
-        mod_fail "le chiffrement demandé n'est pas dans la configuration installée"
-        return $MOD_RC_FAIL
-    fi
-    mod_say "chiffrement « $ENCRYPTION » confirmé dans $bsc"
+    # [2026-08-14] On contrôle DÉSORMAIS osmo-bsc.cfg ET osmo-msc.cfg. Le gabarit
+    # MSC porte lui aussi « encryption __ENCRYPTION__ » (ligne 155) : sa
+    # substitution était réelle mais NON contrôlée — un gabarit MSC cassé serait
+    # passé en silence, et en A5/1 c'est le MSC qui décide d'authentifier. Une
+    # panne silencieuse de moins avant la bascule.
+    local cfg
+    for cfg in "${OSMOCOM_CFG:-/etc/osmocom}/osmo-bsc.cfg" \
+               "${OSMOCOM_CFG:-/etc/osmocom}/osmo-msc.cfg"; do
+        if grep -q '__ENCRYPTION__' "$cfg" 2>/dev/null || ! grep -qF "$ENCRYPTION" "$cfg" 2>/dev/null; then
+            mod_hint "attendu « $ENCRYPTION » dans $cfg ; vérifiez que le gabarit porte bien __ENCRYPTION__"
+            mod_fail "le chiffrement demandé n'est pas dans la configuration installée ($cfg)"
+            return $MOD_RC_FAIL
+        fi
+        mod_say "chiffrement « $ENCRYPTION » confirmé dans $cfg"
+    done
     mod_ok
 }
 
@@ -2853,7 +2908,7 @@ mod_logs_stop() {
 ## `run_modules/09-teardown.sh` {#f-run-modules-09-teardown-sh}
 
 ::: {.file-meta}
-[.sh]{.tag} 208 lignes - 8,5KB
+[.sh]{.tag} 272 lignes - 13KB
 :::
 
 ```{.bash .numberLines filename="run_modules/09-teardown.sh"}
@@ -2911,6 +2966,17 @@ MOD_TIMEOUT[teardown]=25
 #   x:<nom>      correspondance EXACTE sur le nom (pgrep/pkill -x) — pour les
 #                noms courts et communs (« mobile ») qu'un -f ferait sur-matcher.
 #   f:<motif>    correspondance sur la ligne de commande (pgrep/pkill -f).
+# [2026-08-16] `f:pont/pont.py` AJOUTE. Le mode CALYPSO_BRIDGE=pont fait tourner
+# /opt/GSM/pont/pont.py, qui tient 5700-5702. `_td_ports` le DETECTAIT deja
+# (ces trois ports y sont listes) mais aucun motif ne le TUAIT : on detectait
+# sans executer, d'ou la boucle « restes apres 12 s : port:5700 port:5701
+# port:5702 — deuxieme passe » puis l'abandon de la sequence.
+# ⚠️ Le motif seul ne suffit PAS : start-direct.sh arme un relanceur DIFFERE
+# (`( sleep N; ... exec setsid python3 -u "$_PONT" ) &`). Si le teardown dure
+# plus longtemps que ce delai — c'est le cas des qu'il archive de gros
+# journaux — le pont se rebinde EN PLEIN teardown et la deuxieme passe le
+# retrouve. Le delai fixe a donc ete remplace, cote start-direct.sh, par une
+# attente d'osmo-bts-trx : le pont ne binde plus qu'une fois la pile debout.
 _td_patterns() {
     cat <<'EOF'
 f:qemu-system-arm
@@ -2928,6 +2994,7 @@ f:bin/grgsm_decode
 f:grgsm_cfile
 f:gsmtap_relay
 f:si_bridge
+f:pont/pont.py
 f:relay_continu
 f:record_drain
 f:inject.py
@@ -3014,6 +3081,45 @@ _td_kill_all() {
     return 0
 }
 
+# DERNIER RECOURS — tuer QUI TIENT LE PORT, quand aucun motif ne matche.
+#
+# POURQUOI. `_td_ports` DETECTE un port occupe, mais `_td_kill_all` ne frappe que
+# des motifs NOMINATIFS. Tout binaire lance sous un chemin non prevu est donc vu
+# et jamais tue — et c'est exactement la boucle « restes apres 12 s : port:5700
+# port:5701 port:5702 — deuxieme passe » qui faisait abandonner la sequence.
+# Le cas n'est pas theorique : start-direct.sh lit
+# `_PONT="${PONT_PY:-/opt/GSM/pont/pont.py}"`, et /opt/GSM/pont/ contient deja
+# plusieurs sauvegardes. Un `PONT_PY=...bak` passe a travers `f:pont/pont.py`
+# sans etre inquiete. Ce qu'on sait DETECTER, on doit savoir le TUER : sinon la
+# detection ne sert qu'a faire echouer le run.
+#
+# GARDE-FOUS. Jamais PID 1, jamais nous-memes, et on ANNONCE la ligne de commande
+# de la victime avant de frapper : un kill silencieux par numero de port serait
+# plus dangereux que le reste qu'il nettoie.
+_td_kill_ports() {
+    command -v ss >/dev/null 2>&1 || { mod_say "ss absent : passe par port impossible"; return 0; }
+    local p pid cmd busy=0 named=0
+    while IFS= read -r p; do
+        _td_port_busy "$p" || continue
+        busy=1
+        for pid in $(ss -lnp "sport = :$p" 2>/dev/null \
+                     | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u); do
+            named=1
+            [ "$pid" -gt 1 ] 2>/dev/null || continue
+            [ "$pid" = "$$" ] && continue
+            cmd=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)
+            mod_say "port $p tenu par PID $pid (${cmd:-cmdline illisible}) — kill -9"
+            kill -9 "$pid" 2>/dev/null
+        done
+    done < <(_td_ports)
+    # Une passe muette est indiscernable d'une passe absente : on dit POURQUOI
+    # elle n'a rien fait. Le `ss` de busybox n'a pas -p et ne rend aucun pid=.
+    if [ "$busy" = 1 ] && [ "$named" = 0 ]; then
+        mod_say "ports occupes mais ss n'a rendu aucun pid= (ss sans -p, ou proprietaire hors de notre namespace) — inspectez : ss -lnp"
+    fi
+    return 0
+}
+
 mod_teardown_start() {
     # --- 1. tmux (cf. POURQUOI 3) --------------------------------------------
     if [ -n "${TMUX:-}" ]; then
@@ -3032,6 +3138,15 @@ mod_teardown_start() {
     rm -f /tmp/osmocom_l2_* /tmp/irda.pty.link /tmp/irda_peer.pid 2>/dev/null
     rm -f /dev/shm/calypso_si.bin 2>/dev/null
     rm -f /dev/shm/calypso_kc 2>/dev/null            # cf. POURQUOI 4
+    # ⛔ NE PAS EFFACER /dev/shm/pont.log ICI — essaye le 16/08, REVERTE le jour
+    # meme. start-direct.sh ouvre la redirection `> /dev/shm/pont.log` AVANT de
+    # passer la main a run.sh : quand ce teardown s'execute, le lanceur differe
+    # du pont TIENT DEJA le descripteur. Un rm ne libere alors pas l'espace, il
+    # DELIE l'inode — le pont ecrit ensuite dans un fichier invisible
+    # (« /dev/shm/pont.log (deleted) » dans /proc/<pid>/fd/1) et le journal
+    # disparait entierement. C'est le piege deja documente pour LOG_DIR,
+    # transpose a /dev/shm. Le fichier n'a de toute facon pas besoin d'etre
+    # efface : la redirection `>` le TRONQUE a chaque demarrage.
     rm -f /tmp/relay_continu.cfile /tmp/record.cfile /tmp/record.cfile.off /tmp/record.cfile.ring 2>/dev/null
     if [ -n "${RECORD_FILE:-}" ]; then
         rm -f "$RECORD_FILE" "$RECORD_FILE.off" "$RECORD_FILE.ring" 2>/dev/null
@@ -3051,6 +3166,10 @@ mod_teardown_wait() {
     if wait_until "$half" "machine propre" _td_clean; then mod_ok; return $MOD_RC_OK; fi
     mod_say "restes après $half s : $(_td_leftovers) — deuxième passe"
     _td_kill_all
+    # Les motifs ont eu leur chance (une passe au start, une ici). Ce qui tient
+    # encore un port n'a PAS de motif : on le prend par le port. C'est la seule
+    # passe qu'un chemin inattendu ne peut pas mettre en defaut.
+    _td_kill_ports
     if wait_until "$half" "machine propre" _td_clean; then mod_ok; return $MOD_RC_OK; fi
     mod_hint "identifiez le tenace : pgrep -a -f <motif> ; ss -lnp | grep <port>"
     mod_fail "restes du run précédent : $(_td_leftovers)"
@@ -3796,7 +3915,7 @@ mod_msc_stop() { core_svc_stop "$MSC_UNIT" "osmo-msc -c"; }
 ## `run_modules/13-sidecar-cfg.sh` {#f-run-modules-13-sidecar-cfg-sh}
 
 ::: {.file-meta}
-[.sh]{.tag} 129 lignes - 5,5KB
+[.sh]{.tag} 136 lignes - 5,8KB
 :::
 
 ```{.bash .numberLines filename="run_modules/13-sidecar-cfg.sh"}
@@ -3863,7 +3982,7 @@ _sc_bts_block() {
   cell reselection hysteresis 4
   rxlev access min 0
   radio-link-timeout 32
-  channel allocator mode chan-req ascending
+  channel allocator mode chan-req descending
   channel allocator mode assignment ascending
   channel allocator mode handover ascending
   rach tx integer 9
@@ -3880,8 +3999,15 @@ _sc_bts_block() {
    max_power_red 0
    rsl e1 tei 0
 $(for t in 0 1 2 3 4 5 6 7; do
-    printf '   timeslot %s\n    phys_chan_config %s\n    hopping enabled 0\n' \
-           "$t" "$([ "$t" = 0 ] && echo 'CCCH+SDCCH4' || echo 'TCH/F')"
+    # TS0 = CCCH+SDCCH4 (4 SDCCH repliés), TS1 = SDCCH8 dédié (8 SDCCH de plus),
+    # TS2..7 = voix. Symétrique du BTS#0 : sans ce TS1, toute la signalisation
+    # du side-car tient dans les 4 sous-canaux du TS0.
+    case "$t" in
+      0) pchan='CCCH+SDCCH4' ;;
+      1) pchan="${SC_TS1_PCHAN:-SDCCH8}" ;;
+      *) pchan='TCH/F' ;;
+    esac
+    printf '   timeslot %s\n    phys_chan_config %s\n    hopping enabled 0\n' "$t" "$pchan"
   done)
 BLOC
 }
@@ -6196,7 +6322,7 @@ mod_tmux_stop() { tmux kill-session -t "$TMUX_SESSION" 2>/dev/null; return 0; }
 ## `run_modules/40-qemu.sh` {#f-run-modules-40-qemu-sh}
 
 ::: {.file-meta}
-[.sh]{.tag} 239 lignes - 12KB
+[.sh]{.tag} 289 lignes - 15KB
 :::
 
 ```{.bash .numberLines filename="run_modules/40-qemu.sh"}
@@ -6324,6 +6450,7 @@ _qemu_log_guard() {
 }
 
 mod_qemu_start() {
+    [ "${CALYPSO_BRIDGE:-}" = ipc ] && { mod_skip "CALYPSO_BRIDGE=ipc : MS#1 via osmo-trx-ms-ipc, firmware qemu non lance"; return $MOD_RC_SKIP; }
     local mach="calypso"
     mach="$mach,dsp-prom0=$DSP_PROM0,dsp-prom1=$DSP_PROM1,dsp-prom2=$DSP_PROM2"
     mach="$mach,dsp-prom3=$DSP_PROM3,dsp-drom=$DSP_DROM,dsp-pdrom=$DSP_PDROM"
@@ -6384,11 +6511,60 @@ mod_qemu_start() {
         mod_say "trace asm : -d ${CALYPSO_ASM_FLAGS:-in_asm} -> $asm_out (anneau ${asm_mo} Mo)"
     fi
 
-    "$QEMU_BIN" -M "$mach" -cpu arm946 \
-        "${xflags[@]}" "${dflags[@]}" $gdbflag -serial pty -serial pty \
-        -monitor "unix:${RUN_DIR}/qemu-monitor.sock,server,nowait" \
-        -kernel "$FIRMWARE_ELF" >>"$qlog" 2>&1 &
-    local qpid=$!
+    # [2026-08-22] CALYPSO_HOSTGDB=1 : QEMU sous gdbserver, inspectable a chaud.
+    #   /!\ gdb de l HOTE, a ne pas confondre avec $gdbflag = gdbstub INVITE
+    #   (celui qui debogue l ARM emule). Ici on debogue le MODELE lui-meme.
+    #   Pourquoi gdbserver lance QEMU : `gdb -p` et `gdbserver --attach` echouent,
+    #   cap_sys_ptrace est retire du conteneur et ptrace_scope=1 n autorise qu un
+    #   parent a tracer son fils. `--multi` a ete ecarte apres essai : il ne
+    #   transmet pas les arguments a l inferieur.
+    #   /!\ `interrupt` FIGE QEMU : reserve aux structures qui PERSISTENT
+    #   (tampons, tables), jamais a une acquisition en cours.
+    local qpid=""
+    if [ "${CALYPSO_HOSTGDB:-0}" = "1" ]; then
+        local gport="${CALYPSO_HOSTGDB_PORT:-9997}"
+        local gin="${RUN_DIR}/gdb.in" gout="${LOG_DIR}/gdb.log"
+        rm -f "$gin"; mkfifo "$gin" || { mod_fail "mkfifo $gin"; return $MOD_RC_FAIL; }
+        gdbserver --no-startup-with-shell ":$gport" \
+            "$QEMU_BIN" -M "$mach" -cpu arm946 \
+            "${xflags[@]}" "${dflags[@]}" $gdbflag -serial pty -serial pty \
+            -monitor "unix:${RUN_DIR}/qemu-monitor.sock,server,nowait" \
+            -kernel "$FIRMWARE_ELF" >>"$qlog" 2>&1 &
+        local gspid=$!
+        printf '%s\n' "$gspid" > "${RUN_DIR}/gdbserver.pid"
+        # le vrai pid de QEMU : les barrieres en aval et les controles
+        # /proc/<pid>/exe doivent designer QEMU, pas gdbserver.
+        local _i=0
+        while [ "$_i" -lt 150 ]; do
+            qpid="$(pgrep -P "$gspid" -x qemu-system-arm 2>/dev/null | head -1)"
+            [ -n "$qpid" ] && break
+            kill -0 "$gspid" 2>/dev/null || break
+            sleep 0.1; _i=$((_i + 1))
+        done
+        if [ -z "$qpid" ]; then
+            mod_hint "regardez $qlog : gdbserver n a pas cree le processus QEMU"
+            mod_fail "CALYPSO_HOSTGDB : pid de QEMU introuvable sous gdbserver $gspid"
+            return $MOD_RC_FAIL
+        fi
+        # un processus garde le tube ouvert en ECRITURE, sinon gdb voit EOF et sort
+        sleep infinity > "$gin" &
+        printf '%s\n' "$!" > "${RUN_DIR}/gdb.holder.pid"
+        gdb -q -nx \
+            -ex "set pagination off" -ex "set confirm off" \
+            -ex "set sysroot /" \
+            -ex "target remote :$gport" \
+            -ex "continue &" < "$gin" > "$gout" 2>&1 &
+        printf '%s\n' "$!" > "${RUN_DIR}/gdb.client.pid"
+        mod_say "HOSTGDB ACTIF : gdbserver=$gspid qemu=$qpid port=$gport"
+        mod_say "  commandes -> $gin   |   sorties -> $gout"
+        mod_say "  poignee : bsp.dsp (C54xState*) — ex : tools/gdbq.sh \"p bsp.dsp->ar[2]\""
+    else
+        "$QEMU_BIN" -M "$mach" -cpu arm946 \
+            "${xflags[@]}" "${dflags[@]}" $gdbflag -serial pty -serial pty \
+            -monitor "unix:${RUN_DIR}/qemu-monitor.sock,server,nowait" \
+            -kernel "$FIRMWARE_ELF" >>"$qlog" 2>&1 &
+        qpid=$!
+    fi
     printf '%s\n' "$qpid" > "${RUN_DIR}/qemu.pid"
     [ -n "$asm_out" ] && _qemu_asm_ring "$asm_out" "$asm_mo" "$qpid" &
     _qemu_save_manifest "$qlog" "${LOG_DIR}/qemu-manifest.log" &
@@ -6829,7 +7005,7 @@ mod_mailbox_dissam_stop() {
 ## `run_modules/50-osmocon.sh` {#f-run-modules-50-osmocon-sh}
 
 ::: {.file-meta}
-[.sh]{.tag} 131 lignes - 6,6KB
+[.sh]{.tag} 132 lignes - 6,8KB
 :::
 
 ```{.bash .numberLines filename="run_modules/50-osmocon.sh"}
@@ -6906,6 +7082,7 @@ mod_osmocon_check() {
 mod_osmocon_status() { _osmocon_vivant && have_unix "$L1CTL_SOCK_PATH"; }
 
 mod_osmocon_start() {
+    [ "${CALYPSO_BRIDGE:-}" = ipc ] && { mod_skip "CALYPSO_BRIDGE=ipc : MS#1 via osmo-trx-ms-ipc, osmocon non lance"; return $MOD_RC_SKIP; }
     local log; log="$(_osmocon_log)"
     # Socket d'un run précédent : osmocon refuse de créer par-dessus, et sa
     # présence ferait passer la barrière à tort.
@@ -7727,6 +7904,918 @@ mod_bts_stop() {
         _bts_est_le_notre "$_p" && kill "$_p" 2>/dev/null
     done
     rm -f "$pidf"
+    return 0
+}
+
+```
+
+## `run_modules/60-fake-trx.sh` {#f-run-modules-60-fake-trx-sh}
+
+::: {.file-meta}
+[.sh]{.tag} 106 lignes - 4,3KB
+:::
+
+```{.bash .numberLines filename="run_modules/60-fake-trx.sh"}
+# =============================================================================
+#  60-fake-trx — transceiver simulé (osmocom-bb / trx_toolkit / fake_trx.py)
+# =============================================================================
+#
+#  RÔLE
+#    Remplace modem + RF par un commutateur de bursts en UDP. Il relie les deux
+#    côtés de la liaison, chacun sur son « base port » (+1 CTRL, +2 DATA) :
+#
+#        osmo-bts-trx  <--TRXD $TRX_BASE_PORT-->  fake_trx  <--TRXD $BB_BASE_PORT-->  trxcon
+#
+#    C'est le PHY du profil « faketrx ». En PHY_MODE=virtphy il n'existe pas :
+#    la chaîne passe par le multicast d'osmo-bts-virtual.
+#
+#  PRÉREQUIS
+#    python3 et $FAKETRX_PY (par défaut osmocom-bb/src/target/trx_toolkit).
+#    Les deux plages de ports UDP libres.
+#
+#  CRITÈRE DE SUCCÈS (barrière)
+#    Le processus vit ET a ouvert un socket UDP de CHAQUE côté. Le PID seul ne
+#    prouve rien : un python qui échoue au bind meurt une seconde plus tard, et
+#    le BTS resterait indéfiniment en « No clock since TRX » sans qu'on sache
+#    pourquoi.
+#
+#  JOURNAL     $LOG_DIR/fake-trx.log
+#
+#  ORDRE
+#    AVANT osmo-bts-trx et trxcon — tous deux se connectent à lui. L'ancien
+#    lancement démarrait le BTS d'abord en comptant sur ses tentatives répétées ;
+#    ça marche, mais alors la barrière du BTS ne peut plus rien affirmer.
+# -----------------------------------------------------------------------------
+. "$(dirname "${BASH_SOURCE[0]}")/_lib/radio.sh"
+
+MOD_REGISTER fake-trx "Transceiver simulé (fake_trx)"
+MOD_REQUIRED[fake-trx]=1
+MOD_PROFILES[fake-trx]="faketrx"
+MOD_ENABLED_IF[fake-trx]='[ "${PHY_MODE:-faketrx}" != "virtphy" ] && [ "${RADIO_TRANSCEIVER:-fake}" != "osmo-trx" ]'
+MOD_TIMEOUT[fake-trx]=30
+
+: "${FAKETRX_PY:=${OSMOCOM_BB:-${GSM_ROOT}/osmocom-bb}/src/target/trx_toolkit/fake_trx.py}"
+: "${FAKETRX_PYTHON:=python3}"
+MOD_LOG[fake-trx]="${LOG_DIR}/fake-trx.log"
+
+mod_fake_trx_check() {
+    command -v "$FAKETRX_PYTHON" >/dev/null 2>&1 || {
+        mod_fail "interpréteur introuvable : $FAKETRX_PYTHON"
+        mod_hint "posez FAKETRX_PYTHON=/chemin/vers/python3"
+        return $MOD_RC_FAIL; }
+    [ -r "$FAKETRX_PY" ] || {
+        mod_fail "fake_trx.py introuvable : $FAKETRX_PY"
+        mod_hint "réglez OSMOCOM_BB dans environnement/paths.env, ou FAKETRX_PY directement"
+        return $MOD_RC_FAIL; }
+
+    # Un port tenu par quelqu'un d'autre : le dire MAINTENANT, pas dans trente
+    # secondes sous la forme d'un BTS sans horloge.
+    local p
+    for p in "$TRX_BASE_PORT" "$BB_BASE_PORT"; do
+        if radio_foreign_holder "$p" "fake_trx.py"; then
+            mod_fail "port UDP $p déjà tenu par un autre transceiver"
+            mod_hint "ss -uanp | grep :$p — puis arrêtez-le, ou décalez TRX_BASE_PORT/BB_BASE_PORT"
+            return $MOD_RC_FAIL
+        fi
+    done
+    mod_ok
+}
+
+mod_fake_trx_status() { have_proc "fake_trx.py"; }
+
+mod_fake_trx_start() {
+    radio_dirs
+    local log; log="$(radio_log fake-trx)"
+    local cmd=("$FAKETRX_PYTHON" "$FAKETRX_PY"
+               -b "$TRX_BIND_IP" -R "$TRX_BTS_IP" -r "$TRX_BB_IP"
+               -P "$TRX_BASE_PORT" -p "$BB_BASE_PORT")
+
+    # Mobiles supplémentaires : un transceiver de plus par MS, groupés par huit
+    # sur des IP de bouclage distinctes (convention du lancement historique).
+    local ms g
+    for ((ms=2; ms<=N_MS; ms++)); do
+        g=$(( (ms-1)/8 + 1 ))
+        cmd+=( --trx "ue${ms}@127.0.0.${g}:$(radio_bb_port "$ms")" )
+    done
+
+    mod_say "commande : ${cmd[*]}"
+    mod_say "journal  : $log"
+    "${cmd[@]}" >>"$log" 2>&1 &
+    radio_save_pid fake-trx $!
+    mod_ok
+}
+
+# BARRIÈRE — « lancé » n'est pas « écoute ».
+mod_fake_trx_wait() {
+    local t="${MOD_TIMEOUT[fake-trx]}"
+    wait_until "$t" "sockets TRXD côté BTS ($TRX_BASE_PORT..+2)" \
+        radio_udp_range "$TRX_BASE_PORT" || {
+            mod_hint "regardez $(radio_log fake-trx) : bind refusé, ou fake_trx a quitté"
+            return $MOD_RC_FAIL; }
+    wait_until "$t" "sockets TRXD côté bande de base ($BB_BASE_PORT..+2)" \
+        radio_udp_range "$BB_BASE_PORT" || return $MOD_RC_FAIL
+    radio_alive fake-trx || {
+        mod_fail "fake_trx a ouvert ses sockets puis s'est arrêté"
+        mod_hint "fin de $(radio_log fake-trx)"
+        return $MOD_RC_FAIL; }
+    mod_ok
+}
+
+mod_fake_trx_stop() { radio_kill fake-trx "fake_trx.py"; }
+
+```
+
+## `run_modules/61-osmo-trx.sh` {#f-run-modules-61-osmo-trx-sh}
+
+::: {.file-meta}
+[.sh]{.tag} 122 lignes - 5,6KB
+:::
+
+```{.bash .numberLines filename="run_modules/61-osmo-trx.sh"}
+# =============================================================================
+#  61-osmo-trx — transceiver réel (modem GMSK), alternative à fake_trx
+# =============================================================================
+#
+#  RÔLE
+#    Le vrai modem, celui qui module et démodule au lieu de recopier des bursts.
+#    Il remplace fake_trx à la même place dans la chaîne, et sert le même TRXD
+#    au BTS :
+#
+#        <source I/Q> --> osmo-trx --TRXD $TRX_BASE_PORT--> osmo-bts-trx
+#
+#    Source I/Q selon la variante du binaire : mémoire partagée pour
+#    osmo-trx-ipc (via calypso-ipc-device), carte SDR pour osmo-trx-uhd.
+#
+#  PÉRIMÈTRE — NE PAS CONFONDRE AVEC 56-trx-ipc
+#    56-trx-ipc.sh est l'osmo-trx-ipc de la chaîne de l'émulateur (profils
+#    calypso/hybrid), avec sa dépendance à ipc-device. Le module ci-dessous est
+#    le transceiver du profil « faketrx » : il n'est activé que si l'on demande
+#    explicitement RADIO_TRANSCEIVER=osmo-trx, ce qui désactive alors fake-trx.
+#    Les deux ne peuvent pas tourner ensemble — même plage de ports TRXD.
+#
+#  PRÉREQUIS — DÉPENDANCE CROISÉE, LE PIÈGE DE LA VARIANTE IPC
+#    osmo-trx-ipc se CONNECTE au socket maître ($IPC_MSOCK_PATH) créé par
+#    calypso-ipc-device. Si le device n'est pas là, le handshake « greeting »
+#    échoue et osmo-trx-ipc sort immédiatement — sans que rien en aval ne le
+#    signale. Le check l'exige donc explicitement, mais SEULEMENT pour cette
+#    variante : une variante SDR n'a pas de socket maître.
+#
+#  CRITÈRE DE SUCCÈS (barrière)
+#    Le processus vit ET a ouvert ses sockets TRXD. Le premier point à lui seul
+#    ne suffit pas — un échec de greeting laisse une trace, pas un service.
+#
+#  JOURNAL     $LOG_DIR/osmo-trx.log
+#
+#  ORDRE       après la source I/Q (calypso-ipc-device pour la variante IPC),
+#              avant osmo-bts-trx.
+# -----------------------------------------------------------------------------
+. "$(dirname "${BASH_SOURCE[0]}")/_lib/radio.sh"
+
+MOD_REGISTER osmo-trx "Transceiver osmo-trx (IPC)"
+MOD_REQUIRED[osmo-trx]=1
+MOD_PROFILES[osmo-trx]="faketrx"
+MOD_TIMEOUT[osmo-trx]=30
+
+# Socket maître du device, exigé par la seule variante IPC (voir le check).
+: "${IPC_MSOCK_PATH:=/tmp/ipc_sock0}"
+MOD_ENABLED_IF[osmo-trx]='[ "${PHY_MODE:-faketrx}" != "virtphy" ] && [ "${RADIO_TRANSCEIVER:-fake}" = "osmo-trx" ]'
+
+: "${OSMO_TRX_BIN:=osmo-trx-ipc}"
+: "${OSMO_TRX_CFG:=${QEMU_CFGS:-${QEMU_TREE}/cfgs}/osmo-trx-ipc.cfg}"
+MOD_LOG[osmo-trx]="${LOG_DIR}/osmo-trx.log"
+
+mod_osmo_trx_check() {
+    command -v "$OSMO_TRX_BIN" >/dev/null 2>&1 || [ -x "$OSMO_TRX_BIN" ] || {
+        mod_fail "binaire introuvable : $OSMO_TRX_BIN"
+        mod_hint "installez osmo-trx, ou posez OSMO_TRX_BIN=/chemin/vers/osmo-trx-ipc"
+        return $MOD_RC_FAIL; }
+    [ -r "$OSMO_TRX_CFG" ] || {
+        mod_fail "configuration illisible : $OSMO_TRX_CFG"
+        mod_hint "posez OSMO_TRX_CFG, ou copiez cfgs/osmo-trx-ipc.cfg"
+        return $MOD_RC_FAIL; }
+    # Exigence propre à la variante IPC : sans socket maître, le greeting
+    # échoue et le processus sort — autant le dire ici plutôt qu'au timeout.
+    case "$OSMO_TRX_BIN" in
+        *ipc*) [ -S "$IPC_MSOCK_PATH" ] || {
+                   mod_fail "socket maître IPC absent : $IPC_MSOCK_PATH"
+                   mod_hint "démarrez calypso-ipc-device d'abord (il crée ce socket ; sans lui le greeting échoue)"
+                   return $MOD_RC_FAIL; } ;;
+    esac
+
+    # Cohérence conf <-> plan d'adressage : la valeur du fichier fait foi, elle
+    # est ce que le BTS devra viser. On la relit ici pour que la barrière et le
+    # module BTS parlent du même port.
+    local cfg_base; cfg_base="$(radio_cfg_val "$OSMO_TRX_CFG" "base-port")"
+    [ -n "$cfg_base" ] && TRX_BASE_PORT="$cfg_base"
+
+    if radio_foreign_holder "$TRX_BASE_PORT" "$OSMO_TRX_BIN"; then
+        mod_fail "port TRXD $TRX_BASE_PORT déjà tenu (fake_trx ? autre osmo-trx ?)"
+        mod_hint "un seul transceiver à la fois : ss -uanp | grep :$TRX_BASE_PORT"
+        return $MOD_RC_FAIL
+    fi
+    mod_ok
+}
+
+mod_osmo_trx_status() { have_proc "$OSMO_TRX_BIN"; }
+
+mod_osmo_trx_start() {
+    radio_dirs
+    local log; log="$(radio_log osmo-trx)"
+    mod_say "commande : $OSMO_TRX_BIN -C $OSMO_TRX_CFG"
+    case "$OSMO_TRX_BIN" in *ipc*) mod_say "socket maître : $IPC_MSOCK_PATH" ;; esac
+    mod_say "journal  : $log"
+    stdbuf -oL -eL "$OSMO_TRX_BIN" -C "$OSMO_TRX_CFG" >>"$log" 2>&1 &
+    radio_save_pid osmo-trx $!
+    mod_ok
+}
+
+# BARRIÈRE — un greeting raté ne laisse qu'un journal, pas un service.
+mod_osmo_trx_wait() {
+    local log; log="$(radio_log osmo-trx)"
+    local cfg_base; cfg_base="$(radio_cfg_val "$OSMO_TRX_CFG" "base-port")"
+    [ -n "$cfg_base" ] && TRX_BASE_PORT="$cfg_base"
+
+    wait_until "${MOD_TIMEOUT[osmo-trx]}" "sockets TRXD ($TRX_BASE_PORT..+2)" \
+        radio_udp_range "$TRX_BASE_PORT" || {
+            mod_hint "fin de $log : « greeting » sans réponse = calypso-ipc-device absent ou muet"
+            return $MOD_RC_FAIL; }
+
+    radio_alive osmo-trx || {
+        mod_fail "osmo-trx s'est arrêté après avoir ouvert ses sockets"
+        mod_hint "fin de $log"
+        return $MOD_RC_FAIL; }
+
+    # Renseignement, pas critère : la VTY est un confort de diagnostic, son
+    # absence ne condamne pas un transceiver qui sert déjà du TRXD.
+    have_port "$OSMO_TRX_VTY_PORT" \
+        && mod_say "VTY disponible sur 127.0.0.1:$OSMO_TRX_VTY_PORT" \
+        || mod_say "VTY $OSMO_TRX_VTY_PORT non ouverte (sans conséquence sur le TRXD)"
+    mod_ok
+}
+
+mod_osmo_trx_stop() { radio_kill osmo-trx "$OSMO_TRX_BIN"; }
+
+```
+
+## `run_modules/62-demod-bridge.sh` {#f-run-modules-62-demod-bridge-sh}
+
+::: {.file-meta}
+[.sh]{.tag} 123 lignes - 5,9KB
+:::
+
+```{.bash .numberLines filename="run_modules/62-demod-bridge.sh"}
+# =============================================================================
+#  62-demod-bridge — démodulation native gr-gsm de l'I/Q descendante
+# =============================================================================
+#
+#  RÔLE (run.sh.legacy L2011-2038)
+#      Le BTS émet l'I/Q descendante réelle ; le BSP de QEMU la duplique vers
+#      UDP $CALYPSO_IQ_TEE_PORT (6703). Ce pont la démodule (GMSK différentiel)
+#      et la décode (gr-gsm : bcch_ccch_demapper + control_channels_decoder) vers
+#      GSMTAP 127.0.0.1:$CALYPSO_SHUNT_GSMTAP_PORT (4730). Le listener du shunt
+#      appelle alors feed_si -> a_cd : le mobile campe sur le VRAI SI démodulé.
+#
+#  PRÉREQUIS
+#      - un BTS qui émet (d'où MOD_DEPS=bts) ;
+#      - le script de pont ET un python avec gnuradio+gr-gsm.
+#
+#  CRITÈRE DE SUCCÈS
+#      Le processus est vivant après son initialisation gnuradio ET il a écrit
+#      quelque chose dans son journal. Un import gnuradio raté tue le processus
+#      dans la seconde : c'est exactement ce que le legacy ne voyait pas (il
+#      lançait dans une fenêtre tmux et n'a jamais vérifié quoi que ce soit).
+#
+#  JOURNAL
+#      $LOG_DIR/demod_bridge.log
+#
+#  POURQUOI mod_skip ET NON mod_fail QUAND LE SCRIPT MANQUE
+#      qemu_bcch_grgsm.py n'existe ni dans ce dépôt ni sur cette machine
+#      (vérifié : ${GSM_ROOT}/qemu_bcch_grgsm.py absent). Un chemin non installé
+#      n'est pas une panne de la pile : on l'annonce et on continue, comme le
+#      legacy le faisait avec son WARN L2036 — mais visiblement, cette fois.
+# -----------------------------------------------------------------------------
+MOD_REGISTER demod-bridge "Pont de démodulation gr-gsm"
+MOD_REQUIRED[demod-bridge]=0
+MOD_DEPS[demod-bridge]="bts"
+MOD_PROFILES[demod-bridge]="calypso hybrid"
+MOD_TIMEOUT[demod-bridge]=30
+# Reprise exacte des trois conditions de L2021-2023.
+MOD_ENABLED_IF[demod-bridge]='{ [ "${CALYPSO_DSP_SHUNT:-0}" = 1 ] || [ "${CALYPSO_FORCE_DEMOD_BRIDGE:-0}" = 1 ]; } && [ "${CALYPSO_SKIP_BTS:-0}" != 1 ] && { [ "${CALYPSO_SKIP_DEMOD_BRIDGE:-1}" != 1 ] || [ "${CALYPSO_FORCE_DEMOD_BRIDGE:-0}" = 1 ]; }'
+
+# Chemins et réglages propres au module — idiome `:=` pour rester surchargeable
+# depuis la ligne de commande, et pour ne rien poser dans environnement/.
+# Le pont de demodulation est un script du depot RESEAU (gr-gsm), range dans
+# tools/. On le cherche la, puis aux emplacements historiques.
+if [ -r "${NITB_ROOT:-}/tools/qemu_bcch_grgsm.py" ]; then
+    : "${CALYPSO_DEMOD_BRIDGE:=${NITB_ROOT}/tools/qemu_bcch_grgsm.py}"
+elif [ -r "${NITB_ROOT:-}/qemu_bcch_grgsm.py" ]; then
+    : "${CALYPSO_DEMOD_BRIDGE:=${NITB_ROOT}/qemu_bcch_grgsm.py}"
+else
+    : "${CALYPSO_DEMOD_BRIDGE:=${QEMU_TREE}/opt-gsm-scripts/qemu_bcch_grgsm.py}"
+fi
+: "${CALYPSO_BRIDGE_PYTHON:=/root/.env/bin/python3}"
+
+# ATTENTION : environnement/bsp.env et shunt.env posent CALYPSO_IQ_TEE_PORT et
+# CALYPSO_SHUNT_GSMTAP_PORT à la chaîne VIDE. La variable est donc *définie* :
+# `:=` ne la remplacerait pas. On résout la valeur au point d'usage avec `:-`.
+_demod_iq_port()     { printf '%s' "${CALYPSO_IQ_TEE_PORT:-6703}"; }
+_demod_gsmtap_port() { printf '%s' "${CALYPSO_SHUNT_GSMTAP_PORT:-4730}"; }
+_demod_log()         { printf '%s' "${LOG_DIR}/demod_bridge.log"; }
+_demod_pat()         { printf '%s' "qemu_bcch_grgsm"; }
+
+mod_demod_bridge_check() {
+    if [ ! -f "$CALYPSO_DEMOD_BRIDGE" ]; then
+        mod_hint "installez le script, ou posez CALYPSO_DEMOD_BRIDGE=/chemin/vers/qemu_bcch_grgsm.py"
+        mod_skip "script de pont absent : $CALYPSO_DEMOD_BRIDGE — pas de démod native"
+        return $MOD_RC_SKIP
+    fi
+    if [ ! -x "$CALYPSO_BRIDGE_PYTHON" ] && ! command -v python3 >/dev/null 2>&1; then
+        mod_fail "aucun interpréteur python : ni $CALYPSO_BRIDGE_PYTHON ni python3"
+        return $MOD_RC_FAIL
+    fi
+    mod_ok
+}
+
+mod_demod_bridge_status() { have_proc "$(_demod_pat)"; }
+
+mod_demod_bridge_start() {
+    local py="$CALYPSO_BRIDGE_PYTHON"
+    [ -x "$py" ] || py=python3
+    local log; log="$(_demod_log)"
+    mkdir -p "$LOG_DIR" "$RUN_DIR" 2>/dev/null
+    : > "$log"
+    mod_say "pont     : $CALYPSO_DEMOD_BRIDGE (python=$py)"
+    mod_say "chaîne   : I/Q $(_demod_iq_port) -> GSMTAP $(_demod_gsmtap_port) -> feed_si -> a_cd"
+
+    IQ_TEE_PORT="$(_demod_iq_port)" \
+    GSMTAP_PORT="$(_demod_gsmtap_port)" \
+    ARFCN="${CALYPSO_CCCH_ARFCN:-514}" \
+    BIT_SIGN="${BIT_SIGN:-1}" \
+        "$py" -u "$CALYPSO_DEMOD_BRIDGE" >>"$log" 2>&1 &
+    printf '%s\n' "$!" > "${RUN_DIR}/demod-bridge.pid"
+    mod_ok
+}
+
+# BARRIÈRE — le legacy n'en avait AUCUNE (L2029-2033 : new-window + send-keys,
+# puis on passait à la suite). Deux critères observables :
+#   1. le processus vit encore (un `import grgsm` manquant le tue aussitôt) ;
+#   2. il a produit au moins une ligne — preuve qu'il a dépassé ses imports.
+mod_demod_bridge_wait() {
+    local pid log; pid="$(cat "${RUN_DIR}/demod-bridge.pid" 2>/dev/null || echo 0)"
+    log="$(_demod_log)"
+
+    if ! wait_until "${MOD_TIMEOUT[demod-bridge]}" "sortie du pont gr-gsm" test -s "$log"; then
+        if ! kill -0 "$pid" 2>/dev/null; then
+            mod_hint "lisez $log : gnuradio/gr-gsm manquant dans $CALYPSO_BRIDGE_PYTHON est la cause habituelle"
+            mod_fail "le pont gr-gsm s'est arrêté immédiatement"
+        else
+            mod_hint "vérifiez que le tee I/Q sort bien sur UDP $(_demod_iq_port) (CALYPSO_IQ_TEE_PORT)"
+            mod_fail "le pont gr-gsm tourne mais n'écrit rien"
+        fi
+        return $MOD_RC_FAIL
+    fi
+    kill -0 "$pid" 2>/dev/null || { mod_hint "lisez $log"
+                                    mod_fail "le pont gr-gsm a démarré puis s'est arrêté"
+                                    return $MOD_RC_FAIL; }
+    mod_ok
+}
+
+mod_demod_bridge_stop() {
+    local pid; pid="$(cat "${RUN_DIR}/demod-bridge.pid" 2>/dev/null || echo 0)"
+    [ "$pid" != 0 ] && kill "$pid" 2>/dev/null
+    pkill -f "$(_demod_pat)" 2>/dev/null
+    rm -f "${RUN_DIR}/demod-bridge.pid"
+    return 0
+}
+
+```
+
+## `run_modules/62-osmo-bts-trx.sh` {#f-run-modules-62-osmo-bts-trx-sh}
+
+::: {.file-meta}
+[.sh]{.tag} 139 lignes - 6,5KB
+:::
+
+```{.bash .numberLines filename="run_modules/62-osmo-bts-trx.sh"}
+# =============================================================================
+#  62-osmo-bts-trx — la BTS côté TRXD (variante « trx » d'osmo-bts)
+# =============================================================================
+#
+#  RÔLE
+#    Termine la couche 1 du côté réseau et porte l'Abis (OML + RSL) vers le BSC :
+#
+#        transceiver <--TRXD--> osmo-bts-trx <--OML/RSL (IPA 3002/3003)--> osmo-bsc
+#
+#    Le transceiver en face est fake_trx (défaut) ou osmo-trx, selon
+#    RADIO_TRANSCEIVER — d'où la double dépendance déclarée plus bas.
+#
+#  PÉRIMÈTRE — NE PAS CONFONDRE AVEC 60-bts
+#    60-bts.sh est la BTS de la chaîne de l'émulateur (profils calypso/hybrid).
+#    Celle-ci est la BTS du profil « faketrx ». Les deux sont exclusives : même
+#    VTY 4241, même unit-id IPA — le check ci-dessous refuse de démarrer si
+#    l'autre tourne déjà.
+#
+#  PRÉREQUIS
+#    - un transceiver qui écoute déjà sur $TRX_BASE_PORT ;
+#    - $BTS_TRX_CFG lisible, et son `osmotrx base-port remote` cohérent avec ce
+#      port : une incohérence ici produit exactement le symptôme le plus coûteux
+#      du projet — un BTS qui démarre, ouvre sa VTY, et meurt trente secondes
+#      plus tard sur « No clock since TRX » sans que personne ne fasse le lien ;
+#    - EXCLUSION : osmo-bts-virtual ne doit pas tourner (même port VTY 4241) ;
+#    - EXCLUSION : l'unité systemd osmo-bts-trx ne doit pas être active, sinon
+#      deux BTS se disputent le même unit-id IPA.
+#
+#  CRITÈRE DE SUCCÈS (barrière) — en deux temps, positif puis négatif
+#    1. la VTY $BTS_VTY_PORT répond   -> le processus est allé au bout de son init ;
+#    2. il TIENT $BTS_STAB_SECS secondes sans imprimer de motif fatal.
+#    Le second point est celui qui compte : c'est la reprise de la fenêtre de
+#    stabilité déjà éprouvée dans l'ancien lancement hybride.
+#
+#  JOURNAL     $LOG_DIR/osmo-bts-trx.log  (+ journal systemd si l'unité existe)
+#
+#  ORDRE       après le transceiver, avant trxcon et le mobile.
+# -----------------------------------------------------------------------------
+. "$(dirname "${BASH_SOURCE[0]}")/_lib/radio.sh"
+
+MOD_REGISTER osmo-bts-trx "BTS radio (osmo-bts-trx)"
+MOD_REQUIRED[osmo-bts-trx]=1
+MOD_PROFILES[osmo-bts-trx]="faketrx"
+MOD_ENABLED_IF[osmo-bts-trx]='[ "${PHY_MODE:-faketrx}" != "virtphy" ]'
+MOD_JOURNAL[osmo-bts-trx]="osmo-bts-trx"
+MOD_TIMEOUT[osmo-bts-trx]=45
+
+# DÉPENDANCE CROISÉE : le transceiver est fake-trx OU osmo-trx, jamais les deux.
+# On déclare les deux — le moteur considère un prérequis « ignoré » comme
+# satisfait, donc celui qui est désactivé par RADIO_TRANSCEIVER ne bloque rien.
+MOD_DEPS[osmo-bts-trx]="fake-trx osmo-trx"
+
+: "${BTS_TRX_BIN:=osmo-bts-trx}"
+: "${BTS_TRX_CFG:=${OSMOCOM_CFG:-/etc/osmocom}/osmo-bts-trx.cfg}"
+: "${BTS_STAB_SECS:=8}"
+: "${BTS_FATAL_RE:=No clock since TRX|BTS_SHUTDOWN|Shutting down|Failed to connect|Cannot connect}"
+MOD_LOG[osmo-bts-trx]="${LOG_DIR}/osmo-bts-trx.log"
+
+mod_osmo_bts_trx_check() {
+    command -v "$BTS_TRX_BIN" >/dev/null 2>&1 || [ -x "$BTS_TRX_BIN" ] || {
+        mod_fail "binaire introuvable : $BTS_TRX_BIN"
+        mod_hint "installez osmo-bts, ou posez BTS_TRX_BIN=/chemin/vers/osmo-bts-trx"
+        return $MOD_RC_FAIL; }
+    [ -r "$BTS_TRX_CFG" ] || {
+        mod_fail "configuration illisible : $BTS_TRX_CFG"
+        mod_hint "posez BTS_TRX_CFG, ou déployez /etc/osmocom/osmo-bts-trx.cfg"
+        return $MOD_RC_FAIL; }
+
+    # Exclusion mutuelle avec la variante virtuelle : même VTY, même unit-id.
+    if pgrep -x osmo-bts-virtual >/dev/null 2>&1; then
+        mod_fail "osmo-bts-virtual tourne déjà (VTY $BTS_VTY_PORT occupée)"
+        mod_hint "les deux BTS sont exclusives : ./run.sh --stop, ou PHY_MODE=virtphy"
+        return $MOD_RC_FAIL
+    fi
+    # Exclusion avec l'instance systemd, qui vole l'unit-id IPA.
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet osmo-bts-trx 2>/dev/null; then
+        mod_fail "l'unité systemd osmo-bts-trx est déjà active"
+        mod_hint "systemctl stop osmo-bts-trx (deux BTS avec le même unit-id se chassent l'une l'autre)"
+        return $MOD_RC_FAIL
+    fi
+
+    # Cohérence port : la conf dit vers quel transceiver le BTS va parler.
+    local want; want="$(radio_cfg_val "$BTS_TRX_CFG" "osmotrx base-port remote")"
+    [ -n "$want" ] || want=5700
+    if [ "$want" != "$TRX_BASE_PORT" ]; then
+        mod_fail "conf et plan d'adressage divergent : le BTS vise $want, le transceiver écoute sur $TRX_BASE_PORT"
+        mod_hint "alignez « osmotrx base-port remote » dans $BTS_TRX_CFG, ou posez TRX_BASE_PORT=$want"
+        return $MOD_RC_FAIL
+    fi
+    # Le transceiver écoute-t-il ? Diagnostic anticipé, pas un blocage : le BTS
+    # sait attendre, mais autant le dire dans son journal.
+    radio_udp_range "$TRX_BASE_PORT" \
+        || mod_say "ATTENTION : aucun socket TRXD sur $TRX_BASE_PORT..+2 — le BTS restera sans horloge"
+    mod_ok
+}
+
+mod_osmo_bts_trx_status() { pgrep -x osmo-bts-trx >/dev/null 2>&1; }
+
+mod_osmo_bts_trx_start() {
+    radio_dirs
+    local log; log="$(radio_log osmo-bts-trx)"
+    mod_say "commande : $BTS_TRX_BIN -c $BTS_TRX_CFG"
+    mod_say "transceiver visé : $TRX_BASE_PORT"
+    mod_say "journal  : $log"
+    stdbuf -oL -eL "$BTS_TRX_BIN" -c "$BTS_TRX_CFG" >>"$log" 2>&1 &
+    radio_save_pid osmo-bts-trx $!
+    mod_ok
+}
+
+# BARRIÈRE — VTY (positif) puis fenêtre de stabilité (négatif).
+mod_osmo_bts_trx_wait() {
+    local log; log="$(radio_log osmo-bts-trx)"
+
+    wait_until "${MOD_TIMEOUT[osmo-bts-trx]}" "VTY du BTS ($BTS_VTY_PORT)" \
+        have_port "$BTS_VTY_PORT" || {
+            mod_hint "fin de $log ; port VTY déjà pris ? ss -tlnp | grep :$BTS_VTY_PORT"
+            return $MOD_RC_FAIL; }
+
+    radio_stable osmo-bts-trx "$log" "$BTS_STAB_SECS" "$BTS_FATAL_RE" || {
+        mod_hint "« No clock since TRX » = le transceiver ne répond pas sur $TRX_BASE_PORT : vérifiez fake-trx / osmo-trx"
+        return $MOD_RC_FAIL; }
+
+    # Renseignement : l'Abis est-il monté ? Utile au diagnostic « BTS vivante
+    # mais BSC absent », sans en faire un critère (le BSC n'est pas toujours
+    # dans le plan).
+    if command -v ss >/dev/null 2>&1 && ss -tan 2>/dev/null | grep -qE 'ESTAB.*:(3002|3003)'; then
+        mod_say "Abis établi vers le BSC (OML/RSL)"
+    else
+        mod_say "pas de connexion Abis établie (BSC absent du plan ?)"
+    fi
+    mod_ok
+}
+
+mod_osmo_bts_trx_stop() {
+    command -v systemctl >/dev/null 2>&1 && systemctl stop osmo-bts-trx 2>/dev/null
+    radio_kill osmo-bts-trx "osmo-bts-trx -c"
+    pkill -x osmo-bts-trx 2>/dev/null
+    return 0
+}
+
+```
+
+## `run_modules/63-osmo-bts-virtual.sh` {#f-run-modules-63-osmo-bts-virtual-sh}
+
+::: {.file-meta}
+[.sh]{.tag} 106 lignes - 4,8KB
+:::
+
+```{.bash .numberLines filename="run_modules/63-osmo-bts-virtual.sh"}
+# =============================================================================
+#  63-osmo-bts-virtual — la BTS côté Um virtuel (variante « virtual » d'osmo-bts)
+# =============================================================================
+#
+#  RÔLE
+#    Même fonction que 62-osmo-bts-trx — porter l'Abis vers le BSC — mais sans
+#    aucune couche physique : l'interface Um est remplacée par deux groupes
+#    multicast UDP, sur lesquels virtphy publie et souscrit.
+#
+#        mobile <--L1CTL--> virtphy <--multicast UDP--> osmo-bts-virtual <--OML/RSL--> osmo-bsc
+#
+#    Ni transceiver, ni trxcon : c'est TOUTE la différence avec la chaîne TRXD.
+#
+#  PRÉREQUIS
+#    PHY_MODE=virtphy (sinon le module est désactivé), $BTS_VIRTUAL_CFG lisible,
+#    et EXCLUSION avec osmo-bts-trx : les deux variantes partagent la VTY 4241 et
+#    l'unit-id IPA, elles ne peuvent pas coexister.
+#
+#  CRITÈRE DE SUCCÈS (barrière)
+#    1. la VTY $BTS_VTY_PORT répond ;
+#    2. le processus tient $BTS_STAB_SECS secondes sans motif fatal.
+#    Même forme que pour la variante TRXD, avec d'autres motifs : ici il n'y a
+#    pas d'horloge de transceiver à perdre, mais un socket multicast à ouvrir.
+#
+#  JOURNAL     $LOG_DIR/osmo-bts-virtual.log
+#
+#  ORDRE       avant virtphy — c'est la BTS qui publie sur le groupe multicast.
+# -----------------------------------------------------------------------------
+. "$(dirname "${BASH_SOURCE[0]}")/_lib/radio.sh"
+
+MOD_REGISTER osmo-bts-virtual "BTS virtuelle (osmo-bts-virtual)"
+MOD_REQUIRED[osmo-bts-virtual]=1
+MOD_PROFILES[osmo-bts-virtual]="faketrx"
+MOD_ENABLED_IF[osmo-bts-virtual]='[ "${PHY_MODE:-faketrx}" = "virtphy" ]'
+MOD_JOURNAL[osmo-bts-virtual]="osmo-bts-virtual"
+MOD_TIMEOUT[osmo-bts-virtual]=45
+
+: "${BTS_VIRTUAL_BIN:=osmo-bts-virtual}"
+: "${BTS_VIRTUAL_CFG:=${OSMOCOM_CFG:-/etc/osmocom}/osmo-bts-virtual.cfg}"
+: "${BTS_STAB_SECS:=8}"
+: "${BTS_VIRT_FATAL_RE:=BTS_SHUTDOWN|Shutting down|Failed to connect|Cannot connect|Unable to open|Could not join}"
+MOD_LOG[osmo-bts-virtual]="${LOG_DIR}/osmo-bts-virtual.log"
+
+mod_osmo_bts_virtual_check() {
+    command -v "$BTS_VIRTUAL_BIN" >/dev/null 2>&1 || [ -x "$BTS_VIRTUAL_BIN" ] || {
+        mod_fail "binaire introuvable : $BTS_VIRTUAL_BIN"
+        mod_hint "installez osmo-bts (variante virtual), ou posez BTS_VIRTUAL_BIN"
+        return $MOD_RC_FAIL; }
+    [ -r "$BTS_VIRTUAL_CFG" ] || {
+        mod_fail "configuration illisible : $BTS_VIRTUAL_CFG"
+        mod_hint "posez BTS_VIRTUAL_CFG, ou déployez /etc/osmocom/osmo-bts-virtual.cfg"
+        return $MOD_RC_FAIL; }
+
+    if pgrep -x osmo-bts-trx >/dev/null 2>&1; then
+        mod_fail "osmo-bts-trx tourne déjà (VTY $BTS_VTY_PORT occupée)"
+        mod_hint "les deux BTS sont exclusives : ./run.sh --stop, ou PHY_MODE=faketrx"
+        return $MOD_RC_FAIL
+    fi
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet osmo-bts-trx 2>/dev/null; then
+        mod_fail "l'unité systemd osmo-bts-trx est active — elle tient la VTY $BTS_VTY_PORT"
+        mod_hint "systemctl stop osmo-bts-trx"
+        return $MOD_RC_FAIL
+    fi
+
+    # Le plan multicast, pour le journal : virtphy doit viser les mêmes groupes.
+    local bg bp mg mp
+    bg="$(radio_cfg_val "$BTS_VIRTUAL_CFG" "virtual-um bts-mcast-group")"
+    bp="$(radio_cfg_val "$BTS_VIRTUAL_CFG" "virtual-um bts-mcast-port")"
+    mg="$(radio_cfg_val "$BTS_VIRTUAL_CFG" "virtual-um ms-mcast-group")"
+    mp="$(radio_cfg_val "$BTS_VIRTUAL_CFG" "virtual-um ms-mcast-port")"
+    mod_say "multicast BTS -> ${bg:-239.193.23.1}:${bp:-23001} · MS -> ${mg:-239.193.23.2}:${mp:-23002} (défauts si vide)"
+    mod_ok
+}
+
+mod_osmo_bts_virtual_status() { pgrep -x osmo-bts-virtual >/dev/null 2>&1; }
+
+mod_osmo_bts_virtual_start() {
+    radio_dirs
+    local log; log="$(radio_log osmo-bts-virtual)"
+    mod_say "commande : $BTS_VIRTUAL_BIN -c $BTS_VIRTUAL_CFG"
+    mod_say "journal  : $log"
+    stdbuf -oL -eL "$BTS_VIRTUAL_BIN" -c "$BTS_VIRTUAL_CFG" >>"$log" 2>&1 &
+    radio_save_pid osmo-bts-virtual $!
+    mod_ok
+}
+
+# BARRIÈRE — VTY puis fenêtre de stabilité.
+mod_osmo_bts_virtual_wait() {
+    local log; log="$(radio_log osmo-bts-virtual)"
+
+    wait_until "${MOD_TIMEOUT[osmo-bts-virtual]}" "VTY du BTS virtuel ($BTS_VTY_PORT)" \
+        have_port "$BTS_VTY_PORT" || {
+            mod_hint "fin de $log ; VTY déjà prise par osmo-bts-trx ? ss -tlnp | grep :$BTS_VTY_PORT"
+            return $MOD_RC_FAIL; }
+
+    radio_stable osmo-bts-virtual "$log" "$BTS_STAB_SECS" "$BTS_VIRT_FATAL_RE" || {
+        mod_hint "multicast indisponible ? vérifiez que l'interface de bouclage porte une route multicast (ip route show table local)"
+        return $MOD_RC_FAIL; }
+    mod_ok
+}
+
+mod_osmo_bts_virtual_stop() {
+    radio_kill osmo-bts-virtual "osmo-bts-virtual -c"
+    pkill -x osmo-bts-virtual 2>/dev/null
+    return 0
+}
+
+```
+
+## `run_modules/64-trxcon.sh` {#f-run-modules-64-trxcon-sh}
+
+::: {.file-meta}
+[.sh]{.tag} 112 lignes - 4,2KB
+:::
+
+```{.bash .numberLines filename="run_modules/64-trxcon.sh"}
+# =============================================================================
+#  64-trxcon — la couche 1 du mobile, côté TRXD
+# =============================================================================
+#
+#  RÔLE
+#    Ce que fait le firmware Calypso dans la chaîne QEMU, trxcon le fait en
+#    logiciel sur l'hôte : il parle TRXD au transceiver d'un côté, et expose une
+#    socket L1CTL au mobile de l'autre.
+#
+#        mobile <--L1CTL /tmp/osmocom_l2_N--> trxcon <--TRXD $BB_BASE_PORT--> fake_trx
+#
+#    Une instance par mobile ($N_MS), chacune avec son port bande de base
+#    ($BB_BASE_PORT + 3·(n-1)) et sa socket.
+#
+#  PRÉREQUIS
+#    Le transceiver écoute déjà (module fake-trx) : trxcon qui ne trouve
+#    personne reste muet, il ne meurt pas — d'où l'ordre imposé.
+#
+#  CRITÈRE DE SUCCÈS (barrière)
+#    Pour CHAQUE instance : le processus vit ET la socket L1CTL existe. C'est
+#    précisément la socket que le mobile attend ; la voir apparaître remplace le
+#    « sleep 2 » qui tenait lieu de synchronisation.
+#
+#  JOURNAL     $LOG_DIR/trxcon-<n>.log
+#
+#  ORDRE       après fake-trx, avant mobile.
+# -----------------------------------------------------------------------------
+. "$(dirname "${BASH_SOURCE[0]}")/_lib/radio.sh"
+
+MOD_REGISTER trxcon "Couche 1 mobile (trxcon)"
+MOD_REQUIRED[trxcon]=1
+MOD_DEPS[trxcon]="fake-trx osmo-trx"
+MOD_PROFILES[trxcon]="faketrx"
+MOD_ENABLED_IF[trxcon]='[ "${PHY_MODE:-faketrx}" != "virtphy" ]'
+MOD_TIMEOUT[trxcon]=30
+
+: "${TRXCON_BIN:=trxcon}"
+: "${TRXCON_FN_ADVANCE:=100}"     # -F : avance de trame, valeur du lancement éprouvé
+: "${TRXCON_EXTRA_ARGS:=}"
+MOD_LOG[trxcon]="${LOG_DIR}/trxcon.log"
+
+# IP de bouclage du groupe de huit auquel appartient le mobile n.
+_trxcon_group_ip() { printf '127.0.0.%d\n' "$(( ($1 - 1) / 8 + 1 ))"; }
+
+mod_trxcon_check() {
+    command -v "$TRXCON_BIN" >/dev/null 2>&1 || [ -x "$TRXCON_BIN" ] || {
+        mod_fail "binaire introuvable : $TRXCON_BIN"
+        mod_hint "installez osmocom-bb (host/trxcon), ou posez TRXCON_BIN"
+        return $MOD_RC_FAIL; }
+
+    # Une socket laissée par un run précédent fait croire au mobile que la L1
+    # est prête, alors que plus personne n'est derrière. On refuse de partir
+    # sur cet état ambigu — le stop du module les nettoie normalement.
+    local n s
+    for ((n=1; n<=N_MS; n++)); do
+        s="$(radio_l2_sock "$n")"
+        if [ -S "$s" ] && ! pgrep -f "$TRXCON_BIN.*$s" >/dev/null 2>&1; then
+            mod_fail "socket L1CTL orpheline : $s (aucun trxcon derrière)"
+            mod_hint "rm -f $s — ou ./run.sh --stop pour nettoyer proprement"
+            return $MOD_RC_FAIL
+        fi
+    done
+    mod_ok
+}
+
+mod_trxcon_status() { pgrep -x "$(basename "$TRXCON_BIN")" >/dev/null 2>&1; }
+
+mod_trxcon_start() {
+    radio_dirs
+    local n s port gip log
+    for ((n=1; n<=N_MS; n++)); do
+        s="$(radio_l2_sock "$n")"
+        port="$(radio_bb_port "$n")"
+        gip="$(_trxcon_group_ip "$n")"
+        log="$(radio_log "trxcon-$n")"
+        mod_say "ms$n : TRXD $TRX_BIND_IP:$port (bind $gip) -> L1CTL $s ; journal $log"
+        # shellcheck disable=SC2086
+        "$TRXCON_BIN" -i "$TRX_BIND_IP" -b "$gip" -p "$port" -s "$s" \
+                      -C 1 -F "$TRXCON_FN_ADVANCE" $TRXCON_EXTRA_ARGS \
+                      >>"$log" 2>&1 &
+        radio_save_pid "trxcon-$n" $!
+    done
+    mod_ok
+}
+
+# BARRIÈRE — une socket par instance, et l'instance encore vivante derrière.
+mod_trxcon_wait() {
+    local n s
+    for ((n=1; n<=N_MS; n++)); do
+        s="$(radio_l2_sock "$n")"
+        wait_until "${MOD_TIMEOUT[trxcon]}" "socket L1CTL de ms$n ($s)" \
+            have_unix "$s" || {
+                mod_hint "fin de $(radio_log "trxcon-$n") : port bande de base déjà pris, ou transceiver injoignable"
+                return $MOD_RC_FAIL; }
+        radio_alive "trxcon-$n" || {
+            mod_fail "trxcon ms$n a créé sa socket puis s'est arrêté"
+            mod_hint "fin de $(radio_log "trxcon-$n")"
+            return $MOD_RC_FAIL; }
+    done
+    mod_ok
+}
+
+mod_trxcon_stop() {
+    local n s
+    for ((n=1; n<=N_MS; n++)); do
+        s="$(radio_l2_sock "$n")"
+        radio_kill "trxcon-$n" "$TRXCON_BIN.*$s"
+        rm -f "$s"
+    done
+    pkill -x "$(basename "$TRXCON_BIN")" 2>/dev/null
+    return 0
+}
+
+```
+
+## `run_modules/65-record-drain.sh` {#f-run-modules-65-record-drain-sh}
+
+::: {.file-meta}
+[.sh]{.tag} 134 lignes - 6,3KB
+:::
+
+```{.bash .numberLines filename="run_modules/65-record-drain.sh"}
+# =============================================================================
+#  65-record-drain — draineur du FIFO I/Q vers le ring sur disque
+# =============================================================================
+#
+#  RÔLE (run.sh.legacy L2089-2094)
+#      QEMU écrit l'I/Q descendante dans /tmp/iq_record.fifo par un write() NON
+#      BLOQUANT, trame par trame. record_drain.py absorbe ce flux et l'écrit en
+#      anneau de 128 Mo dans $CALYPSO_RECORD_FILE, HORS du hot-path de QEMU.
+#      C'est l'externalisation du ring que QEMU écrivait lui-même auparavant —
+#      c'est ce fwrite dans le hot-path DL qui causait les underruns.
+#      Le décodeur gr-gsm (module 66) relit ensuite ce ring hors ligne.
+#
+#  PRÉREQUIS
+#      QEMU démarré (c'est lui le producteur du FIFO), et record_drain.py.
+#
+#  CRITÈRE DE SUCCÈS
+#      Le processus vit ET le fichier de sortie existe. La CROISSANCE du ring
+#      est mesurée et journalisée, mais ne fait échouer le module que si
+#      CALYPSO_RECORD_DRAIN_STRICT=1 — voir le POURQUOI ci-dessous.
+#
+#  JOURNAL
+#      $LOG_DIR/record_drain.log
+#
+#  POURQUOI LA CROISSANCE N'EST PAS BLOQUANTE PAR DÉFAUT
+#      Le ring ne grossit que si QEMU pousse réellement de l'I/Q, ce qui suppose
+#      un BTS qui émet et le tee actif. Au moment où ce module tourne, la chaîne
+#      radio peut être légitimement encore muette : exiger la croissance ferait
+#      échouer un draineur parfaitement sain. Le critère dur est donc « vivant +
+#      fichier créé » ; la croissance est un diagnostic, rendu exigeant à la
+#      demande. HYPOTHÈSE assumée : voir le rendu de tâche.
+#
+#  NOTE — le legacy faisait `pkill -9 -f record_drain.py` juste avant de lancer
+#  (L2093). Ce n'est pas le rôle d'un module de démarrage : la mise à mort
+#  générale appartient au module `teardown` (bloc A). Ici l'idempotence est
+#  assurée par mod_record_drain_status, qui rend « déjà démarré ».
+# -----------------------------------------------------------------------------
+MOD_REGISTER record-drain "Draineur I/Q vers le ring disque"
+MOD_REQUIRED[record-drain]=0
+MOD_DEPS[record-drain]="qemu"
+MOD_PROFILES[record-drain]="calypso hybrid"
+MOD_TIMEOUT[record-drain]=20
+# L2088 : le bloc full-grgsm. Le preset de composants s'appelle CALYPSO_PIPELINE
+# (module 06) et non CALYPSO_MODE, qui désigne déjà le profil d'émulation dans
+# environnement/modes.env. Défaut de repli `full-grgsm` = comportement legacy.
+MOD_ENABLED_IF[record-drain]='[ "${CALYPSO_PIPELINE:-full-grgsm}" = full-grgsm ] || [ "${CALYPSO_FORCE_DEMOD_BRIDGE:-0}" = 1 ]'
+
+: "${CALYPSO_RECORD_DRAIN:=${QEMU_TREE:-${QEMU_TREE}}/opt-gsm-scripts/record_drain.py}"
+: "${CALYPSO_RECORD_FIFO:=/tmp/iq_record.fifo}"
+: "${CALYPSO_RECORD_RING:=$((128 * 1024 * 1024))}"
+: "${CALYPSO_RECORD_DRAIN_STRICT:=0}"
+# CALYPSO_RECORD_FILE est déjà posé par environnement/calypso.env
+# (/dev/shm/record.cfile) ; on ne fait que le compléter s'il manquait.
+: "${CALYPSO_RECORD_FILE:=/dev/shm/record.cfile}"
+
+_recdrain_pat() { printf '%s' "record_drain.py"; }
+
+mod_record_drain_check() {
+    [ -r "$CALYPSO_RECORD_DRAIN" ] || {
+        mod_hint "posez CALYPSO_RECORD_DRAIN=/chemin/vers/record_drain.py"
+        mod_skip "record_drain.py absent : $CALYPSO_RECORD_DRAIN"
+        return $MOD_RC_SKIP; }
+    command -v python3 >/dev/null 2>&1 || {
+        mod_fail "python3 introuvable — record_drain.py ne peut pas tourner"
+        return $MOD_RC_FAIL; }
+    # Le répertoire du ring doit être inscriptible (souvent /dev/shm).
+    local d; d="$(dirname "$CALYPSO_RECORD_FILE")"
+    [ -w "$d" ] || {
+        mod_hint "choisissez un autre chemin : CALYPSO_RECORD_FILE=/tmp/record.cfile"
+        mod_fail "répertoire du ring non inscriptible : $d"
+        return $MOD_RC_FAIL; }
+    mod_ok
+}
+
+mod_record_drain_status() { have_proc "$(_recdrain_pat)"; }
+
+mod_record_drain_start() {
+    local log="${LOG_DIR}/record_drain.log"
+    mkdir -p "$LOG_DIR" "$RUN_DIR" 2>/dev/null
+    mod_say "fifo     : $CALYPSO_RECORD_FIFO"
+    mod_say "ring     : $CALYPSO_RECORD_FILE ($((CALYPSO_RECORD_RING / 1024 / 1024)) Mo)"
+
+    CALYPSO_RECORD_FIFO="$CALYPSO_RECORD_FIFO" \
+    CALYPSO_RECORD_FILE="$CALYPSO_RECORD_FILE" \
+    CALYPSO_RECORD_RING="$CALYPSO_RECORD_RING" \
+        python3 -u "$CALYPSO_RECORD_DRAIN" >>"$log" 2>&1 &
+    printf '%s\n' "$!" > "${RUN_DIR}/record-drain.pid"
+    mod_ok
+}
+
+# BARRIÈRE — le legacy lançait en sous-shell détaché (L2094) sans rien vérifier.
+#   1. le processus vit (un FIFO impossible à créer le tue à l'ouverture) ;
+#   2. le fichier de ring existe (record_drain.py l'ouvre en écriture au
+#      démarrage : sa présence prouve que le script a passé son initialisation) ;
+#   3. mesure de croissance, informative (ou bloquante si STRICT=1).
+mod_record_drain_wait() {
+    local pid t; pid="$(cat "${RUN_DIR}/record-drain.pid" 2>/dev/null || echo 0)"
+    t="${MOD_TIMEOUT[record-drain]}"
+
+    wait_until "$t" "fichier de ring $CALYPSO_RECORD_FILE" test -e "$CALYPSO_RECORD_FILE" || {
+        mod_hint "lisez ${LOG_DIR}/record_drain.log ; vérifiez les droits sur $CALYPSO_RECORD_FIFO"
+        mod_fail "le draineur n'a pas créé $CALYPSO_RECORD_FILE"
+        return $MOD_RC_FAIL; }
+
+    if ! kill -0 "$pid" 2>/dev/null; then
+        mod_hint "lisez ${LOG_DIR}/record_drain.log"
+        mod_fail "le draineur a démarré puis s'est arrêté"
+        return $MOD_RC_FAIL
+    fi
+
+    # Croissance du ring entre deux relevés espacés d'une seconde.
+    local a b
+    a="$(stat -c %s "$CALYPSO_RECORD_FILE" 2>/dev/null || echo 0)"
+    sleep 1
+    b="$(stat -c %s "$CALYPSO_RECORD_FILE" 2>/dev/null || echo 0)"
+    if [ "$a" = "$b" ]; then
+        if [ "$CALYPSO_RECORD_DRAIN_STRICT" = 1 ]; then
+            mod_hint "aucune I/Q ne sort de QEMU : vérifiez le BTS et le tee I/Q avant de relancer"
+            mod_fail "ring figé à $b octets (CALYPSO_RECORD_DRAIN_STRICT=1)"
+            return $MOD_RC_FAIL
+        fi
+        mod_say "AVERTISSEMENT : ring figé à $b octets — QEMU ne pousse pas encore d'I/Q"
+    else
+        mod_say "ring alimenté : $a -> $b octets en 1 s"
+    fi
+    mod_ok
+}
+
+mod_record_drain_stop() {
+    local pid; pid="$(cat "${RUN_DIR}/record-drain.pid" 2>/dev/null || echo 0)"
+    [ "$pid" != 0 ] && kill "$pid" 2>/dev/null
+    pkill -f "$(_recdrain_pat)" 2>/dev/null
+    rm -f "${RUN_DIR}/record-drain.pid"
     return 0
 }
 

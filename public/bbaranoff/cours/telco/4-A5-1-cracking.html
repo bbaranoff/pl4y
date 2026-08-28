@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Casser A5/1 — de la capture au Kc, à la
+main &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+<!-- pl4y-sectnav v1 -->
+<nav class="pl4y-sect" aria-label="Sommaire de la section">
+  <div class="pl4y-sect-head">bbaranoff.github.io</div>
+    <details class="pl4y-sect-grp">
+      <summary>Accueil <span class="n">5</span></summary>
+      <ul>
+      <li><a href="../../index.html">Bastien Baranoff — SDR &amp;
+Cybersécurité</a></li>
+      <li><a href="../../GSM_lab.html">Bundled Page</a></li>
+      <li><a href="../../privacy.html">Privacy</a></li>
+      <li><a href="../../README.html">bbaranoff.github.io</a></li>
+      <li><a href="../../whoami.html">Who am I ?</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Projets <span class="n">6</span></summary>
+      <ul>
+      <li><a href="../../projects/index.html">Projets</a></li>
+      <li><a href="../../projects/0-abstract_radio.html">Abstract — Attaques sur les protocoles
+radio</a></li>
+      <li><a href="../../projects/cryptanalyse.html">Cryptanalyse — TEA1 &amp; DST80</a></li>
+      <li><a href="../../projects/qemu-calypso.html">QEMU-Calypso</a></li>
+      <li><a href="../../projects/radio_stuff.html">LoRa — Traqueur GPS via LoRaWAN</a></li>
+      <li><a href="../../projects/telco.html">Redirection LTE / 5G-NSA → 2G</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp" open>
+      <summary>Cours <span class="n">13</span></summary>
+      <ul>
+      <li><a href="../index.html">Cours</a></li>
+      <li><a href="../methodes/index.html">Méthodes</a></li>
+      <li><a href="index.html">Télécom &amp;amp; SDR</a></li>
+      <li><a href="../methodes/1-Agile.html">Methodes Agiles</a></li>
+      <li><a href="../methodes/2-Agile-TP.html">TP Agile</a></li>
+      <li><a href="../methodes/3-UML.html">Introduction à l'UML</a></li>
+      <li><a href="../methodes/4-UML-TP.html">UML Travaux Pratiques</a></li>
+      <li><a href="../methodes/5-Git.html">Introduction à GIT</a></li>
+      <li><a href="../methodes/6-Git-TP.html">Git Travaux Pratiques</a></li>
+      <li><a href="1-Lab-GSM-multiPLMN.html">Lab GSM multi-opérateur — osmo_egprs</a></li>
+      <li><a href="2-QEMU-Calypso.html">Émulation du baseband Calypso —
+qemu-calypso</a></li>
+      <li><a href="3-GSM-etape-par-etape.html">Cours GSM — l'attachement d'un mobile, étape par
+étape</a></li>
+      <li><a href="4-A5-1-cracking.html" aria-current="page">Casser A5/1 — de la capture au Kc, à la
+main</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>CTF <span class="n">3</span></summary>
+      <ul>
+      <li><a href="../../ctf/aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d/index.html">archive aaf4c61d…</a></li>
+      <li><a href="../../ctf/index.html">Password Protected</a></li>
+      <li><a href="../../ctf/ctf.html">Capture the flag</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Infos <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../infos/index.html">Informations gathered</a></li>
+      <li><a href="../../infos/README.html">show my ip</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>archives <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../archives/index.html">Archives</a></li>
+      <li><a href="../../archives/To_Do.html">To Do : Build the portfolio</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>exemples <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../exemples/index.html">Exemples</a></li>
+      <li><a href="../../exemples/gsm-lab-wallpaper.html">GSM Lab — Wallpaper</a></li>
+      </ul>
+    </details>
+</nav>
+
+  <header class="title-block">
+    <h1>Casser A5/1 — de la capture au Kc, à la main</h1>
+
+  </header>
+  <nav id="TOC" role="doc-toc" aria-label="Sommaire">
+<ul>
+<li><a href="#le-principe" id="toc-le-principe">Le principe</a></li>
+<li><a href="#deux-chaînes-dacquisition-airprobe-gr-gsm"
+id="toc-deux-chaînes-dacquisition-airprobe-gr-gsm">Deux chaînes
+d’acquisition — <strong>airprobe // gr-gsm</strong></a></li>
+<li><a href="#lattaque-pas-à-pas" id="toc-lattaque-pas-à-pas">L’attaque,
+pas à pas</a>
+<ul>
+<li><a href="#démoduler-la-capture-gsmtap"
+id="toc-démoduler-la-capture-gsmtap">1. Démoduler la capture →
+GSMTAP</a></li>
+<li><a href="#repérer-le-canal-dédié-wireshark-commun"
+id="toc-repérer-le-canal-dédié-wireshark-commun">2. Repérer le canal
+dédié — Wireshark (commun)</a></li>
+<li><a href="#extraire-les-bursts-chiffrés-c1c0"
+id="toc-extraire-les-bursts-chiffrés-c1c0">3. Extraire les bursts
+<strong>chiffrés</strong> (C1/C0)</a></li>
+<li><a href="#récupérer-le-plaintext-connu-si5-commun"
+id="toc-récupérer-le-plaintext-connu-si5-commun">4. Récupérer le
+plaintext connu — SI5 (commun)</a></li>
+<li><a href="#ré-encoder-le-plaintext-en-bursts-gsm-05.03"
+id="toc-ré-encoder-le-plaintext-en-bursts-gsm-05.03">5. Ré-encoder le
+plaintext en bursts (GSM 05.03)</a></li>
+<li><a href="#xor-chiffré-clair-keystream"
+id="toc-xor-chiffré-clair-keystream">6. XOR chiffré ⊕ clair =
+<strong>keystream</strong></a></li>
+<li><a href="#cracker-le-keystream-deka-kraken"
+id="toc-cracker-le-keystream-deka-kraken">7. Cracker le keystream — deka
+/ Kraken</a></li>
+<li><a href="#remonter-au-kc-et-le-vérifier-find_kc"
+id="toc-remonter-au-kc-et-le-vérifier-find_kc">8. Remonter au Kc et le
+vérifier (<code>find_kc</code>)</a></li>
+</ul></li>
+<li><a href="#automatiser-a51_tools"
+id="toc-automatiser-a51_tools">Automatiser :
+<code>a51_tools</code></a></li>
+<li><a href="#prérequis-tables" id="toc-prérequis-tables">Prérequis
+&amp; tables</a></li>
+</ul>
+  </nav>
+  <main>
+<blockquote>
+<p>Récupérer le <strong>Kc</strong> de session d’une communication GSM
+chiffrée, à partir d’une capture <code>.cfile</code>, par
+<strong>attaque à plaintext connu</strong> + <strong>tables
+arc-en-ciel</strong> A5/1 (Kraken / deka). Procédure <strong>manuelle,
+pas à pas</strong>, avec les <strong>deux chaînes d’acquisition</strong>
+— <strong>airprobe</strong> et <strong>gr-gsm</strong> — menées en
+parallèle. Méthode : <a
+href="https://software-defined-radio.com">software-defined-radio.com</a>
+· Outils : <a
+href="https://github.com/bbaranoff/a51_tools">github.com/bbaranoff/a51_tools</a></p>
+</blockquote>
+<pre class="danger"><code>
+**Cadre légal.** A5/1 est le chiffrement de l&#39;interface air 2G, cassé
+publiquement depuis 2009 (Nohl / Munaut, 27C3). Ce module est **pédagogique** et
+réservé à la **recherche / au pentest autorisé / à la démonstration légale**.
+Intercepter des communications d&#39;autrui sans autorisation est illégal.
+</code></pre>
+<pre class="tip"><code>
+**En une phrase.** On XORe un burst **chiffré** avec le **même** burst en clair
+(un System Information, prévisible) pour obtenir du **keystream** ; les tables
+arc-en-ciel (deka/Kraken) remontent ce keystream à l&#39;**état interne** A5/1, et
+`find_kc` en tire le **Kc** — vérifié sur une seconde trame.
+</code></pre>
+<h2 id="le-principe">Le principe</h2>
+<p>A5/1 est un <strong>chiffrement par flot</strong> à <strong>état
+interne de 64 bits</strong> (3 LFSR), initialisé par la clé de session
+<strong>Kc</strong> (dérivée du Ki de la SIM via A3/A8). Il chiffre bit
+à bit : <code>chiffré = plaintext ⊕ keystream</code>, où le keystream ne
+dépend que de <code>(Kc, numéro de trame)</code>.</p>
+<p>L’attaquant <strong>ne calcule jamais A5/1</strong>. Il lui faut un
+segment de <strong>keystream</strong> (≥ 64 bits sans erreur), que
+<strong>deka/Kraken</strong> retournent vers l’<strong>état
+interne</strong> par compromis temps-mémoire (~8 To de tables pour la
+couverture complète). De l’état, <code>find_kc</code> remonte au
+<strong>Kc</strong>.</p>
+<p>Le keystream s’obtient <strong>sans la clé</strong>, par XOR avec du
+<strong>plaintext connu</strong> — les <strong>System Information
+5/6</strong> de la SACCH : contenu <strong>fixe</strong>, <strong>répété
+toutes les 102 trames</strong>, et dont le LAI/cell se lit en clair sur
+le <strong>BCCH</strong> (jamais chiffré).</p>
+<pre class="mermaid"><code>flowchart LR
+    subgraph ACQ[&quot;Acquisition (au choix)&quot;]
+      direction TB
+      AP[&quot;airprobe&quot;] 
+      GR[&quot;gr-gsm&quot;]
+    end
+    ACQ --&gt; C[&quot;burst chiffré (C1/C0)&quot;]
+    SI[&quot;SI5 en clair → GSMFramecoder&quot;] --&gt; P[&quot;burst plaintext&quot;]
+    C --&gt; X((&quot;⊕&quot;))
+    P --&gt; X
+    X --&gt; K[&quot;keystream&quot;]
+    K --&gt; D[&quot;deka / Kraken&quot;]
+    D --&gt; S[&quot;état interne 64 bits&quot;]
+    S --&gt; F[&quot;find_kc (2ᵉ trame)&quot;]
+    F --&gt; KC[&quot;Kc de session&quot;]</code></pre>
+<hr />
+<h2 id="deux-chaînes-dacquisition-airprobe-gr-gsm">Deux chaînes
+d’acquisition — <strong>airprobe // gr-gsm</strong></h2>
+<p>Les étapes 1 à 3 (démoduler, repérer le canal, sortir les bursts
+chiffrés) s’obtiennent avec <strong>l’une OU l’autre</strong> des deux
+chaînes. Elles produisent le <strong>même GSMTAP</strong> (donc la même
+vue Wireshark) et les <strong>mêmes bursts</strong> ; à partir de
+l’étape 4, tout est commun.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th><strong>airprobe</strong></th>
+<th><strong>gr-gsm</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Base</td>
+<td>GNU Radio 3.7 (image Docker prête)</td>
+<td>GNU Radio 3.8+ (<code>grgsm_*</code>)</td>
+</tr>
+<tr class="even">
+<td>Démodulation</td>
+<td><code>go_usrp2.sh &lt;cfile&gt; &lt;arfcn&gt; [canal]</code></td>
+<td><code>grgsm_decode</code> / <code>grgsm_livemon</code></td>
+</tr>
+<tr class="odd">
+<td>Sortie bursts</td>
+<td><code>C1/C0 &lt;fn&gt; &lt;count&gt;: &lt;114 b&gt;</code></td>
+<td><code>grgsm_decode -p</code> (même bitstring)</td>
+</tr>
+<tr class="even">
+<td>Vers Wireshark</td>
+<td>GSMTAP → <code>lo</code></td>
+<td>GSMTAP → <code>lo</code></td>
+</tr>
+<tr class="odd">
+<td>Idéal pour</td>
+<td>rejeu de <code>.cfile</code> historiques</td>
+<td>live SDR + scripts modernes</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="lattaque-pas-à-pas">L’attaque, pas à pas</h2>
+<p>Cible : une capture d’appel dont on <strong>connaît le Kc
+d’avance</strong> (<code>…Kc1EF00BAB3BAC7002.cfile</code>, ARFCN 174) —
+pour <strong>vérifier</strong> le résultat à la fin.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant CF as .cfile
+    participant AQ as airprobe // gr-gsm
+    participant WS as Wireshark (GSMTAP)
+    participant FC as GSMFramecoder
+    participant XO as xor.py
+    participant DK as deka / Kraken :6666
+    participant FK as find_kc
+    CF-&gt;&gt;AQ: rejeu / démodulation
+    AQ-&gt;&gt;WS: GSMTAP → Immediate Assignment → SDCCH/8
+    AQ-&gt;&gt;XO: bursts chiffrés (C1/C0)
+    FC-&gt;&gt;XO: SI5 (TA=0) → 4 bursts clairs
+    Note over XO: chiffré ⊕ clair = keystream
+    XO-&gt;&gt;DK: keystream (114 b)
+    DK-&gt;&gt;FK: état &quot;Found @ bitpos&quot;
+    FK-&gt;&gt;FK: rejoue sur une 2ᵉ trame
+    Note over FK: *** MATCHED *** → Kc</code></pre>
+<h3 id="démoduler-la-capture-gsmtap">1. Démoduler la capture →
+GSMTAP</h3>
+<p>D’abord Wireshark, qui écoute le GSMTAP sur <code>lo</code> (les deux
+chaînes y envoient) :</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> wireshark <span class="at">-k</span> <span class="at">-f</span> udp <span class="at">-Y</span> gsmtap <span class="at">-i</span> lo <span class="kw">&amp;</span></span></code></pre></div>
+<p><strong>Chaîne airprobe</strong> (image Docker) :</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> docker run <span class="at">-it</span> <span class="at">--net</span> host bastienbaranoff/airprobe</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># dans le conteneur :</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /opt/airprobe/gsm-receiver/src/python</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="ex">./go_usrp2.sh</span> vf_call6_…_Kc1EF00BAB3BAC7002.cfile 174</span></code></pre></div>
+<p><strong>Chaîne gr-gsm</strong> (équivalent, GNU Radio 3.8+) — décode
+la signalisation du <code>.cfile</code> et pousse le GSMTAP vers
+Wireshark :</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">grgsm_decode</span> <span class="at">-c</span> vf_call6_…_Kc1EF00BAB3BAC7002.cfile <span class="dt">\</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>             <span class="at">-s</span> 1083333 <span class="at">-a</span> 174 <span class="at">-m</span> BCCH_SDCCH4 <span class="at">-t</span> 0 <span class="at">-v</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># (en live sur SDR : grgsm_livemon -f 939.4M -g 40)</span></span></code></pre></div>
+<h3 id="repérer-le-canal-dédié-wireshark-commun">2. Repérer le canal
+dédié — Wireshark (commun)</h3>
+<p>Ouvrir un <strong>Immediate Assignment</strong> (GSM CCCH) →
+<em>Channel Description</em>. Ici, le canal dédié est un <strong>SDCCH/8
+sur TS1</strong> (<code>1S</code>) :</p>
+<pre class="text"><code>0C : TS0  combiné (FCCH + SCH + BCCH + CCCH + SDCCH/4)
+0B : TS0  FCCH + SCH + BCCH + CCCH
+1S : TS1  SDCCH/8          ← notre canal
+2T : TS2  trafic Full Rate</code></pre>
+<h3 id="extraire-les-bursts-chiffrés-c1c0">3. Extraire les bursts
+<strong>chiffrés</strong> (C1/C0)</h3>
+<p>On cible le canal trouvé et on sort les bursts <strong>sans la
+clé</strong>.</p>
+<p><strong>airprobe</strong> — relancer sur le canal <code>1S</code> ;
+la sortie donne les bursts au format
+<code>C{1,0} &lt;fn&gt; &lt;framecount&gt;: &lt;114 bits&gt;</code>
+:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./go_usrp2.sh</span> vf_call6_…_Kc1EF00BAB3BAC7002.cfile 174 1S</span></code></pre></div>
+<p><strong>gr-gsm</strong> — <code>grgsm_decode -p</code> imprime les
+mêmes bursts (pas de <code>-e/-k</code>, donc <strong>chiffrés</strong>)
+:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">grgsm_decode</span> <span class="at">-c</span> vf_call6_…_Kc1EF00BAB3BAC7002.cfile <span class="dt">\</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>             <span class="at">-s</span> 1083333 <span class="at">-a</span> 174 <span class="at">-m</span> SDCCH8 <span class="at">-t</span> 1 <span class="at">-p</span> <span class="op">&gt;</span> my.bursts</span></code></pre></div>
+<p>La SACCH <strong>répète</strong> le même SI toutes les 102 trames :
+on retrouve le bloc SI5, chiffré. On ne garde que <strong>C1</strong>
+(1ᵉʳ du bloc) et <strong>C0</strong> (suivants) :</p>
+<pre class="text"><code>C1 862446 1332352: 010010100010111111011010010010111000000101010000100100111111001010100111110000101001110000101110100011111000010001
+C0 862447 1332385: 011100001000110111001101011011111001010000110001101001000100000011111101000110010100011001100001100100000010101110
+C0 862448 1332418: 111010110111001011110001011101101100010000101110111000010000000101110001010100100101011010000010110110110111001011
+C0 862449 1332451: 011111110010110100001100001101110001001110100011010010111001001010111001001101000010111100101100110100000110110000</code></pre>
+<h3 id="récupérer-le-plaintext-connu-si5-commun">4. Récupérer le
+plaintext connu — SI5 (commun)</h3>
+<p>Le <strong>BCCH</strong> (jamais chiffré) donne le SI5/SI6. On relève
+les 23 octets du bloc et on remet le <strong>Timing Advance à 0</strong>
+(valeur canonique du plaintext) :</p>
+<pre class="text"><code>TA=1 : 0001030349061d9f6d1810800000000000000000000000
+TA=0 : 0000030349061d9f6d1810800000000000000000000000   ← plaintext connu</code></pre>
+<p><em>(gr-gsm : <code>grgsm_decode … -m BCCH_SDCCH4 -t 0 -v</code>
+affiche les System Information en clair.)</em></p>
+<h3 id="ré-encoder-le-plaintext-en-bursts-gsm-05.03">5. Ré-encoder le
+plaintext en bursts (GSM 05.03)</h3>
+<p><code>GSMFramecoder</code> (ou <a
+href="https://github.com/bbaranoff/a51_tools"><code>gsmcode.py</code></a>)
+applique <strong>Fire (224,184) + tail + convolutif ½ (K=5) +
+entrelacement</strong> et sort les <strong>4 bursts de 114 bits</strong>
+du bloc SI5 :</p>
+<pre class="text"><code>Decoding 0000030349061d9f6d1810800000000000000000000000
+Burst1: 001000000001010000100000001100100010000011000000100000000110101000000000001011010001000000110100001000101001000110
+Burst4: 110000001100100100000101000010010101000000000000000100000001010100001010000000000010100100011110000000000010101000</code></pre>
+<h3 id="xor-chiffré-clair-keystream">6. XOR chiffré ⊕ clair =
+<strong>keystream</strong></h3>
+<p><code>xor.py</code> (dans <code>kraken/Utilities/</code>) XORe deux
+bitstrings de 114 caractères :</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># python xor.py &lt;burst_chiffré_114&gt; &lt;burst_clair_114&gt;</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">114</span>):</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    r <span class="op">+=</span> <span class="bu">chr</span>(<span class="dv">48</span> <span class="op">^</span> <span class="bu">ord</span>(a[i]) <span class="op">^</span> <span class="bu">ord</span>(b[i]))     <span class="co"># 48 = &#39;0&#39;  → sort du &#39;0&#39;/&#39;1&#39;</span></span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /mnt/kraken/Utilities</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> xor.py <span class="op">&lt;</span>C0_862449<span class="op">&gt;</span> <span class="op">&lt;</span>Burst4<span class="op">&gt;</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co"># → 101111111110010000001001001111100100001110100011010110111000011110110011001101000000011000110010110100000100011000</span></span></code></pre></div>
+<h3 id="cracker-le-keystream-deka-kraken">7. Cracker le keystream — deka
+/ Kraken</h3>
+<p>deka (OpenCL/GPU) écoute sur le port <strong>6666</strong> :</p>
+<pre class="text"><code>$ telnet 0 6666
+crack 101111111110010000001001001111100100001110100011010110111000011110110011001101000000011000110010110100000100011000
+Cracking #1 …
+Found D5EB21665D2B8F25 @ 13 #1 (table:172)
+crack #1 took 6249 msec</code></pre>
+<p>deka retourne l’<strong>état interne</strong>
+(<code>D5EB21665D2B8F25</code>) et la <strong>position</strong>
+(<code>@ 13</code>).</p>
+<pre class="warning"><code>
+**Une &quot;Found&quot; n&#39;est pas une preuve.** Hit ~22–24 % par table (~50–60 % avec
+plusieurs jeux) : il faut souvent cracker **plusieurs blocs**, et un burst bruité
+donne un keystream faux → aucun hit. Seul `find_kc` **confirme** le Kc (étape 8).
+</code></pre>
+<h3 id="remonter-au-kc-et-le-vérifier-find_kc">8. Remonter au Kc et le
+vérifier (<code>find_kc</code>)</h3>
+<p><code>find_kc</code> prend l’état (en <strong>décimal</strong> +
+suffixe <code>x</code>), la position, le <code>framecount</code> de la
+trame crackée, puis une <strong>2ᵉ trame</strong> (framecount + son
+keystream) pour <strong>valider</strong> :</p>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># D5EB21665D2B8F25 (hex) → 15414450873139171109 (déc) → &#39;x&#39;</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./find_kc</span> 15414450873139171109x 13  1332451 1332352 <span class="dt">\</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  011010100011101111111010011110011010000110010000000100111001100010100111111011111000110000011010101011010001010111</span></code></pre></div>
+<pre class="text"><code>#### Found potential key (bits: 13)####
+Framecount is 1332451
+KC(0): b7 09 2a b2 c9 5c 86 32   mismatch
+KC(1): 1e f0 0b ab 3b ac 70 02   *** MATCHED ***
+KC(2): 9f 5b 40 35 57 b2 96 4d   mismatch
+…</code></pre>
+<p>✅ <strong><code>KC = 1E F0 0B AB 3B AC 70 02</code></strong> —
+exactement la clé annoncée dans le nom du fichier
+<code>…Kc1EF00BAB3BAC7002.cfile</code>. La session entière (voix, SMS)
+se déchiffre, et la <strong>signature COMP128v1</strong> se lit dans les
+octets de poids faible du Kc (voir <a
+href="3-GSM-etape-par-etape.html">GSM étape par étape —
+authentification</a>).</p>
+<hr />
+<h2 id="automatiser-a51_tools">Automatiser : <code>a51_tools</code></h2>
+<p><strong>🎥 PoC — A5/1 de bout en bout</strong></p>
+<iframe src="https://www.youtube.com/embed/GOt0Hav3Np8" title="PoC" width="560" height="315" style="width:min(560px,100%);aspect-ratio:16/9;height:auto;border:0;border-radius:10px;margin:.4rem 0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy">
+</iframe>
+<iframe src="https://www.youtube.com/embed/WWdUX66lsnU" title="PoC" width="560" height="315" style="width:min(560px,100%);aspect-ratio:16/9;height:auto;border:0;border-radius:10px;margin:.4rem 0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy">
+</iframe>
+<iframe src="https://www.youtube.com/embed/s13TDfBw5v4" title="PoC" width="560" height="315" style="width:min(560px,100%);aspect-ratio:16/9;height:auto;border:0;border-radius:10px;margin:.4rem 0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy">
+</iframe>
+<hr />
+<p>Tout le manuel ci-dessus, de bout en bout depuis le
+<code>.cfile</code> (chaîne <strong>gr-gsm</strong>) :</p>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># deka doit tourner (paplon.py + oclvankus.py + delta_client.py, port 6666)</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> crack_all.py slice_dl.cfile</span></code></pre></div>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>fichier</th>
+<th>rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ciphereds.py</code></td>
+<td>charge les bursts chiffrés, regroupés en blocs de 4</td>
+</tr>
+<tr class="even">
+<td><code>plaintexts.py</code></td>
+<td>catalogue de plaintext connu (fill / SI5 / SI6) ré-encodé</td>
+</tr>
+<tr class="odd">
+<td><code>gsmcode.py</code></td>
+<td>codeur GSM 05.03 (validé au bit près vs
+<code>GSMFramecoder</code>)</td>
+</tr>
+<tr class="even">
+<td><code>crack.py</code></td>
+<td>attaque un bloc précis : XOR → deka → find_kc</td>
+</tr>
+<tr class="odd">
+<td><code>crack_all.py</code></td>
+<td>de bout en bout depuis le <code>.cfile</code>, crack en masse +
+croisement</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Un crack réel</strong> (<code>crack_all.py</code>) :
+<code>slice_dl_20260821180631.cfile</code>, ARFCN 514 @ 1 083 333 Hz,
+<strong>24 blocs / 53 keystreams</strong>, état
+<code>12434AE706D27553</code> (bitpos 25, count 93190) → <strong>✅ Kc =
+<code>9E B9 0C 45 8B D8 E0 00</code></strong>.</p>
+<hr />
+<h2 id="prérequis-tables">Prérequis &amp; tables</h2>
+<ul>
+<li><strong>Tables arc-en-ciel A5/1</strong> — <a
+href="https://infocon.org/rainbow%20tables/A51/">infocon.org</a> (~8 To
+pour la couverture complète ; 6 tables suffisent pour s’entraîner).</li>
+<li><strong><a
+href="https://github.com/ptrkrysik/gr-gsm">gr-gsm</a></strong> —
+<code>grgsm_decode</code>, <code>grgsm_livemon</code> (acquisition
+moderne).</li>
+<li><strong><a
+href="https://github.com/joswr1ght/kraken">Kraken</a></strong> — cracker
+CPU + <code>Utilities/</code> (<code>xor.py</code>,
+<code>find_kc</code>).</li>
+<li><strong>deka</strong> (<a
+href="https://jenda.hrach.eu/p/deka">jenda.hrach.eu/p/deka</a>) —
+cracker <strong>OpenCL</strong> (GPU), orchestré par
+<code>paplon.py</code> / <code>oclvankus.py</code> /
+<code>delta_client.py</code>.</li>
+<li>Installation complète (LVM des index, patch Kraken, build deka,
+pipeline) : <strong><a
+href="https://software-defined-radio.com">software-defined-radio.com</a></strong>.</li>
+</ul>
+<hr />
+<p><em>Modules liés : <a href="2-QEMU-Calypso.html">Émulation du baseband
+Calypso</a> · <a href="3-GSM-etape-par-etape.html">GSM étape par
+étape</a>. Source de la méthode : <a
+href="https://software-defined-radio.com">software-defined-radio.com</a>.</em></p>
+<details>
+<summary>
+🥚 <em>Un œuf de Pâques, pour qui lit jusqu’ici…</em>
+</summary>
+<blockquote>
+<p>
+La documentation et les sources de
+<a href="https://github.com/bbaranoff/qemu-calypso"><code>qemu-calypso</code></a>
++
+<a href="https://github.com/bbaranoff/osmo_egprs"><code>osmo_egprs</code></a>
+forment un corpus qui, un jour de comptage oisif, a été pesé au
+<code>wc</code> :
+</p>
+<table>
+<thead>
+<tr>
+<th>
+</th>
+<th>
+Mots
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+La Bible (King James Version)
+</td>
+<td>
+783 137
+</td>
+</tr>
+<tr>
+<td>
+<strong>Corpus Calypso + osmo_egprs</strong>
+</td>
+<td>
+<strong>862 028</strong>
+</td>
+</tr>
+</tbody>
+</table>
+<p>
+Soit <strong>110 % de la Bible, +78 891 mots</strong> — à peu près un
+livre de l’Ancien Testament d’avance, ~2 900 pages contre ~1 200. Un
+apocryphe entier, écrit en désassemblage TMS320C54x. 📖📡
+</p>
+<p>
+<small>Astérisque d’honnêteté : c’est un décompte au <code>wc</code>,
+docs + sources confondues. La révélation n’engage que le corrélateur de
+FCCH.</small>
+</p>
+</blockquote>
+</details>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>

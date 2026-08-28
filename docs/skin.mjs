@@ -10,11 +10,12 @@
 //
 // Usage : node docs/skin.mjs <dir> [--title-prefix "..."]
 
-import { readdirSync, readFileSync, writeFileSync, statSync, copyFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { join, relative, dirname, sep } from "node:path";
 
 const THEME_DIR = new URL("./theme/", import.meta.url).pathname;
 const CSS_NAME = "pl4y-doc.css";
+const TOKENS_NAME = "pl4y-tokens.css";
 const MARKER = "<!-- pl4y-skin v1 -->";
 
 const HEAD = readFileSync(join(THEME_DIR, "pl4y-head.html"), "utf8");
@@ -30,7 +31,15 @@ function walk(dir, out = []) {
 }
 
 export function skin(root) {
-  copyFileSync(join(THEME_DIR, CSS_NAME), join(root, CSS_NAME));
+  // La feuille ecrite dans l'arbre est la CONCATENATION des tokens partages et
+  // du skin. On ne peut pas s'en remettre a un @import : il declencherait une
+  // requete supplementaire par page, et surtout les tokens arriveraient apres
+  // les regles qui les utilisent sur un rendu lent.
+  writeFileSync(
+    join(root, CSS_NAME),
+    readFileSync(join(THEME_DIR, TOKENS_NAME), "utf8") + "\n" +
+    readFileSync(join(THEME_DIR, CSS_NAME), "utf8"),
+  );
   const files = walk(root);
   let n = 0;
   for (const f of files) {

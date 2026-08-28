@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc / pl4y.store">
+<title>Git Travaux Pratiques &mdash; pl4y.store</title>
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="../../pl4y-doc.css">
+</head>
+<body>
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+<div class="pl4y-doc">
+<!-- pl4y-sectnav v1 -->
+<nav class="pl4y-sect" aria-label="Sommaire de la section">
+  <div class="pl4y-sect-head">bbaranoff.github.io</div>
+    <details class="pl4y-sect-grp">
+      <summary>Accueil <span class="n">5</span></summary>
+      <ul>
+      <li><a href="../../index.html">Bastien Baranoff — SDR &amp;
+Cybersécurité</a></li>
+      <li><a href="../../GSM_lab.html">Bundled Page</a></li>
+      <li><a href="../../privacy.html">Privacy</a></li>
+      <li><a href="../../README.html">bbaranoff.github.io</a></li>
+      <li><a href="../../whoami.html">Who am I ?</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Projets <span class="n">6</span></summary>
+      <ul>
+      <li><a href="../../projects/index.html">Projets</a></li>
+      <li><a href="../../projects/0-abstract_radio.html">Abstract — Attaques sur les protocoles
+radio</a></li>
+      <li><a href="../../projects/cryptanalyse.html">Cryptanalyse — TEA1 &amp; DST80</a></li>
+      <li><a href="../../projects/qemu-calypso.html">QEMU-Calypso</a></li>
+      <li><a href="../../projects/radio_stuff.html">LoRa — Traqueur GPS via LoRaWAN</a></li>
+      <li><a href="../../projects/telco.html">Redirection LTE / 5G-NSA → 2G</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp" open>
+      <summary>Cours <span class="n">13</span></summary>
+      <ul>
+      <li><a href="../index.html">Cours</a></li>
+      <li><a href="index.html">Méthodes</a></li>
+      <li><a href="../telco/index.html">Télécom &amp;amp; SDR</a></li>
+      <li><a href="1-Agile.html">Methodes Agiles</a></li>
+      <li><a href="2-Agile-TP.html">TP Agile</a></li>
+      <li><a href="3-UML.html">Introduction à l'UML</a></li>
+      <li><a href="4-UML-TP.html">UML Travaux Pratiques</a></li>
+      <li><a href="5-Git.html">Introduction à GIT</a></li>
+      <li><a href="6-Git-TP.html" aria-current="page">Git Travaux Pratiques</a></li>
+      <li><a href="../telco/1-Lab-GSM-multiPLMN.html">Lab GSM multi-opérateur — osmo_egprs</a></li>
+      <li><a href="../telco/2-QEMU-Calypso.html">Émulation du baseband Calypso —
+qemu-calypso</a></li>
+      <li><a href="../telco/3-GSM-etape-par-etape.html">Cours GSM — l'attachement d'un mobile, étape par
+étape</a></li>
+      <li><a href="../telco/4-A5-1-cracking.html">Casser A5/1 — de la capture au Kc, à la
+main</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>CTF <span class="n">3</span></summary>
+      <ul>
+      <li><a href="../../ctf/aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d/index.html">archive aaf4c61d…</a></li>
+      <li><a href="../../ctf/index.html">Password Protected</a></li>
+      <li><a href="../../ctf/ctf.html">Capture the flag</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>Infos <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../infos/index.html">Informations gathered</a></li>
+      <li><a href="../../infos/README.html">show my ip</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>archives <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../archives/index.html">Archives</a></li>
+      <li><a href="../../archives/To_Do.html">To Do : Build the portfolio</a></li>
+      </ul>
+    </details>
+    <details class="pl4y-sect-grp">
+      <summary>exemples <span class="n">2</span></summary>
+      <ul>
+      <li><a href="../../exemples/index.html">Exemples</a></li>
+      <li><a href="../../exemples/gsm-lab-wallpaper.html">GSM Lab — Wallpaper</a></li>
+      </ul>
+    </details>
+</nav>
+
+  <header class="title-block">
+    <h1>Git Travaux Pratiques</h1>
+
+  </header>
+  <main>
+<p>Vous avez un projet de développement logiciel avec votre entreprise :
+Pour ce faire vous devez créer un compte github à votre nom avant de
+passer en production.</p>
+<p>Inscription à un nouveau compte personnel</p>
+<pre><code>Accédez à https://github.com/.
+Cliquez sur S’inscrire.
+Suivez les invites pour créer votre compte personnel.</code></pre>
+<p>Lors de l’inscription, vous êtes invité à vérifier votre adresse
+e-mail. Sans adresse e-mail vérifiée, vous ne pourrez pas effectuer
+certaines tâches de base GitHub, telles que la création d’un
+référentiel.</p>
+<p>Si vous rencontrez des problèmes lors de la vérification de votre
+adresse e-mail, vous pouvez effectuer des étapes de dépannage. Pour plus
+d’informations, consultez « Vérification de votre adresse e-mail ».</p>
+<p>Ensuite vous devez créer un dépot (repository) sur ce même compte que
+vous nommerez mon_projet</p>
+<ul>
+<li>Appuyer sur New sur github et nommez le repository mon_projet vous y
+ajouterez la License MIT</li>
+</ul>
+<figure>
+<img src="images/mon_projet.png" alt="Mon Prjet" />
+<figcaption aria-hidden="true">Mon Prjet</figcaption>
+</figure>
+<p><img src="images/mit.png" alt="Mon Projet" /> <img
+src="images/mit_lic.png" alt="Mon Projet" /></p>
+<p>Clonez ensuite le dépot (vide) localement sur votre machine.</p>
+<ul>
+<li><code>git clone https://github.com/mon_user/mon_projet</code></li>
+</ul>
+<p>Ajoutez un README.md qui décrira comment utiliser votre dépot Ajoutez
+un titre de niveau 1 : “Mon Projet” au README.md</p>
+<pre><code>cd mon_projet
+nano mon_projet
+# Mon Projet  </code></pre>
+<p>Comment puis je récupérer mon token ?</p>
+<ul>
+<li>Aller sur votre profil -&gt; settings -&gt; Developper Settings
+-&gt; Personnal access tokens -&gt; Token Classic</li>
+</ul>
+<figure>
+<img src="images/tok_1.png" alt="Token" />
+<figcaption aria-hidden="true">Token</figcaption>
+</figure>
+<figure>
+<img src="images/tok_2.png" alt="Token" />
+<figcaption aria-hidden="true">Token</figcaption>
+</figure>
+<figure>
+<img src="images/tok_3.png" alt="Token" />
+<figcaption aria-hidden="true">Token</figcaption>
+</figure>
+<figure>
+<img src="images/tok_5.png" alt="Token" />
+<figcaption aria-hidden="true">Token</figcaption>
+</figure>
+<figure>
+<img src="images/tok_6.png" alt="Token" />
+<figcaption aria-hidden="true">Token</figcaption>
+</figure>
+<p>Pourquoi puis-je cloner mon dépot sans l’utilisation du token et ne
+puis pas faire un push sans ?</p>
+<ul>
+<li>Si le dépot est public il est accessible à tout le monde donc les
+utilisateurs n’ont pas à justifier de leur authentification.</li>
+</ul>
+<p>Pour un push même si le dépot est public on modifie le code du dépot
+donc seul les utilisateurs désignés doivent en avoir la possibilité</p>
+<p>Quelle sont les commande git qui permet une mise à jour du dépot via
+un push en ajoutant “Ajout de hello world au README” ?</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> add .</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">&quot;Ajout de hello world au README&quot;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push https://api_key@github.com/mon_user/mon_projet  </span></code></pre></div>
+<p>Maintenant si je rajoute Hello World directement sur le README.md sur
+github on reçoit l’erreur suivante lors d’un push en local : <img
+src="images/push_fail.png" alt="push" /></p>
+<p>puis-je pousser mes dépots locaux sur github.</p>
+<ul>
+<li>cd mon_projet &amp;&amp; git pull</li>
+</ul>
+<p>Mise à jour du dépot local pour intégrer les modifications
+distantes</p>
+<figure>
+<img src="images/pull_n_push.png" alt="pull then push" />
+<figcaption aria-hidden="true">pull then push</figcaption>
+</figure>
+<p>Ou on peut ignorer le commit distant pour l’écraser avec le commit
+local où la modification n’a pas eu lieu</p>
+<figure>
+<img src="images/force_push.png" alt="force push" />
+<figcaption aria-hidden="true">force push</figcaption>
+</figure>
+<p>Si on veut faire une branche ou à la place de Hello World on ait
+Hello Earth comment faire ?</p>
+<ul>
+<li>git checkout -b ma_branche<br />
+</li>
+<li>sed -i -e ‘s/World/Earth/g’ README.md</li>
+</ul>
+<figure>
+<img src="images/ma_branche.png" alt="Ma Branche" />
+<figcaption aria-hidden="true">Ma Branche</figcaption>
+</figure>
+<p>On veut enfin que Hello Earth soit sur la branche main que faut t’il
+faire ?</p>
+<ul>
+<li>git add .<br />
+</li>
+<li>git commit -m commit<br />
+</li>
+<li>git push https://api_key@github.com/mon_user/mon_projet</li>
+</ul>
+<p>remote: Create a pull request for ‘ma_branche’ on GitHub by
+visiting:<br />
+remote: https://github.com/bbaranoff/mon_projet/pull/new/ma_branche</p>
+<p>et enfin suivre les instructions sur github</p>
+<figure>
+<img src="images/branch1.png" alt="Branche" />
+<figcaption aria-hidden="true">Branche</figcaption>
+</figure>
+<figure>
+<img src="images/branch2.png" alt="Branche" />
+<figcaption aria-hidden="true">Branche</figcaption>
+</figure>
+<figure>
+<img src="images/branch3.png" alt="Branche" />
+<figcaption aria-hidden="true">Branche</figcaption>
+</figure>
+<figure>
+<img src="images/branch4.png" alt="Branche" />
+<figcaption aria-hidden="true">Branche</figcaption>
+</figure>
+  </main>
+  <footer class="pl4y-footer">
+    <a href="/docs/">&larr; Documentation</a> &middot;
+    <a href="/">pl4y.store</a> &middot;
+    <a href="https://github.com/bbaranoff" target="_blank" rel="noopener">github.com/bbaranoff</a>
+  </footer>
+</div>
+</body>
+</html>
