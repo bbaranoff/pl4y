@@ -488,8 +488,9 @@ __THEME_TOKENS__
        l'<strong>ISO</strong> bootee (serveur sur <code>127.0.0.1:8000</code>) ou le <strong>conteneur Docker</strong>
        lance (<code>172.20.0.11:80</code>). Depuis l'exterieur elles ne menent nulle part.</p>
     <span class="dl-label">&#11015; Telechargements &mdash; image ISO bootable</span>
-    <a class="dl-btn alt" href="https://mega.nz/file/TSRWkazb#jen3dGoMkrV_83kX0TgeCMTT9bjkxFCDp9ctUXQQkDU" target="_blank" rel="noopener">&#9729;&#65039; MEGA (ISO complete, 1 fichier)</a>
-    <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases/tag/main" target="_blank" rel="noopener">&#128230; Release GitHub (ISO en parties)</a>
+    <a class="dl-btn alt" href="https://mega.nz/file/meYhVZzK#Xw1MFkTrFCtf9pGW-9zhH30jIzfoa1y_AdUIZe4JwMk" target="_blank" rel="noopener">&#9729;&#65039; MEGA &mdash; interstp.iso</a>
+    <a class="dl-btn alt" href="https://mega.nz/file/3LBmlZDJ#ogCuugj5sxR3iL0mnrDh17__jsCDCg2BQEdbL3tBX1k" target="_blank" rel="noopener">&#9729;&#65039; MEGA &mdash; osmo-operator-desktop.iso</a>
+    <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases#release-main" target="_blank" rel="noopener">&#128230; Release GitHub (ISO en parties)</a>
     <p class="hint"><strong>QEMU-CALYPSO ISO &mdash; POC voix</strong> : QEMU dans un reseau Osmocom
        <em>network in the box</em>, environnement NOFR. Support <strong>voix</strong> et
        <strong>SMS MT / MO</strong> en <strong>A5/0</strong> et <strong>A5/1</strong>.
@@ -497,7 +498,8 @@ __THEME_TOKENS__
        <em>shunt</em> qui passe par <strong>grgsm</strong>.</p>
     <p class="hint">L'ISO depasse la limite GitHub de 2 Go par fichier : la Release la fournit
        <strong>decoupee en parties</strong> (<code>osmo_egprs.iso.part-00/01</code>, a reassembler +
-       verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> la fournit en un seul fichier.</p>
+       verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> fournit les images en un seul fichier :
+       <code>interstp.iso</code> et <code>osmo-operator-desktop.iso</code>.</p>
     <span class="dl-label">&#128218; Documentation &mdash; servie ici, sur pl4y.store</span>
     <a class="dl-btn alt" href="/calypso/">&#128196; QEMU Calypso (bundle du depot)</a>
     <a class="dl-btn alt" href="/osmo_egprs/">&#128230; osmo_egprs (bundle du depot)</a>
@@ -628,8 +630,9 @@ $env:OSMO_REF="main"; irm pl4y.store | iex               # Windows</code></pre>
   <h3>1. Recuperer et reassembler l'ISO</h3>
   <pre><code>cat osmo_egprs.iso.part-* &gt; osmo_egprs.iso
 sha256sum -c osmo_egprs.iso.sha256        # -&gt; osmo_egprs.iso: Reussi</code></pre>
-  <p>Ou l'ISO en un seul fichier via
-     <a href="https://mega.nz/file/TSRWkazb#jen3dGoMkrV_83kX0TgeCMTT9bjkxFCDp9ctUXQQkDU" target="_blank" rel="noopener"><strong>MEGA</strong></a>.</p>
+  <p>Ou via le miroir <strong>MEGA</strong> :
+     <a href="https://mega.nz/file/meYhVZzK#Xw1MFkTrFCtf9pGW-9zhH30jIzfoa1y_AdUIZe4JwMk" target="_blank" rel="noopener"><strong>interstp.iso</strong></a>,
+     <a href="https://mega.nz/file/3LBmlZDJ#ogCuugj5sxR3iL0mnrDh17__jsCDCg2BQEdbL3tBX1k" target="_blank" rel="noopener"><strong>osmo-operator-desktop.iso</strong></a>.</p>
 
   <h3>2. Creer la VM</h3>
   <ul>
