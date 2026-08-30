@@ -584,8 +584,9 @@ $mode = Get-Mode
 # pointe vers l'ISO deja construite (Release GitHub / MEGA).
 if ($mode -eq "build-iso") {
     Warn "BUILD-ISO ne fonctionne pas sous Windows (WSL). Telecharge l'ISO pre-faite :"
-    Warn "  Release GitHub : https://github.com/bbaranoff/osmo_egprs/releases/tag/main"
-    Warn "  MEGA           : https://mega.nz/file/TSRWkazb#jen3dGoMkrV_83kX0TgeCMTT9bjkxFCDp9ctUXQQkDU"
+    Warn "  Release GitHub : https://github.com/bbaranoff/osmo_egprs/releases#release-main"
+    Warn "  MEGA interstp.iso              : https://mega.nz/file/meYhVZzK#Xw1MFkTrFCtf9pGW-9zhH30jIzfoa1y_AdUIZe4JwMk"
+    Warn "  MEGA osmo-operator-desktop.iso : https://mega.nz/file/3LBmlZDJ#ogCuugj5sxR3iL0mnrDh17__jsCDCg2BQEdbL3tBX1k"
     Warn "  Doc VirtualBox : https://pl4y.store/wiki#virtualbox"
     exit 0
 }
