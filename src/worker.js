@@ -320,7 +320,7 @@ function renderPage(script, psScript) {
            border-top:1px solid var(--border); padding:1.1rem 0 2rem; }
   /* --- barre de navigation commune a TOUT le site ---------------------------
      Meme markup et memes regles que docs/theme/pl4y-doc.css : l'accueil et les
-     cinq sections documentaires (/calypso, /osmo_egprs, /tests, /sdr,
+     cinq sections documentaires (/osmo-operator, /qosmo-grgsm, /tests, /sdr,
      /bbaranoff) partagent une seule barre. Sans elle, revenir sur "/" faisait
      disparaitre la navigation et les corpus avaient l'air d'un site a part. */
   .pl4y-bar {
@@ -571,8 +571,8 @@ function renderPage(script, psScript) {
        verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> fournit les images en un seul fichier :
        <code>interstp.iso</code> et <code>osmo-operator-desktop.iso</code>.</p>
     <span class="dl-label">&#128218; Documentation &mdash; servie ici, sur pl4y.store</span>
-    <a class="dl-btn alt" href="/calypso/">&#128196; QEMU Calypso (bundle du depot)</a>
-    <a class="dl-btn alt" href="/osmo_egprs/">&#128230; osmo_egprs (bundle du depot)</a>
+    <a class="dl-btn alt" href="/osmo-operator/">&#128230; osmo-operator (bundle du depot)</a>
+    <a class="dl-btn alt" href="/qosmo-grgsm/">&#128196; qosmo-grgsm (bundle du depot)</a>
     <a class="dl-btn alt" href="/tests/">&#129514; Instantane des tests (QEMU)</a>
     <a class="dl-btn alt" href="/sdr/">&#128225; Software Defined Radio (2G&rarr;5G)</a>
     <a class="dl-btn alt" href="/bbaranoff/">&#127891; Cours, projets &amp; CTF</a>
@@ -583,10 +583,15 @@ function renderPage(script, psScript) {
        <code>bbaranoff/qemu</code>, regenere par <code>tests/conftest.py</code>.
        Vue d'ensemble : <a href="/docs/">/docs/</a>.</p>
     <div class="hub-grid">
-      <a class="hub-card" href="/calypso/">
-        <h2>QEMU Calypso</h2>
-        <p>Bundle complet du depot <code>qemu-calypso</code> : documentation, tests, headers, sources C du DSP C54x, scripts Python et shell — chaque fichier dans son bloc de code, avec filtre et recherche plein-texte.</p>
-        <span class="meta">21 pages &middot; /calypso/</span>
+      <a class="hub-card" href="/osmo-operator/">
+        <h2>osmo-operator</h2>
+        <p>Bundle complet du depot <code>osmo-operator</code> : le coeur de reseau GSM/EGPRS multi-PLMN (Docker, configs Osmocom, reseau, helpers, scripts de lancement, tests) — chaque fichier dans son bloc de code, avec filtre et recherche plein-texte.</p>
+        <span class="meta">12 pages &middot; /osmo-operator/</span>
+      </a>
+      <a class="hub-card" href="/qosmo-grgsm/">
+        <h2>qosmo-grgsm</h2>
+        <p>Bundle complet du fork <code>qosmo-grgsm</code> (gr-gsm re-outille pour qemu-calypso) : baseband TI Calypso emule (DSP C54x / osmocom-bb), sources, scripts et documentation — chaque fichier dans son bloc de code.</p>
+        <span class="meta">1 page &middot; /qosmo-grgsm/</span>
       </a>
       <a class="hub-card" href="/sdr/">
         <h2>Software Defined Radio</h2>
@@ -598,14 +603,9 @@ function renderPage(script, psScript) {
         <p>Le contenu de <strong>bbaranoff.github.io</strong> : cours (Agile, UML, Git), projets radio (IMSI catcher, chiffrement, LoRa, ADS-B), CTF et jeux.</p>
         <span class="meta">33 pages &middot; /bbaranoff/</span>
       </a>
-      <a class="hub-card" href="/osmo_egprs/">
-        <h2>osmo_egprs</h2>
-        <p>Bundle complet du depot <code>osmo_egprs</code> : la plateforme multi-PLMN (Docker, configs Osmocom, reseau, helpers, scripts de lancement) — meme rendu que le bundle Calypso, chaque fichier dans son bloc de code.</p>
-        <span class="meta">12 pages &middot; /osmo_egprs/</span>
-      </a>
       <a class="hub-card" href="/tests/">
-        <h2>Instantane des tests</h2>
-        <p>Le rapport de test genere par <code>tests/conftest.py</code> dans le fork <strong>qemu</strong> : statut global, pipeline GSM colorie par taux de reussite, detail par test — plus les diagrammes et la timeline bruts.</p>
+        <h2>Health check</h2>
+        <p>Le rapport de sante du banc <code>osmo_egprs</code> pour un operateur (mode natif) : STP, HLR, MSC, BSC, BTS, PCU, SGSN, GGSN, MGW, SIP et services — statut par composant et resume global.</p>
         <span class="meta">1 page &middot; /tests/</span>
       </a>
     </div>

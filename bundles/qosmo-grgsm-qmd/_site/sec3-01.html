@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>3 - Headers – Calypso QEMU</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-5d3fe5d98f1cce310cef56e039380f2c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="sketchy.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./sec3-01.html">3 - Headers</a></li><li class="breadcrumb-item"><a href="./sec3-01.html">partie 1</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Calypso QEMU</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Index</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">1 - Documentation</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec1-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec1-02.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 2</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec1-03.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 3</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">2 - Tests</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec2-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">3 - Headers</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec3-01.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">4 - Sources</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec4-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+ <span class="menu-text">5 - Python</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec5-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false">
+ <span class="menu-text">6 - Shell</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec6-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Fichiers</h2>
+   
+  <ul class="collapse">
+  <li><a href="#f-hw-arm-calypso-calypso-trf6151-h" id="toc-f-hw-arm-calypso-calypso-trf6151-h" class="nav-link active" data-scroll-target="#f-hw-arm-calypso-calypso-trf6151-h"><code>hw/arm/calypso/calypso_trf6151.h</code></a></li>
+  <li><a href="#f-include-hw-arm-calypso-calypso-inth-h" id="toc-f-include-hw-arm-calypso-calypso-inth-h" class="nav-link" data-scroll-target="#f-include-hw-arm-calypso-calypso-inth-h"><code>include/hw/arm/calypso/calypso_inth.h</code></a></li>
+  <li><a href="#f-include-hw-arm-calypso-calypso-sim-h" id="toc-f-include-hw-arm-calypso-calypso-sim-h" class="nav-link" data-scroll-target="#f-include-hw-arm-calypso-calypso-sim-h"><code>include/hw/arm/calypso/calypso_sim.h</code></a></li>
+  <li><a href="#f-include-hw-arm-calypso-calypso-soc-h" id="toc-f-include-hw-arm-calypso-calypso-soc-h" class="nav-link" data-scroll-target="#f-include-hw-arm-calypso-calypso-soc-h"><code>include/hw/arm/calypso/calypso_soc.h</code></a></li>
+  <li><a href="#f-include-hw-arm-calypso-calypso-spi-h" id="toc-f-include-hw-arm-calypso-calypso-spi-h" class="nav-link" data-scroll-target="#f-include-hw-arm-calypso-calypso-spi-h"><code>include/hw/arm/calypso/calypso_spi.h</code></a></li>
+  <li><a href="#f-include-hw-arm-calypso-calypso-timer-h" id="toc-f-include-hw-arm-calypso-calypso-timer-h" class="nav-link" data-scroll-target="#f-include-hw-arm-calypso-calypso-timer-h"><code>include/hw/arm/calypso/calypso_timer.h</code></a></li>
+  <li><a href="#f-include-hw-arm-calypso-calypso-trx-h" id="toc-f-include-hw-arm-calypso-calypso-trx-h" class="nav-link" data-scroll-target="#f-include-hw-arm-calypso-calypso-trx-h"><code>include/hw/arm/calypso/calypso_trx.h</code></a></li>
+  <li><a href="#f-include-hw-arm-calypso-calypso-tsp-h" id="toc-f-include-hw-arm-calypso-calypso-tsp-h" class="nav-link" data-scroll-target="#f-include-hw-arm-calypso-calypso-tsp-h"><code>include/hw/arm/calypso/calypso_tsp.h</code></a></li>
+  <li><a href="#f-include-hw-arm-calypso-calypso-uart-h" id="toc-f-include-hw-arm-calypso-calypso-uart-h" class="nav-link" data-scroll-target="#f-include-hw-arm-calypso-calypso-uart-h"><code>include/hw/arm/calypso/calypso_uart.h</code></a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./sec3-01.html">3 - Headers</a></li><li class="breadcrumb-item"><a href="./sec3-01.html">partie 1</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">3 - Headers</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="f-hw-arm-calypso-calypso-trf6151-h" class="level2">
+<h2 class="anchored" data-anchor-id="f-hw-arm-calypso-calypso-trf6151-h"><code>hw/arm/calypso/calypso_trf6151.h</code></h2>
+<div class="file-meta">
+<p><span class="tag">.h</span> 14 lignes - 340B</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>hw/arm/calypso/calypso_trf6151.h</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-filename="hw/arm/calypso/calypso_trf6151.h"><pre class="sourceCode numberSource c numberLines code-with-copy"><code class="sourceCode c"><span id="cb1-1"><a href="#cb1-1" aria-label="1"></a><span class="co">/* </span><span class="an">SPDX-License-Identifier:</span><span class="co"> GPL-2.0-or-later */</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-label="2"></a><span class="pp">#ifndef HW_ARM_CALYPSO_TRF6151_H</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-label="3"></a><span class="pp">#define HW_ARM_CALYPSO_TRF6151_H</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-label="4"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-label="5"></a><span class="pp">#include </span><span class="im">&lt;stdint.h&gt;</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-label="6"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-label="7"></a><span class="dt">void</span> calypso_trf6151_tsp_write<span class="op">(</span><span class="dt">uint8_t</span> dev_idx<span class="op">,</span> <span class="dt">uint32_t</span> word<span class="op">);</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-label="8"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-label="9"></a><span class="dt">int</span> calypso_trf6151_total_gain_db<span class="op">(</span><span class="dt">void</span><span class="op">);</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-label="10"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-label="11"></a><span class="dt">uint16_t</span> calypso_trf6151_apm_for_rf<span class="op">(</span><span class="dt">int</span> target_rf_dbm<span class="op">);</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-label="12"></a><span class="dt">int</span> calypso_trf6151_arfcn<span class="op">(</span><span class="dt">void</span><span class="op">);</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-label="13"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-label="14"></a><span class="pp">#endif</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-include-hw-arm-calypso-calypso-inth-h" class="level2">
+<h2 class="anchored" data-anchor-id="f-include-hw-arm-calypso-calypso-inth-h"><code>include/hw/arm/calypso/calypso_inth.h</code></h2>
+<div class="file-meta">
+<p><span class="tag">.h</span> 32 lignes - 580B</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>include/hw/arm/calypso/calypso_inth.h</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-filename="include/hw/arm/calypso/calypso_inth.h"><pre class="sourceCode numberSource c numberLines code-with-copy"><code class="sourceCode c"><span id="cb2-1"><a href="#cb2-1" aria-label="1"></a><span class="co">/* </span><span class="an">SPDX-License-Identifier:</span><span class="co"> GPL-2.0-or-later */</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-label="2"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-label="3"></a><span class="pp">#ifndef HW_INTC_CALYPSO_INTH_H</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-label="4"></a><span class="pp">#define HW_INTC_CALYPSO_INTH_H</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-label="5"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-label="6"></a><span class="pp">#include </span><span class="im">"hw/sysbus.h"</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-label="7"></a><span class="pp">#include </span><span class="im">"qom/object.h"</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-label="8"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-label="9"></a><span class="pp">#define TYPE_CALYPSO_INTH </span><span class="st">"calypso-inth"</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-label="10"></a>OBJECT_DECLARE_SIMPLE_TYPE<span class="op">(</span>CalypsoINTHState<span class="op">,</span> CALYPSO_INTH<span class="op">)</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-label="11"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-label="12"></a><span class="pp">#define CALYPSO_INTH_NUM_IRQS  </span><span class="dv">32</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-label="13"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-label="14"></a><span class="kw">struct</span> CalypsoINTHState <span class="op">{</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-label="15"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-label="16"></a>    SysBusDevice parent_obj<span class="op">;</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-label="17"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-label="18"></a>    MemoryRegion iomem<span class="op">;</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-label="19"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-label="20"></a>    qemu_irq parent_irq<span class="op">;</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-label="21"></a>    qemu_irq parent_fiq<span class="op">;</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-label="22"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-label="23"></a>    <span class="dt">uint16_t</span> ilr<span class="op">[</span>CALYPSO_INTH_NUM_IRQS<span class="op">];</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-label="24"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-label="25"></a>    <span class="dt">uint16_t</span> ith_v<span class="op">;</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-label="26"></a>    <span class="dt">uint16_t</span> fiq_v<span class="op">;</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-label="27"></a>    <span class="dt">uint32_t</span> levels<span class="op">;</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-label="28"></a>    <span class="dt">uint32_t</span> mask<span class="op">;</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-label="29"></a>    <span class="dt">int</span> rr_start<span class="op">;</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-label="30"></a><span class="op">};</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-label="31"></a></span>
+<span id="cb2-32"><a href="#cb2-32" aria-label="32"></a><span class="pp">#endif</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-include-hw-arm-calypso-calypso-sim-h" class="level2">
+<h2 class="anchored" data-anchor-id="f-include-hw-arm-calypso-calypso-sim-h"><code>include/hw/arm/calypso/calypso_sim.h</code></h2>
+<div class="file-meta">
+<p><span class="tag">.h</span> 47 lignes - 1,6KB</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>include/hw/arm/calypso/calypso_sim.h</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-filename="include/hw/arm/calypso/calypso_sim.h"><pre class="sourceCode numberSource c numberLines code-with-copy"><code class="sourceCode c"><span id="cb3-1"><a href="#cb3-1" aria-label="1"></a><span class="co">/* </span><span class="an">SPDX-License-Identifier:</span><span class="co"> GPL-2.0-or-later */</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-label="2"></a><span class="pp">#ifndef HW_ARM_CALYPSO_SIM_H</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-label="3"></a><span class="pp">#define HW_ARM_CALYPSO_SIM_H</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-label="4"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-label="5"></a><span class="pp">#include </span><span class="im">"qemu/osdep.h"</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-label="6"></a><span class="pp">#include </span><span class="im">"exec/hwaddr.h"</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-label="7"></a><span class="pp">#include </span><span class="im">"hw/irq.h"</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-label="8"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-label="9"></a><span class="pp">#define CALYPSO_SIM_REG_CMD      </span><span class="bn">0x00</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-label="10"></a><span class="pp">#define CALYPSO_SIM_REG_STAT     </span><span class="bn">0x02</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-label="11"></a><span class="pp">#define CALYPSO_SIM_REG_CONF1    </span><span class="bn">0x04</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-label="12"></a><span class="pp">#define CALYPSO_SIM_REG_CONF2    </span><span class="bn">0x06</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-label="13"></a><span class="pp">#define CALYPSO_SIM_REG_IT       </span><span class="bn">0x08</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-label="14"></a><span class="pp">#define CALYPSO_SIM_REG_DRX      </span><span class="bn">0x0A</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-label="15"></a><span class="pp">#define CALYPSO_SIM_REG_DTX      </span><span class="bn">0x0C</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-label="16"></a><span class="pp">#define CALYPSO_SIM_REG_MASKIT   </span><span class="bn">0x0E</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-label="17"></a><span class="pp">#define CALYPSO_SIM_REG_IT_CD    </span><span class="bn">0x10</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-label="18"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-label="19"></a><span class="pp">#define CALYPSO_SIM_CMD_CARDRST       </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">0</span><span class="op">)</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-label="20"></a><span class="pp">#define CALYPSO_SIM_CMD_IFRST         </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">1</span><span class="op">)</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-label="21"></a><span class="pp">#define CALYPSO_SIM_CMD_STOP          </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">2</span><span class="op">)</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-label="22"></a><span class="pp">#define CALYPSO_SIM_CMD_START         </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">3</span><span class="op">)</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-label="23"></a><span class="pp">#define CALYPSO_SIM_CMD_MODULE_CLK_EN </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">4</span><span class="op">)</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-label="24"></a></span>
+<span id="cb3-25"><a href="#cb3-25" aria-label="25"></a><span class="pp">#define CALYPSO_SIM_STAT_NOCARD       </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">0</span><span class="op">)</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-label="26"></a><span class="pp">#define CALYPSO_SIM_STAT_TXPAR        </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">1</span><span class="op">)</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-label="27"></a><span class="pp">#define CALYPSO_SIM_STAT_FIFOFULL     </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">2</span><span class="op">)</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-label="28"></a><span class="pp">#define CALYPSO_SIM_STAT_FIFOEMPTY    </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">3</span><span class="op">)</span></span>
+<span id="cb3-29"><a href="#cb3-29" aria-label="29"></a></span>
+<span id="cb3-30"><a href="#cb3-30" aria-label="30"></a><span class="pp">#define CALYPSO_SIM_IT_NATR           </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">0</span><span class="op">)</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-label="31"></a><span class="pp">#define CALYPSO_SIM_IT_WT             </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">1</span><span class="op">)</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-label="32"></a><span class="pp">#define CALYPSO_SIM_IT_OV             </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">2</span><span class="op">)</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-label="33"></a><span class="pp">#define CALYPSO_SIM_IT_TX             </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">3</span><span class="op">)</span></span>
+<span id="cb3-34"><a href="#cb3-34" aria-label="34"></a><span class="pp">#define CALYPSO_SIM_IT_RX             </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">4</span><span class="op">)</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-label="35"></a></span>
+<span id="cb3-36"><a href="#cb3-36" aria-label="36"></a><span class="pp">#define CALYPSO_SIM_CONF1_BYPASS      </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">8</span><span class="op">)</span></span>
+<span id="cb3-37"><a href="#cb3-37" aria-label="37"></a><span class="pp">#define CALYPSO_SIM_CONF1_SVCCLEV     </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">9</span><span class="op">)</span></span>
+<span id="cb3-38"><a href="#cb3-38" aria-label="38"></a><span class="pp">#define CALYPSO_SIM_CONF1_SRSTLEV     </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">10</span><span class="op">)</span></span>
+<span id="cb3-39"><a href="#cb3-39" aria-label="39"></a></span>
+<span id="cb3-40"><a href="#cb3-40" aria-label="40"></a><span class="kw">typedef</span> <span class="kw">struct</span> CalypsoSim CalypsoSim<span class="op">;</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-label="41"></a></span>
+<span id="cb3-42"><a href="#cb3-42" aria-label="42"></a>CalypsoSim <span class="op">*</span>calypso_sim_new<span class="op">(</span>qemu_irq sim_irq<span class="op">);</span></span>
+<span id="cb3-43"><a href="#cb3-43" aria-label="43"></a></span>
+<span id="cb3-44"><a href="#cb3-44" aria-label="44"></a><span class="dt">uint16_t</span> calypso_sim_reg_read<span class="op">(</span>CalypsoSim <span class="op">*</span>s<span class="op">,</span> hwaddr off<span class="op">);</span></span>
+<span id="cb3-45"><a href="#cb3-45" aria-label="45"></a><span class="dt">void</span>     calypso_sim_reg_write<span class="op">(</span>CalypsoSim <span class="op">*</span>s<span class="op">,</span> hwaddr off<span class="op">,</span> <span class="dt">uint16_t</span> val<span class="op">);</span></span>
+<span id="cb3-46"><a href="#cb3-46" aria-label="46"></a></span>
+<span id="cb3-47"><a href="#cb3-47" aria-label="47"></a><span class="pp">#endif</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-include-hw-arm-calypso-calypso-soc-h" class="level2">
+<h2 class="anchored" data-anchor-id="f-include-hw-arm-calypso-calypso-soc-h"><code>include/hw/arm/calypso/calypso_soc.h</code></h2>
+<div class="file-meta">
+<p><span class="tag">.h</span> 43 lignes - 892B</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>include/hw/arm/calypso/calypso_soc.h</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" data-filename="include/hw/arm/calypso/calypso_soc.h"><pre class="sourceCode numberSource c numberLines code-with-copy"><code class="sourceCode c"><span id="cb4-1"><a href="#cb4-1" aria-label="1"></a><span class="co">/* </span><span class="an">SPDX-License-Identifier:</span><span class="co"> GPL-2.0-or-later */</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-label="2"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-label="3"></a><span class="pp">#ifndef HW_ARM_CALYPSO_SOC_H</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-label="4"></a><span class="pp">#define HW_ARM_CALYPSO_SOC_H</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-label="5"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-label="6"></a><span class="pp">#include </span><span class="im">"hw/sysbus.h"</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-label="7"></a><span class="pp">#include </span><span class="im">"qom/object.h"</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-label="8"></a><span class="pp">#include </span><span class="im">"hw/arm/calypso/calypso_inth.h"</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-label="9"></a><span class="pp">#include </span><span class="im">"hw/arm/calypso/calypso_timer.h"</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-label="10"></a><span class="pp">#include </span><span class="im">"hw/arm/calypso/calypso_uart.h"</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-label="11"></a><span class="pp">#include </span><span class="im">"hw/arm/calypso/calypso_spi.h"</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-label="12"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-label="13"></a><span class="pp">#define TYPE_CALYPSO_SOC </span><span class="st">"calypso-soc"</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-label="14"></a>OBJECT_DECLARE_SIMPLE_TYPE<span class="op">(</span>CalypsoSoCState<span class="op">,</span> CALYPSO_SOC<span class="op">)</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-label="15"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-label="16"></a><span class="pp">#define CALYPSO_SOC_NUM_IRQS  </span><span class="dv">2</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-label="17"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-label="18"></a><span class="kw">struct</span> CalypsoSoCState <span class="op">{</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-label="19"></a></span>
+<span id="cb4-20"><a href="#cb4-20" aria-label="20"></a>    SysBusDevice parent_obj<span class="op">;</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-label="21"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-label="22"></a>    MemoryRegion iram<span class="op">;</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-label="23"></a></span>
+<span id="cb4-24"><a href="#cb4-24" aria-label="24"></a>    CalypsoINTHState  inth<span class="op">;</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-label="25"></a>    CalypsoTimerState timer1<span class="op">;</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-label="26"></a>    CalypsoTimerState timer2<span class="op">;</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-label="27"></a>    CalypsoUARTState  uart_modem<span class="op">;</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-label="28"></a>    CalypsoUARTState  uart_irda<span class="op">;</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-label="29"></a>    CalypsoSPIState   spi<span class="op">;</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-label="30"></a></span>
+<span id="cb4-31"><a href="#cb4-31" aria-label="31"></a>    <span class="dt">void</span> <span class="op">*</span>trx<span class="op">;</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-label="32"></a></span>
+<span id="cb4-33"><a href="#cb4-33" aria-label="33"></a>    qemu_irq cpu_irq<span class="op">;</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-label="34"></a>    qemu_irq cpu_fiq<span class="op">;</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-label="35"></a></span>
+<span id="cb4-36"><a href="#cb4-36" aria-label="36"></a>    MemoryRegion iram_alias<span class="op">;</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-label="37"></a>    <span class="dt">bool</span> iram_at_zero<span class="op">;</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-label="38"></a>    MemoryRegion cntl_iomem<span class="op">;</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-label="39"></a>    <span class="dt">uint16_t</span> extra_conf<span class="op">;</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-label="40"></a></span>
+<span id="cb4-41"><a href="#cb4-41" aria-label="41"></a><span class="op">};</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-label="42"></a></span>
+<span id="cb4-43"><a href="#cb4-43" aria-label="43"></a><span class="pp">#endif</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-include-hw-arm-calypso-calypso-spi-h" class="level2">
+<h2 class="anchored" data-anchor-id="f-include-hw-arm-calypso-calypso-spi-h"><code>include/hw/arm/calypso/calypso_spi.h</code></h2>
+<div class="file-meta">
+<p><span class="tag">.h</span> 43 lignes - 869B</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>include/hw/arm/calypso/calypso_spi.h</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-filename="include/hw/arm/calypso/calypso_spi.h"><pre class="sourceCode numberSource c numberLines code-with-copy"><code class="sourceCode c"><span id="cb5-1"><a href="#cb5-1" aria-label="1"></a><span class="co">/* </span><span class="an">SPDX-License-Identifier:</span><span class="co"> GPL-2.0-or-later */</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-label="2"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-label="3"></a><span class="pp">#ifndef HW_SSI_CALYPSO_SPI_H</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-label="4"></a><span class="pp">#define HW_SSI_CALYPSO_SPI_H</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-label="5"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-label="6"></a><span class="pp">#include </span><span class="im">"hw/sysbus.h"</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-label="7"></a><span class="pp">#include </span><span class="im">"qom/object.h"</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-label="8"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-label="9"></a><span class="pp">#define TYPE_CALYPSO_SPI </span><span class="st">"calypso-spi"</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-label="10"></a>OBJECT_DECLARE_SIMPLE_TYPE<span class="op">(</span>CalypsoSPIState<span class="op">,</span> CALYPSO_SPI<span class="op">)</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-label="11"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-label="12"></a><span class="kw">struct</span> CalypsoSPIState <span class="op">{</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-label="13"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-label="14"></a>    SysBusDevice parent_obj<span class="op">;</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-label="15"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-label="16"></a>    MemoryRegion iomem<span class="op">;</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-label="17"></a>    qemu_irq     irq<span class="op">;</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-label="18"></a></span>
+<span id="cb5-19"><a href="#cb5-19" aria-label="19"></a>    <span class="dt">uint16_t</span> set1<span class="op">;</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-label="20"></a>    <span class="dt">uint16_t</span> set2<span class="op">;</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-label="21"></a>    <span class="dt">uint16_t</span> ctrl<span class="op">;</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-label="22"></a>    <span class="dt">uint16_t</span> status<span class="op">;</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-label="23"></a>    <span class="dt">uint16_t</span> tx_data<span class="op">;</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-label="24"></a>    <span class="dt">uint16_t</span> rx_data<span class="op">;</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-label="25"></a></span>
+<span id="cb5-26"><a href="#cb5-26" aria-label="26"></a>    <span class="dt">uint16_t</span> abb_regs<span class="op">[</span><span class="dv">256</span><span class="op">];</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-label="27"></a><span class="op">};</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-label="28"></a></span>
+<span id="cb5-29"><a href="#cb5-29" aria-label="29"></a><span class="pp">#define ABB_VRPCDEV    </span><span class="bn">0x01</span></span>
+<span id="cb5-30"><a href="#cb5-30" aria-label="30"></a><span class="pp">#define ABB_VRPCSTS    </span><span class="bn">0x02</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-label="31"></a><span class="pp">#define ABB_VBUCTRL    </span><span class="bn">0x03</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-label="32"></a><span class="pp">#define ABB_VBDR1      </span><span class="bn">0x04</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-label="33"></a><span class="pp">#define ABB_TOGBR1     </span><span class="bn">0x09</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-label="34"></a><span class="pp">#define ABB_TOGBR2     </span><span class="bn">0x0A</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-label="35"></a><span class="pp">#define ABB_AUXLED     </span><span class="bn">0x17</span></span>
+<span id="cb5-36"><a href="#cb5-36" aria-label="36"></a><span class="pp">#define ABB_ITSTATREG  </span><span class="bn">0x1B</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-label="37"></a></span>
+<span id="cb5-38"><a href="#cb5-38" aria-label="38"></a><span class="pp">#define SPI_STATUS_RE        </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">1</span><span class="op">)</span></span>
+<span id="cb5-39"><a href="#cb5-39" aria-label="39"></a></span>
+<span id="cb5-40"><a href="#cb5-40" aria-label="40"></a><span class="pp">#define SPI_STATUS_TX_READY  SPI_STATUS_RE</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-label="41"></a><span class="pp">#define SPI_STATUS_RX_READY  SPI_STATUS_RE</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-label="42"></a></span>
+<span id="cb5-43"><a href="#cb5-43" aria-label="43"></a><span class="pp">#endif</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-include-hw-arm-calypso-calypso-timer-h" class="level2">
+<h2 class="anchored" data-anchor-id="f-include-hw-arm-calypso-calypso-timer-h"><code>include/hw/arm/calypso/calypso_timer.h</code></h2>
+<div class="file-meta">
+<p><span class="tag">.h</span> 38 lignes - 778B</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>include/hw/arm/calypso/calypso_timer.h</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" data-filename="include/hw/arm/calypso/calypso_timer.h"><pre class="sourceCode numberSource c numberLines code-with-copy"><code class="sourceCode c"><span id="cb6-1"><a href="#cb6-1" aria-label="1"></a><span class="co">/* </span><span class="an">SPDX-License-Identifier:</span><span class="co"> GPL-2.0-or-later */</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-label="2"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-label="3"></a><span class="pp">#ifndef HW_TIMER_CALYPSO_TIMER_H</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-label="4"></a><span class="pp">#define HW_TIMER_CALYPSO_TIMER_H</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-label="5"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-label="6"></a><span class="pp">#include </span><span class="im">"hw/sysbus.h"</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-label="7"></a><span class="pp">#include </span><span class="im">"qom/object.h"</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-label="8"></a><span class="pp">#include </span><span class="im">"qemu/timer.h"</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-label="9"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-label="10"></a><span class="pp">#define TYPE_CALYPSO_TIMER </span><span class="st">"calypso-timer"</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-label="11"></a>OBJECT_DECLARE_SIMPLE_TYPE<span class="op">(</span>CalypsoTimerState<span class="op">,</span> CALYPSO_TIMER<span class="op">)</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-label="12"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-label="13"></a><span class="kw">struct</span> CalypsoTimerState <span class="op">{</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-label="14"></a></span>
+<span id="cb6-15"><a href="#cb6-15" aria-label="15"></a>    SysBusDevice parent_obj<span class="op">;</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-label="16"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-label="17"></a>    MemoryRegion iomem<span class="op">;</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-label="18"></a>    QEMUTimer    <span class="op">*</span>timer<span class="op">;</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-label="19"></a>    qemu_irq     irq<span class="op">;</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-label="20"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-label="21"></a>    <span class="dt">uint16_t</span> load<span class="op">;</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-label="22"></a>    <span class="dt">uint16_t</span> count<span class="op">;</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-label="23"></a>    <span class="dt">uint16_t</span> ctrl<span class="op">;</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-label="24"></a>    <span class="dt">uint16_t</span> prescaler<span class="op">;</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-label="25"></a>    <span class="dt">int64_t</span>  tick_ns<span class="op">;</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-label="26"></a>    <span class="dt">int64_t</span>  epoch_ns<span class="op">;</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-label="27"></a>    <span class="dt">bool</span>     running<span class="op">;</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-label="28"></a></span>
+<span id="cb6-29"><a href="#cb6-29" aria-label="29"></a>    <span class="dt">bool</span>     lost_latch_active<span class="op">;</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-label="30"></a>    <span class="dt">uint16_t</span> lost_latch_count<span class="op">;</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-label="31"></a>    <span class="dt">uint32_t</span> lost_read_phase<span class="op">;</span></span>
+<span id="cb6-32"><a href="#cb6-32" aria-label="32"></a><span class="op">};</span></span>
+<span id="cb6-33"><a href="#cb6-33" aria-label="33"></a></span>
+<span id="cb6-34"><a href="#cb6-34" aria-label="34"></a><span class="dt">void</span> calypso_timer_register_lost<span class="op">(</span>DeviceState <span class="op">*</span>d<span class="op">);</span></span>
+<span id="cb6-35"><a href="#cb6-35" aria-label="35"></a></span>
+<span id="cb6-36"><a href="#cb6-36" aria-label="36"></a><span class="dt">void</span> calypso_timer_lost_frame_tick<span class="op">(</span><span class="dt">uint32_t</span> fn<span class="op">);</span></span>
+<span id="cb6-37"><a href="#cb6-37" aria-label="37"></a></span>
+<span id="cb6-38"><a href="#cb6-38" aria-label="38"></a><span class="pp">#endif</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-include-hw-arm-calypso-calypso-trx-h" class="level2">
+<h2 class="anchored" data-anchor-id="f-include-hw-arm-calypso-calypso-trx-h"><code>include/hw/arm/calypso/calypso_trx.h</code></h2>
+<div class="file-meta">
+<p><span class="tag">.h</span> 68 lignes - 2,2KB</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>include/hw/arm/calypso/calypso_trx.h</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" data-filename="include/hw/arm/calypso/calypso_trx.h"><pre class="sourceCode numberSource c numberLines code-with-copy"><code class="sourceCode c"><span id="cb7-1"><a href="#cb7-1" aria-label="1"></a><span class="co">/* </span><span class="an">SPDX-License-Identifier:</span><span class="co"> GPL-2.0-or-later */</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-label="2"></a><span class="pp">#ifndef CALYPSO_TRX_H</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-label="3"></a><span class="pp">#define CALYPSO_TRX_H</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-label="4"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-label="5"></a><span class="pp">#include </span><span class="im">"hw/irq.h"</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-label="6"></a><span class="pp">#include </span><span class="im">"exec/memory.h"</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-label="7"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-label="8"></a><span class="pp">#define CALYPSO_IRQ_WATCHDOG       </span><span class="dv">0</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-label="9"></a><span class="pp">#define CALYPSO_IRQ_TIMER1         </span><span class="dv">1</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-label="10"></a><span class="pp">#define CALYPSO_IRQ_TIMER2         </span><span class="dv">2</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-label="11"></a><span class="pp">#define CALYPSO_IRQ_TSP_RX         </span><span class="dv">3</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-label="12"></a><span class="pp">#define CALYPSO_IRQ_TPU_FRAME      </span><span class="dv">4</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-label="13"></a><span class="pp">#define CALYPSO_IRQ_TPU_PAGE       </span><span class="dv">5</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-label="14"></a><span class="pp">#define CALYPSO_IRQ_SIM            </span><span class="dv">6</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-label="15"></a><span class="pp">#define CALYPSO_IRQ_UART_MODEM     </span><span class="dv">7</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-label="16"></a><span class="pp">#define CALYPSO_IRQ_KEYPAD_GPIO    </span><span class="dv">8</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-label="17"></a><span class="pp">#define CALYPSO_IRQ_RTC_TIMER      </span><span class="dv">9</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-label="18"></a><span class="pp">#define CALYPSO_IRQ_RTC_ALARM      </span><span class="dv">10</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-label="19"></a><span class="pp">#define CALYPSO_IRQ_ULPD_GAUGING   </span><span class="dv">11</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-label="20"></a><span class="pp">#define CALYPSO_IRQ_EXTERNAL       </span><span class="dv">12</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-label="21"></a><span class="pp">#define CALYPSO_IRQ_SPI            </span><span class="dv">13</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-label="22"></a><span class="pp">#define CALYPSO_IRQ_DMA            </span><span class="dv">14</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-label="23"></a><span class="pp">#define CALYPSO_IRQ_API            </span><span class="dv">15</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-label="24"></a><span class="pp">#define CALYPSO_IRQ_SIM_DETECT     </span><span class="dv">16</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-label="25"></a><span class="pp">#define CALYPSO_IRQ_EXTERNAL_FIQ   </span><span class="dv">17</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-label="26"></a><span class="pp">#define CALYPSO_IRQ_UART_IRDA      </span><span class="dv">18</span></span>
+<span id="cb7-27"><a href="#cb7-27" aria-label="27"></a><span class="pp">#define CALYPSO_IRQ_ULPD_GSM_TIMER </span><span class="dv">19</span></span>
+<span id="cb7-28"><a href="#cb7-28" aria-label="28"></a><span class="pp">#define CALYPSO_IRQ_GEA            </span><span class="dv">20</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-label="29"></a><span class="pp">#define CALYPSO_NUM_IRQS           </span><span class="dv">32</span></span>
+<span id="cb7-30"><a href="#cb7-30" aria-label="30"></a></span>
+<span id="cb7-31"><a href="#cb7-31" aria-label="31"></a><span class="pp">#define CALYPSO_TPU_BASE      </span><span class="bn">0xFFFF1000</span></span>
+<span id="cb7-32"><a href="#cb7-32" aria-label="32"></a><span class="pp">#define CALYPSO_TPU_SIZE      </span><span class="bn">0x0100</span></span>
+<span id="cb7-33"><a href="#cb7-33" aria-label="33"></a><span class="pp">#define CALYPSO_TPU_RAM_BASE  </span><span class="bn">0xFFFF9000</span></span>
+<span id="cb7-34"><a href="#cb7-34" aria-label="34"></a><span class="pp">#define CALYPSO_TPU_RAM_SIZE  </span><span class="bn">0x0800</span></span>
+<span id="cb7-35"><a href="#cb7-35" aria-label="35"></a><span class="pp">#define CALYPSO_TSP_BASE      </span><span class="bn">0xFFFE0800</span></span>
+<span id="cb7-36"><a href="#cb7-36" aria-label="36"></a><span class="pp">#define CALYPSO_TSP_SIZE      </span><span class="bn">0x0100</span></span>
+<span id="cb7-37"><a href="#cb7-37" aria-label="37"></a><span class="pp">#define CALYPSO_SIM_BASE      </span><span class="bn">0xFFFE0000</span></span>
+<span id="cb7-38"><a href="#cb7-38" aria-label="38"></a><span class="pp">#define CALYPSO_SIM_SIZE      </span><span class="bn">0x0100</span></span>
+<span id="cb7-39"><a href="#cb7-39" aria-label="39"></a><span class="pp">#define CALYPSO_ULPD_BASE     </span><span class="bn">0xFFFE2800</span></span>
+<span id="cb7-40"><a href="#cb7-40" aria-label="40"></a><span class="pp">#define CALYPSO_ULPD_SIZE     </span><span class="bn">0x0100</span></span>
+<span id="cb7-41"><a href="#cb7-41" aria-label="41"></a></span>
+<span id="cb7-42"><a href="#cb7-42" aria-label="42"></a><span class="pp">#define TPU_CTRL              </span><span class="bn">0x0000</span></span>
+<span id="cb7-43"><a href="#cb7-43" aria-label="43"></a><span class="pp">#define TPU_INT_CTRL          </span><span class="bn">0x0002</span></span>
+<span id="cb7-44"><a href="#cb7-44" aria-label="44"></a><span class="pp">#define TPU_INT_STAT          </span><span class="bn">0x0004</span></span>
+<span id="cb7-45"><a href="#cb7-45" aria-label="45"></a><span class="pp">#define TPU_OFFSET            </span><span class="bn">0x000C</span></span>
+<span id="cb7-46"><a href="#cb7-46" aria-label="46"></a><span class="pp">#define TPU_SYNCHRO           </span><span class="bn">0x000E</span></span>
+<span id="cb7-47"><a href="#cb7-47" aria-label="47"></a><span class="pp">#define TPU_IT_DSP_PG         </span><span class="bn">0x0020</span></span>
+<span id="cb7-48"><a href="#cb7-48" aria-label="48"></a></span>
+<span id="cb7-49"><a href="#cb7-49" aria-label="49"></a><span class="pp">#define TPU_CTRL_EN           </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">2</span><span class="op">)</span></span>
+<span id="cb7-50"><a href="#cb7-50" aria-label="50"></a><span class="pp">#define TPU_CTRL_DSP_EN       </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">4</span><span class="op">)</span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-label="51"></a><span class="pp">#define TPU_CTRL_IDLE         </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">8</span><span class="op">)</span></span>
+<span id="cb7-52"><a href="#cb7-52" aria-label="52"></a></span>
+<span id="cb7-53"><a href="#cb7-53" aria-label="53"></a><span class="pp">#define ICTRL_MCU_FRAME       </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">0</span><span class="op">)</span></span>
+<span id="cb7-54"><a href="#cb7-54" aria-label="54"></a><span class="pp">#define ICTRL_DSP_FRAME       </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">2</span><span class="op">)</span></span>
+<span id="cb7-55"><a href="#cb7-55" aria-label="55"></a></span>
+<span id="cb7-56"><a href="#cb7-56" aria-label="56"></a><span class="pp">#define TSP_RX_REG            </span><span class="bn">0x08</span></span>
+<span id="cb7-57"><a href="#cb7-57" aria-label="57"></a></span>
+<span id="cb7-58"><a href="#cb7-58" aria-label="58"></a><span class="pp">#define ULPD_SETUP_CLK13      </span><span class="bn">0x00</span></span>
+<span id="cb7-59"><a href="#cb7-59" aria-label="59"></a><span class="pp">#define ULPD_COUNTER_HI       </span><span class="bn">0x1C</span></span>
+<span id="cb7-60"><a href="#cb7-60" aria-label="60"></a><span class="pp">#define ULPD_COUNTER_LO       </span><span class="bn">0x1E</span></span>
+<span id="cb7-61"><a href="#cb7-61" aria-label="61"></a><span class="pp">#define ULPD_GAUGING_CTRL     </span><span class="bn">0x24</span></span>
+<span id="cb7-62"><a href="#cb7-62" aria-label="62"></a><span class="pp">#define ULPD_GSM_TIMER        </span><span class="bn">0x28</span></span>
+<span id="cb7-63"><a href="#cb7-63" aria-label="63"></a></span>
+<span id="cb7-64"><a href="#cb7-64" aria-label="64"></a><span class="dt">void</span> calypso_trx_init<span class="op">(</span>MemoryRegion <span class="op">*</span>sysmem<span class="op">,</span> qemu_irq <span class="op">*</span>irqs<span class="op">);</span></span>
+<span id="cb7-65"><a href="#cb7-65" aria-label="65"></a><span class="dt">void</span> calypso_tpu_run_scenario<span class="op">(</span><span class="dt">uint16_t</span> <span class="op">*</span>tpu_ram<span class="op">,</span> <span class="dt">uint32_t</span> fn<span class="op">,</span> <span class="dt">uint16_t</span> <span class="op">*</span>tpu_regs<span class="op">);</span></span>
+<span id="cb7-66"><a href="#cb7-66" aria-label="66"></a><span class="dt">void</span> calypso_tpu_sequencer_tick<span class="op">(</span><span class="dt">uint32_t</span> fn<span class="op">);</span></span>
+<span id="cb7-67"><a href="#cb7-67" aria-label="67"></a></span>
+<span id="cb7-68"><a href="#cb7-68" aria-label="68"></a><span class="pp">#endif</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-include-hw-arm-calypso-calypso-tsp-h" class="level2">
+<h2 class="anchored" data-anchor-id="f-include-hw-arm-calypso-calypso-tsp-h"><code>include/hw/arm/calypso/calypso_tsp.h</code></h2>
+<div class="file-meta">
+<p><span class="tag">.h</span> 26 lignes - 629B</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>include/hw/arm/calypso/calypso_tsp.h</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" data-filename="include/hw/arm/calypso/calypso_tsp.h"><pre class="sourceCode numberSource c numberLines code-with-copy"><code class="sourceCode c"><span id="cb8-1"><a href="#cb8-1" aria-label="1"></a><span class="co">/* </span><span class="an">SPDX-License-Identifier:</span><span class="co"> GPL-2.0-or-later */</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-label="2"></a><span class="pp">#ifndef CALYPSO_TSP_H</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-label="3"></a><span class="pp">#define CALYPSO_TSP_H</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-label="4"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-label="5"></a><span class="pp">#include </span><span class="im">&lt;stdint.h&gt;</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-label="6"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-label="7"></a><span class="pp">#define TPUI_TSP_CTRL1   </span><span class="bn">0x00</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-label="8"></a><span class="pp">#define TPUI_TSP_CTRL2   </span><span class="bn">0x01</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-label="9"></a><span class="pp">#define TPUI_TX_3        </span><span class="bn">0x02</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-label="10"></a><span class="pp">#define TPUI_TX_2        </span><span class="bn">0x03</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-label="11"></a><span class="pp">#define TPUI_TX_1        </span><span class="bn">0x04</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-label="12"></a><span class="pp">#define TPUI_TX_4        </span><span class="bn">0x05</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-label="13"></a><span class="pp">#define TPUI_TSP_ACT_L   </span><span class="bn">0x06</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-label="14"></a><span class="pp">#define TPUI_TSP_ACT_U   </span><span class="bn">0x07</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-label="15"></a><span class="pp">#define TPUI_TSP_SET1    </span><span class="bn">0x09</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-label="16"></a><span class="pp">#define TPUI_TSP_SET2    </span><span class="bn">0x0a</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-label="17"></a><span class="pp">#define TPUI_TSP_SET3    </span><span class="bn">0x0b</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-label="18"></a></span>
+<span id="cb8-19"><a href="#cb8-19" aria-label="19"></a><span class="pp">#define TPUI_CTRL2_RD    </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">0</span><span class="op">)</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-label="20"></a><span class="pp">#define TPUI_CTRL2_WR    </span><span class="op">(</span><span class="dv">1</span><span class="pp"> </span><span class="op">&lt;&lt;</span><span class="pp"> </span><span class="dv">1</span><span class="op">)</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-label="21"></a></span>
+<span id="cb8-22"><a href="#cb8-22" aria-label="22"></a><span class="dt">bool</span> calypso_tsp_owns_addr<span class="op">(</span><span class="dt">uint8_t</span> addr<span class="op">);</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-label="23"></a></span>
+<span id="cb8-24"><a href="#cb8-24" aria-label="24"></a><span class="dt">void</span> calypso_tsp_move<span class="op">(</span><span class="dt">uint8_t</span> addr<span class="op">,</span> <span class="dt">uint8_t</span> data<span class="op">,</span> <span class="dt">uint32_t</span> fn<span class="op">);</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-label="25"></a></span>
+<span id="cb8-26"><a href="#cb8-26" aria-label="26"></a><span class="pp">#endif</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-include-hw-arm-calypso-calypso-uart-h" class="level2">
+<h2 class="anchored" data-anchor-id="f-include-hw-arm-calypso-calypso-uart-h"><code>include/hw/arm/calypso/calypso_uart.h</code></h2>
+<div class="file-meta">
+<p><span class="tag">.h</span> 71 lignes - 1,4KB</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>include/hw/arm/calypso/calypso_uart.h</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" data-filename="include/hw/arm/calypso/calypso_uart.h"><pre class="sourceCode numberSource c numberLines code-with-copy"><code class="sourceCode c"><span id="cb9-1"><a href="#cb9-1" aria-label="1"></a><span class="co">/* </span><span class="an">SPDX-License-Identifier:</span><span class="co"> GPL-2.0-or-later */</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-label="2"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-label="3"></a><span class="pp">#ifndef HW_CHAR_CALYPSO_UART_H</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-label="4"></a><span class="pp">#define HW_CHAR_CALYPSO_UART_H</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-label="5"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-label="6"></a><span class="pp">#include </span><span class="im">"hw/sysbus.h"</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-label="7"></a><span class="pp">#include </span><span class="im">"chardev/char-fe.h"</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-label="8"></a><span class="pp">#include </span><span class="im">"qom/object.h"</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-label="9"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-label="10"></a><span class="pp">#define TYPE_CALYPSO_UART </span><span class="st">"calypso-uart"</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-label="11"></a>OBJECT_DECLARE_SIMPLE_TYPE<span class="op">(</span>CalypsoUARTState<span class="op">,</span> CALYPSO_UART<span class="op">)</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-label="12"></a></span>
+<span id="cb9-13"><a href="#cb9-13" aria-label="13"></a><span class="pp">#define CALYPSO_UART_RX_FIFO_SIZE </span><span class="dv">8192</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-label="14"></a></span>
+<span id="cb9-15"><a href="#cb9-15" aria-label="15"></a><span class="kw">typedef</span> <span class="kw">struct</span> CalypsoUARTState <span class="op">{</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-label="16"></a>    SysBusDevice parent_obj<span class="op">;</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-label="17"></a></span>
+<span id="cb9-18"><a href="#cb9-18" aria-label="18"></a>    MemoryRegion iomem<span class="op">;</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-label="19"></a></span>
+<span id="cb9-20"><a href="#cb9-20" aria-label="20"></a>    CharBackend chr<span class="op">;</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-label="21"></a>    qemu_irq irq<span class="op">;</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-label="22"></a></span>
+<span id="cb9-23"><a href="#cb9-23" aria-label="23"></a>    <span class="dt">char</span> <span class="op">*</span>label<span class="op">;</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-label="24"></a></span>
+<span id="cb9-25"><a href="#cb9-25" aria-label="25"></a>    <span class="dt">uint8_t</span> ier<span class="op">;</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-label="26"></a>    <span class="dt">uint8_t</span> iir<span class="op">;</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-label="27"></a>    <span class="dt">uint8_t</span> fcr<span class="op">;</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-label="28"></a>    <span class="dt">uint8_t</span> lcr<span class="op">;</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-label="29"></a>    <span class="dt">uint8_t</span> mcr<span class="op">;</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-label="30"></a>    <span class="dt">uint8_t</span> lsr<span class="op">;</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-label="31"></a>    <span class="dt">uint8_t</span> msr<span class="op">;</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-label="32"></a>    <span class="dt">uint8_t</span> spr<span class="op">;</span></span>
+<span id="cb9-33"><a href="#cb9-33" aria-label="33"></a>    <span class="dt">uint8_t</span> dll<span class="op">;</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-label="34"></a>    <span class="dt">uint8_t</span> dlh<span class="op">;</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-label="35"></a>    <span class="dt">uint8_t</span> mdr1<span class="op">;</span></span>
+<span id="cb9-36"><a href="#cb9-36" aria-label="36"></a></span>
+<span id="cb9-37"><a href="#cb9-37" aria-label="37"></a>    <span class="dt">uint8_t</span> efr<span class="op">;</span></span>
+<span id="cb9-38"><a href="#cb9-38" aria-label="38"></a>    <span class="dt">uint8_t</span> xon1<span class="op">;</span></span>
+<span id="cb9-39"><a href="#cb9-39" aria-label="39"></a>    <span class="dt">uint8_t</span> xon2<span class="op">;</span></span>
+<span id="cb9-40"><a href="#cb9-40" aria-label="40"></a>    <span class="dt">uint8_t</span> xoff1<span class="op">;</span></span>
+<span id="cb9-41"><a href="#cb9-41" aria-label="41"></a>    <span class="dt">uint8_t</span> xoff2<span class="op">;</span></span>
+<span id="cb9-42"><a href="#cb9-42" aria-label="42"></a>    <span class="dt">uint8_t</span> scr<span class="op">;</span></span>
+<span id="cb9-43"><a href="#cb9-43" aria-label="43"></a>    <span class="dt">uint8_t</span> ssr<span class="op">;</span></span>
+<span id="cb9-44"><a href="#cb9-44" aria-label="44"></a></span>
+<span id="cb9-45"><a href="#cb9-45" aria-label="45"></a>    <span class="dt">uint8_t</span> rx_fifo<span class="op">[</span>CALYPSO_UART_RX_FIFO_SIZE<span class="op">];</span></span>
+<span id="cb9-46"><a href="#cb9-46" aria-label="46"></a>    <span class="dt">uint16_t</span> rx_head<span class="op">;</span></span>
+<span id="cb9-47"><a href="#cb9-47" aria-label="47"></a>    <span class="dt">uint16_t</span> rx_tail<span class="op">;</span></span>
+<span id="cb9-48"><a href="#cb9-48" aria-label="48"></a>    <span class="dt">uint16_t</span> rx_count<span class="op">;</span></span>
+<span id="cb9-49"><a href="#cb9-49" aria-label="49"></a></span>
+<span id="cb9-50"><a href="#cb9-50" aria-label="50"></a>    <span class="dt">bool</span> thr_empty_pending<span class="op">;</span></span>
+<span id="cb9-51"><a href="#cb9-51" aria-label="51"></a></span>
+<span id="cb9-52"><a href="#cb9-52" aria-label="52"></a>    <span class="dt">uint8_t</span> tx_empty_reads<span class="op">;</span></span>
+<span id="cb9-53"><a href="#cb9-53" aria-label="53"></a></span>
+<span id="cb9-54"><a href="#cb9-54" aria-label="54"></a>    QEMUTimer <span class="op">*</span>rx_poll_timer<span class="op">;</span></span>
+<span id="cb9-55"><a href="#cb9-55" aria-label="55"></a></span>
+<span id="cb9-56"><a href="#cb9-56" aria-label="56"></a><span class="op">}</span> CalypsoUARTState<span class="op">;</span></span>
+<span id="cb9-57"><a href="#cb9-57" aria-label="57"></a></span>
+<span id="cb9-58"><a href="#cb9-58" aria-label="58"></a><span class="dt">int</span> calypso_uart_can_receive<span class="op">(</span><span class="dt">void</span> <span class="op">*</span>opaque<span class="op">);</span></span>
+<span id="cb9-59"><a href="#cb9-59" aria-label="59"></a><span class="dt">void</span> calypso_uart_receive<span class="op">(</span><span class="dt">void</span> <span class="op">*</span>opaque<span class="op">,</span> <span class="dt">const</span> <span class="dt">uint8_t</span> <span class="op">*</span>buf<span class="op">,</span> <span class="dt">int</span> size<span class="op">);</span></span>
+<span id="cb9-60"><a href="#cb9-60" aria-label="60"></a></span>
+<span id="cb9-61"><a href="#cb9-61" aria-label="61"></a><span class="dt">void</span> calypso_uart_inject_raw<span class="op">(</span>CalypsoUARTState <span class="op">*</span>s<span class="op">,</span> <span class="dt">const</span> <span class="dt">uint8_t</span> <span class="op">*</span>buf<span class="op">,</span> <span class="dt">int</span> size<span class="op">);</span></span>
+<span id="cb9-62"><a href="#cb9-62" aria-label="62"></a></span>
+<span id="cb9-63"><a href="#cb9-63" aria-label="63"></a><span class="dt">void</span> calypso_uart_kick_rx<span class="op">(</span>CalypsoUARTState <span class="op">*</span>s<span class="op">);</span></span>
+<span id="cb9-64"><a href="#cb9-64" aria-label="64"></a></span>
+<span id="cb9-65"><a href="#cb9-65" aria-label="65"></a><span class="dt">void</span> calypso_uart_poll_backend<span class="op">(</span>CalypsoUARTState <span class="op">*</span>s<span class="op">);</span></span>
+<span id="cb9-66"><a href="#cb9-66" aria-label="66"></a></span>
+<span id="cb9-67"><a href="#cb9-67" aria-label="67"></a><span class="dt">void</span> calypso_uart_kick_tx<span class="op">(</span>CalypsoUARTState <span class="op">*</span>s<span class="op">);</span></span>
+<span id="cb9-68"><a href="#cb9-68" aria-label="68"></a><span class="dt">void</span> calypso_uart_force_init<span class="op">(</span>CalypsoUARTState <span class="op">*</span>s<span class="op">);</span></span>
+<span id="cb9-69"><a href="#cb9-69" aria-label="69"></a></span>
+<span id="cb9-70"><a href="#cb9-70" aria-label="70"></a></span>
+<span id="cb9-71"><a href="#cb9-71" aria-label="71"></a><span class="pp">#endif</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var box = document.getElementById('sk-filter');
+  if (!box) return;
+  var rows = Array.from(document.querySelectorAll('.bundle-index tbody tr'));
+  var toc  = Array.from(document.querySelectorAll('#TOC a, nav[role=doc-toc] a'));
+  box.addEventListener('input', function () {
+    var q = box.value.trim().toLowerCase();
+    rows.forEach(function (r) {
+      r.style.display = (!q || r.textContent.toLowerCase().includes(q)) ? '' : 'none';
+    });
+    toc.forEach(function (a) {
+      var li = a.closest('li') || a;
+      li.style.display = (!q || a.textContent.toLowerCase().includes(q)) ? '' : 'none';
+    });
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

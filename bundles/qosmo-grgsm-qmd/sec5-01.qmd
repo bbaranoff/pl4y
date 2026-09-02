@@ -1,0 +1,707 @@
+---
+title: "5 - Python"
+---
+
+
+## `opt-gsm-scripts/gsm_sniff.py` {#f-opt-gsm-scripts-gsm-sniff-py}
+
+::: {.file-meta}
+[.py]{.tag} 129 lignes - 5,4KB
+:::
+
+```{.python .numberLines filename="opt-gsm-scripts/gsm_sniff.py"}
+#!/usr/bin/env python3
+# gsm_sniff.py — sniff PASSIF (raw socket) des sockets UDP GSMTAP/SCH/TRXD et
+# TRANSFORME en SI decode / burst decode. NE bind AUCUN port (AF_PACKET) -> ne
+# vole rien aux vrais destinataires (grgsm/qemu), ne touche AUCUNE fifo.
+#
+# Usage : gsm_sniff.py si      # GSMTAP -> num+type SI, canal BCCH/CCCH, FN (4729,4730)
+#         gsm_sniff.py burst   # SCH (4731) + TRXD v1 (5700-5702/5800-5802) -> burst
+import socket, struct, sys, os
+
+MODE = sys.argv[1] if len(sys.argv) > 1 else "si"
+IFACE = os.environ.get("SNIFF_IFACE", "lo")
+ETH_P_IP = 0x0800
+GSMTAP_HDR_LEN = 16                         # GSMTAP v2 header (octets)
+
+# --- GSM 04.08 / 44.018 RR message types (PD = 0x06), 10.4 -------------------
+# key = RR message-type octet (L2[2]) ; value = (nom, is_si, canal DL attendu)
+RR_MT = {
+    0x19: ("SI1",       True,  "BCCH"),
+    0x1a: ("SI2",       True,  "BCCH"),
+    0x1b: ("SI3",       True,  "BCCH"),
+    0x1c: ("SI4",       True,  "BCCH"),
+    0x1d: ("SI2bis",    True,  "BCCH"),
+    0x1e: ("SI2ter",    True,  "BCCH"),
+    0x02: ("SI2quater", True,  "BCCH"),
+    0x03: ("SI9",       True,  "BCCH"),
+    0x00: ("SI13",      True,  "CCCH"),   # SI13 = mt 0x00 (44.018 tbl 10.4.1)
+    # --- CCCH downlink non-SI ---
+    0x3f: ("IMM-ASSIGN",     False, "CCCH"),   # Immediate Assignment (AGCH) <- le LU !
+    0x39: ("IMM-ASSIGN-EXT", False, "CCCH"),
+    0x3a: ("IMM-ASSIGN-REJ", False, "CCCH"),
+    0x21: ("PAGING-REQ-1",   False, "CCCH"),   # 0x21 = PAGING type 1 (PAS SI13)
+    0x22: ("PAGING-REQ-2",   False, "CCCH"),
+    0x24: ("PAGING-REQ-3",   False, "CCCH"),
+    0x06: ("CHAN-RELEASE",   False, "*"),
+    0x2e: ("ASSIGN-CMD",     False, "*"),
+    0x10: ("CIPHER-MODE-CMD",False, "*"),
+    0x12: ("RR-STATUS",      False, "*"),
+}
+
+GSMTAP_CHAN = {0x00:"UNKNOWN",0x01:"BCCH",0x02:"CCCH",0x03:"RACH",0x04:"AGCH",
+               0x05:"PCH",0x06:"SDCCH",0x07:"SDCCH4",0x08:"SDCCH8",0x09:"TCH/F",
+               0x0a:"TCH/H",0x0b:"PACCH",0x0c:"CBCH52",0x0d:"PDTCH",0x0e:"PTCCH",0x0f:"CBCH51"}
+def gsmtap_chan_name(st):
+    base = GSMTAP_CHAN.get(st & 0x7f, "0x%02x" % (st & 0x7f))
+    return base + ("+ACCH" if (st & 0x80) else "")
+def gsmtap_chan_class(st):
+    b = st & 0x7f
+    if b == 0x01: return "BCCH"
+    if b in (0x02,0x04,0x05): return "CCCH"
+    if b == 0x03: return "RACH"
+    if b in (0x06,0x07,0x08): return "SDCCH"
+    return "OTHER"
+
+def fn51_role(fn):
+    m = fn % 51
+    if m in (0,10,20,30,40): return "FCCH"
+    if m in (1,11,21,31,41): return "SCH"
+    if m in (2,3,4,5):       return "BCCH"
+    if m == 50:              return "idle"
+    return "CCCH"
+def fn51_class(fn):
+    r = fn51_role(fn)
+    return r if r in ("BCCH","CCCH") else "—"
+
+if MODE == "si":
+    PORTS = {int(p) for p in os.environ.get("SNIFF_PORTS","4729,4730").split(",")}
+else:
+    PORTS = {int(p) for p in os.environ.get("SNIFF_PORTS","4731,5700,5701,5702,5800,5801,5802").split(",")}
+
+s = socket.socket(socket.AF_PACKET, socket.SOCK_DGRAM, socket.htons(ETH_P_IP))
+s.bind((IFACE, 0))
+print("[gsm-sniff:%s] iface=%s ports=%s (passif, aucune fifo)"
+      % (MODE, IFACE, sorted(PORTS)), flush=True)
+
+def udp_payload(ip):
+    if len(ip) < 20 or (ip[0] >> 4) != 4: return None, None
+    ihl = (ip[0] & 0x0f) * 4
+    if ip[9] != 17: return None, None
+    u = ip[ihl:]
+    if len(u) < 8: return None, None
+    return struct.unpack(">H", u[2:4])[0], u[8:]
+
+def decode_si(pl):
+    if len(pl) < GSMTAP_HDR_LEN: return None
+    ts  = pl[3]
+    fn  = struct.unpack(">I", pl[8:12])[0]     # frame_number reel (BE @ offset 8)
+    sub = pl[12]                               # GSMTAP sub_type / canal
+    l2  = pl[16:]
+    if len(l2) >= 3 and l2[1] == 0x06:
+        mt = l2[2]
+        name, is_si, exp = RR_MT.get(mt, ("RR/mt=0x%02x" % mt, False, "*"))
+        name = "%s(0x%02x)" % (name, mt)
+    else:
+        name, is_si, exp = "?", False, "*"
+    tag_cls = gsmtap_chan_class(sub)
+    fn_role = fn51_role(fn); fn_cls = fn51_class(fn)
+    flags = []
+    if tag_cls != fn_cls and fn_cls != "—": flags.append("CHAN!=FN(%s/%s)" % (tag_cls, fn_cls))
+    if fn_role in ("FCCH","SCH","idle"):      flags.append("BAD-FN(sur %s)" % fn_role)
+    if is_si and exp == "BCCH" and fn_cls == "CCCH": flags.append("SI-sur-CCCH")
+    fl = ("  [" + " ".join(flags) + "]") if flags else ""
+    return "FN=%d ts%d (%%51=%d %s)  CHAN=%-12s  %-18s  L2: %s%s" % (
+        fn, ts, fn % 51, fn_role, gsmtap_chan_name(sub), name, l2[:23].hex(" "), fl)
+
+def decode_burst(dport, pl):
+    if dport == 4731 and len(pl) >= 16 and pl[:4] == b"SCH1":
+        bsic, fn, toa = struct.unpack("<iii", pl[4:16])
+        return "SCH   bsic=%d (ncc=%d bcc=%d)  fn=%d (%%51=%d %s)  toa=%d" % (
+            bsic,(bsic>>3)&7,bsic&7,fn,fn%51,fn51_role(fn),toa)
+    if dport in (5700,5701,5702,5800,5801,5802) and len(pl) >= 6:
+        ver = pl[0] >> 4; tn = pl[0] & 0x07
+        fn  = int.from_bytes(pl[1:5], "big")
+        if len(pl) >= 6 + 148:
+            b = "".join("1" if x else "0" for x in pl[-148:])
+            return "TRXDv%d ts%d fn=%d (%%51=%d %s) 148b %s" % (ver,tn,fn,fn%51,fn51_role(fn),b)
+        return "TRXDv%d ts%d fn=%d (%%51=%d %s) NOPE(len=%d, burst vide)" % (
+            ver,tn,fn,fn%51,fn51_role(fn),len(pl))
+    return None
+
+n = 0
+while True:
+    pkt = s.recv(65535)
+    dport, pl = udp_payload(pkt)
+    if dport not in PORTS or pl is None:
+        continue
+    line = decode_si(pl) if MODE == "si" else decode_burst(dport, pl)
+    if line:
+        n += 1
+        print("%6d  :%-4d  %s" % (n, dport, line), flush=True)
+
+```
+
+## `scripts/inject_fb.py` {#f-scripts-inject-fb-py}
+
+::: {.file-meta}
+[.py]{.tag} 90 lignes - 2,9KB
+:::
+
+```{.python .numberLines filename="scripts/inject_fb.py"}
+#!/usr/bin/env python3
+"""
+inject_fb.py — diagnostic script: send a clean FB burst (148 zero bits)
+straight to QEMU's BSP UDP port (127.0.0.1:6702), bypassing osmo-bts-trx.
+
+Purpose: confirm whether the DSP correlator at PROM0 0x82f6 actually
+writes d_fb_det when fed a perfect frequency burst. If yes → the loop
+in production runs is failing on amplitude/phase/timing of the bridge's
+GMSK simulation. If no → the DSP code path itself is broken.
+
+We tail bridge.log to track QEMU's current FN (the bridge prints
+"bridge: QEMU tick #N FN=X" on every TDMA tick) and send each burst
+slightly in the future of the live FN so it lands in the BSP match
+window (±64).
+"""
+import os
+import re
+import socket
+import struct
+import sys
+import time
+
+(removed) = "/tmp/bridge.log"
+BSP_ADDR = ("127.0.0.1", 6702)
+LOOKAHEAD = 30          # frames ahead of cur_fn (well inside ±64 window)
+SEND_PERIOD_S = 0.004   # ~one TDMA frame
+DURATION_S = 30
+
+def make_fb_burst(tn, fn, rssi=20, toa=0):
+    """TRXDv0 DL: tn(1) fn(4 BE) rssi(1) toa(2 BE) + 148 zero bits."""
+    return (
+        bytes([tn & 0x07])
+        + struct.pack(">I", fn & 0xFFFFFFFF)
+        + bytes([rssi])
+        + struct.pack(">H", toa & 0xFFFF)
+        + bytes(148)
+    )
+
+def latest_fn_from_bridge():
+    """Walk bridge.log backwards looking for the most recent 'fn=N' tag."""
+    try:
+        with open((removed), "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            chunk = 8192
+            f.seek(max(0, size - chunk))
+            tail = f.read().decode("utf-8", errors="replace")
+        # Prefer DL bursts (carry bts_fn and our rewritten fn) for freshness
+        m = list(re.finditer(r"\bfn=(\d+)", tail))
+        if m:
+            return int(m[-1].group(1))
+    except FileNotFoundError:
+        pass
+    return None
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    print(f"inject_fb: target={BSP_ADDR} lookahead={LOOKAHEAD} duration={DURATION_S}s",
+          flush=True)
+
+    # Wait until bridge.log has at least one fn= line
+    start = time.time()
+    while time.time() - start < 10:
+        fn = latest_fn_from_bridge()
+        if fn is not None:
+            break
+        time.sleep(0.2)
+    else:
+        print("inject_fb: no fn= seen in bridge.log within 10s", file=sys.stderr)
+        sys.exit(1)
+    print(f"inject_fb: starting FN={fn}", flush=True)
+
+    sent = 0
+    end = time.time() + DURATION_S
+    while time.time() < end:
+        cur = latest_fn_from_bridge()
+        if cur is None:
+            cur = fn
+        target_fn = cur + LOOKAHEAD
+        sock.sendto(make_fb_burst(tn=0, fn=target_fn), BSP_ADDR)
+        sent += 1
+        if sent % 250 == 0:
+            print(f"inject_fb: sent={sent} cur_fn~={cur} target_fn={target_fn}",
+                  flush=True)
+        time.sleep(SEND_PERIOD_S)
+
+    print(f"inject_fb: done sent={sent}", flush=True)
+
+if __name__ == "__main__":
+    main()
+
+```
+
+## `scripts/make_dsp_bin_L1.py` {#f-scripts-make-dsp-bin-l1-py}
+
+::: {.file-meta}
+[.py]{.tag} 233 lignes - 8,5KB
+:::
+
+```{.python .numberLines filename="scripts/make_dsp_bin_L1.py"}
+#!/usr/bin/env python3
+
+# --- racine de l'installation, resolue sans chemin en dur --------------------
+# GSM_ROOT si l'environnement le pose (c'est le cas quand on passe par run.sh),
+# sinon le parent du depot : les deux depots vivent cote a cote.
+import os as _os
+GSM_ROOT = _os.environ.get(
+    "GSM_ROOT",
+    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+
+"""
+make_dsp_bin_L1.py — Generate calypso_dsp.PROM0.bin with synthetic L1+L2 publisher.
+
+Scope (extension 2026-05-28 : L1 → L2) :
+- FB lock : d_fb_det + a_sync_demod[4] cells (TOA/PM/ANGLE/SNR)
+- PM measurement : a_pm[3] WP0/WP1 with canned -85 dBm value
+- SB lock : a_sch[5] WP0/WP1 with canned BSIC matching osmo-bsc.cfg
+- BCCH SI3 (L2) : a_cd[0..14] with FIRE-OK status + 23-byte SI3 LAPDm frame
+  (same canned bytes as CALYPSO_DSP_SHUNT shunt_dispatch_allc, MCC=001/MNC=01)
+
+Entry point : 0x7120 (= SILICON-BOOT-REDIRECT target from c54x.c).
+Patches existing PROM0.bin at offset 0x240 (= word 0x120, code addr 0x7120).
+Rest of ROM preserved.
+
+Architecture :
+- Boot init at 0x7120 : sets SP=0x5AC8, IMR=0xFFFF
+- Main loop : tight loop writing all cells continuously
+- ARM reads cells anytime, always sees canned "lock detected" values
+
+Strategy : continuous-write rather than dispatch-on-task. Simpler than full
+dispatcher, plus ARM cell-read race is auto-resolved (whatever read happens
+sees current canned value).
+
+Usage :
+    python3 make_dsp_bin_L1.py [input.bin] [output.bin]
+    Default input  : /opt/GSM/calypso_dsp.PROM0.bin
+    Default output : /opt/GSM/calypso_dsp.PROM0.bin.L1
+"""
+import sys
+import struct
+
+INPUT  = sys.argv[1] if len(sys.argv) > 1 else f'{GSM_ROOT}/calypso_dsp.PROM0.bin'
+# *** OUTPUT path EXPLICITLY separate — JAMAIS écrase l'original ***
+OUTPUT = sys.argv[2] if len(sys.argv) > 2 else '/tmp/calypso_dsp_L1stub.PROM0.bin'
+
+# ---- C54x opcode encoders ----
+
+def stm_lk_mmr(lk, mmr):
+    """STM #lk, MMR — 2 words (0x7700 | MMR_low7, lk)"""
+    return [0x7700 | (mmr & 0x7F), lk & 0xFFFF]
+
+def ld_lk_a(lk):
+    """LD #lk, A — 2 words ALU class F0xx (alu_op=2 LD)"""
+    # bits 7:4 = 0010 = LD ; bit 8 = SRC ; bit 9 = DST
+    # Use src=A dst=A : bit 8 = 0 bit 9 = 0
+    # opcode 0xF0 << 8 | (alu_op << 4) | shift = 0xF020 (shift=0)
+    return [0xF020, lk & 0xFFFF]
+
+def stl_a_arn(n, mod):
+    """STL A, *ARn[mod] — 1 word (0x80xx hi8 = STL A)
+       mod ∈ {0=*ARn, 1=*ARn-, 2=*ARn+}"""
+    smem = 0x80 | ((mod & 0xF) << 3) | (n & 0x7)
+    return [(0x80 << 8) | smem]
+
+def b_unc(target):
+    """B pmad (unconditional NEAR branch) — 2 words.
+       Use 0xF880 (= FB FAR in c54x.c emulator but sets XPC=0 always,
+       which is no-op when staying within PROM0). Same encoding as the
+       SILICON-BOOT-REDIRECT vector synthesis in calypso_c54x.c.
+       NOT 0xF800 : that's BANZ AR0 (= conditional on AR0!=0) in this emu."""
+    return [0xF880, target & 0xFFFF]
+
+# ---- MMR table ----
+MMR_IMR = 0x00
+MMR_AR0 = 0x10
+MMR_SP  = 0x18
+
+# ---- Cell addresses (DSP code space) ----
+# API base = 0x0800
+# NDB base = 0x08D4 (= byte 0x01A8 / 2)
+D_FB_DET     = 0x08F8    # NDB + 0x48 byte
+D_FB_MODE    = 0x08F9    # NDB + 0x4A byte
+A_SYNC_DEMOD = 0x08FA    # NDB + 0x4C..0x53 byte = 4 words
+A_PM_WP0     = 0x0830    # API + 0x60 byte = read page 0 word 8
+A_PM_WP1     = 0x0844    # API + 0x88 byte = read page 1 word 8
+# a_sch[5] at words 15..19 of read page (after a_pm[3] words 8..10 + a_serv_demod[4] words 11..14)
+A_SCH_WP0    = 0x0837    # RP0 + 15 word = 0x0828 + 15
+A_SCH_WP1    = 0x084B    # RP1 + 15 word = 0x083C + 15
+# a_cd[0..14] = CCCH demod result.
+# Per CLAUDE.md DWARF-validated 2026-05-26 : NDB+0x1DC byte = NDB+0xEE word
+# = code 0x08D4 + 0xEE = 0x09C2. Le shunt utilise 0x1FC (= probablement une
+# struct variant alternative). On suit le DWARF qui est l'autorité firmware.
+A_CD_BASE    = 0x09C2    # a_cd[0]
+A_CD_PAYLOAD = 0x09C5    # a_cd[3] = start of 12-word SI3 packed payload
+
+# ---- Canned values ----
+FB_DET_VAL   = 0x4E20     # 20000 = nonzero detection flag
+TOA_VAL      = 0x0240     # 576 (mid burst window)
+PM_VAL       = 0xFB00     # signed -1280, firmware >>3 = -160, Power = (-160-520)/8 = -85 dBm
+ANGLE_VAL    = 0x0000     # AFC error = 0 Hz
+SNR_VAL      = 0x4E20     # 20000 = above FB1_SNR_THRESH=3000
+
+# SB encoding for BSIC=7, t1=0, t2=0, t3=1 : sb = (bsic & 0x3f) << 2 = 0x1C
+SB_BSIC      = 7
+SB_PACKED    = (SB_BSIC & 0x3F) << 2  # = 0x1C
+SB_LO        = SB_PACKED & 0xFFFF      # = 0x001C
+SB_HI        = (SB_PACKED >> 16) & 0xFFFF  # = 0x0000
+
+# ---- Canned SI3 L2 frame (23 bytes, identical to shunt_dispatch_allc) ----
+SI3_BYTES = [
+    0x49, 0x06, 0x1B,                    # L2 hdr + RR PD + SI3 mt
+    0x00, 0x01,                          # Cell ID = 1
+    0x00, 0xF1, 0x10,                    # MCC=001 MNC=01
+    0x00, 0x01,                          # LAC = 1
+    0x01, 0x00,                          # cell opts + cell select
+    0x18, 0xFF, 0xFF,                    # RACH ctrl
+    0x2B, 0x2B, 0x2B, 0x2B, 0x2B, 0x2B, 0x2B, 0x2B
+]
+assert len(SI3_BYTES) == 23
+
+# Pack 23 bytes → 12 LE words (lo + hi<<8); last word pads with 0x2B
+SI3_WORDS = []
+for i in range(0, 23, 2):
+    lo = SI3_BYTES[i]
+    hi = SI3_BYTES[i+1] if i+1 < 23 else 0x2B
+    SI3_WORDS.append(lo | (hi << 8))
+assert len(SI3_WORDS) == 12
+
+# ---- Build code ----
+code = []
+
+# Boot init
+code += stm_lk_mmr(0x5AC8, MMR_SP)        # STM #0x5AC8, SP
+code += stm_lk_mmr(0xFFFF, MMR_IMR)       # STM #0xFFFF, IMR
+
+# Compute main_loop address now that we know boot prefix length
+main_loop_addr = 0x7120 + len(code)
+
+# --- d_fb_det = 0x4E20 ---
+code += stm_lk_mmr(D_FB_DET, MMR_AR0)
+code += ld_lk_a(FB_DET_VAL)
+code += stl_a_arn(0, 0)                    # STL A, *AR0 (no mod)
+
+# --- a_sync_demod[0..3] = TOA, PM, ANGLE, SNR ---
+code += stm_lk_mmr(A_SYNC_DEMOD, MMR_AR0)
+code += ld_lk_a(TOA_VAL)
+code += stl_a_arn(0, 2)                    # STL A, *AR0+ (post-inc)
+code += ld_lk_a(PM_VAL)
+code += stl_a_arn(0, 2)
+code += ld_lk_a(ANGLE_VAL)
+code += stl_a_arn(0, 2)
+code += ld_lk_a(SNR_VAL)
+code += stl_a_arn(0, 2)
+
+# --- a_pm[3] WP0 ---
+code += stm_lk_mmr(A_PM_WP0, MMR_AR0)
+code += ld_lk_a(PM_VAL)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+
+# --- a_pm[3] WP1 (reuse A) ---
+code += stm_lk_mmr(A_PM_WP1, MMR_AR0)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+
+# --- a_sch[5] WP0 : a_sch[0]=0 (CRC OK), [1]=0, [2]=0, [3]=SB_LO, [4]=SB_HI ---
+code += stm_lk_mmr(A_SCH_WP0, MMR_AR0)
+code += ld_lk_a(0x0000)
+code += stl_a_arn(0, 2)                   # a_sch[0] = 0 (CRC OK)
+code += stl_a_arn(0, 2)                   # a_sch[1] = 0
+code += stl_a_arn(0, 2)                   # a_sch[2] = 0
+code += ld_lk_a(SB_LO)
+code += stl_a_arn(0, 2)                   # a_sch[3] = SB low
+code += ld_lk_a(SB_HI)
+code += stl_a_arn(0, 2)                   # a_sch[4] = SB high
+
+# --- a_sch[5] WP1 same ---
+code += stm_lk_mmr(A_SCH_WP1, MMR_AR0)
+code += ld_lk_a(0x0000)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+code += stl_a_arn(0, 2)
+code += ld_lk_a(SB_LO)
+code += stl_a_arn(0, 2)
+code += ld_lk_a(SB_HI)
+code += stl_a_arn(0, 2)
+
+# --- a_cd[0..2] = FIRE-OK status (CRC pass, no biterr) ---
+code += stm_lk_mmr(A_CD_BASE, MMR_AR0)
+code += ld_lk_a(0x0000)
+code += stl_a_arn(0, 2)                    # a_cd[0] = FIRE bits = 0 (CRC OK)
+code += stl_a_arn(0, 2)                    # a_cd[1] = reserved = 0
+code += stl_a_arn(0, 2)                    # a_cd[2] = num_biterr = 0
+
+# --- a_cd[3..14] = 12 words of SI3 LAPDm packed payload ---
+code += stm_lk_mmr(A_CD_PAYLOAD, MMR_AR0)
+for w in SI3_WORDS:
+    code += ld_lk_a(w)
+    code += stl_a_arn(0, 2)
+
+# --- Loop back ---
+code += b_unc(main_loop_addr)
+
+# ---- Sanity check ----
+print(f"Code length: {len(code)} words ({len(code)*2} bytes)")
+print(f"Main loop entry: 0x{main_loop_addr:04x}")
+print(f"Code spans 0x7120 - 0x{0x7120 + len(code) - 1:04x}")
+
+# ---- Patch PROM0.bin ----
+with open(INPUT, 'rb') as f:
+    prom_bytes = bytearray(f.read())
+
+print(f"Input PROM0 size: {len(prom_bytes)} bytes ({len(prom_bytes)//2} words)")
+
+# 0x7120 → byte offset 0x240 from PROM0 start (= 2 × (0x7120 - 0x7000))
+PATCH_BYTE_OFFSET = 2 * (0x7120 - 0x7000)
+print(f"Patch byte offset: 0x{PATCH_BYTE_OFFSET:04x} ({PATCH_BYTE_OFFSET})")
+
+for i, w in enumerate(code):
+    off = PATCH_BYTE_OFFSET + 2*i
+    prom_bytes[off]   = w & 0xFF
+    prom_bytes[off+1] = (w >> 8) & 0xFF
+
+with open(OUTPUT, 'wb') as f:
+    f.write(prom_bytes)
+
+print(f"Wrote {OUTPUT}")
+print()
+print("Pour utiliser SANS toucher l'original :")
+print(f"  Update QEMU launch dsp-prom0=...PROM0.bin → dsp-prom0={OUTPUT}")
+print(f"  L'original /opt/GSM/calypso_dsp.PROM0.bin reste INTACT.")
+
+```
+
+## `scripts/replay_pm_payload.py` {#f-scripts-replay-pm-payload-py}
+
+::: {.file-meta}
+[.py]{.tag} 211 lignes - 6,6KB
+:::
+
+```{.python .numberLines filename="scripts/replay_pm_payload.py"}
+#!/usr/bin/env python3
+"""
+replay_pm_payload.py - Reproduit le payload L1CTL PM scan observe dans
+les logs (hdlc_send/recv sur DLCI 5).
+
+Encode des L1CTL_PM_REQ + decode/print des L1CTL_PM_CONF.
+
+Trois modes :
+  1. --dump      : imprime les bytes attendus (verification format)
+  2. --to-socket /tmp/osmocom_l2  : push vers un socket L1CTL existant
+  3. --hdlc-pty  /dev/pts/X  : enveloppe en HDLC DLCI 5 et envoie sur PTY
+
+Format L1CTL observe (32-bit big-endian) :
+  hdlc payload = CMD(4B) ARG(4B) [PAYLOAD...]
+
+Commandes vues dans le log :
+  0x08 PM_REQ  : ARG=band, payload = 2x uint16 BE (arfcn_lo, arfcn_hi)
+  0x09 PM_CONF : ARG=batch_id, payload = N x uint32 BE arfcn list
+  0x0d         : sub-cmd ack/next (suit chaque PM_CONF)
+
+Usage :
+  ./replay_pm_payload.py --dump
+  ./replay_pm_payload.py --to-socket /tmp/osmocom_l2
+  ./replay_pm_payload.py --hdlc-pty /dev/pts/1
+"""
+
+import argparse
+import socket
+import struct
+import sys
+
+
+# L1CTL command IDs (deduits du log + osmocom-bb l1ctl_proto.h)
+CMD_PM_REQ   = 0x08
+CMD_PM_CONF  = 0x09
+CMD_DONE     = 0x0d
+
+# GSM band IDs
+BAND_GSM900  = 0x00
+BAND_DCS1800 = 0x01
+
+
+def encode_pm_req(band: int, arfcn_lo: int, arfcn_hi: int) -> bytes:
+    """
+    Encode L1CTL_PM_REQ comme observe dans le log :
+      08 00 00 00 BB 00 00 00 LL LL HH HH
+
+    band = BB (0x00 GSM900, 0x01 DCS1800)
+    arfcn_lo = LL LL (16-bit BE)
+    arfcn_hi = HH HH (16-bit BE)
+    """
+    return struct.pack(
+        ">II HH",
+        CMD_PM_REQ,         # 32-bit BE cmd
+        band,               # 32-bit BE band
+        arfcn_lo,           # 16-bit BE
+        arfcn_hi,           # 16-bit BE
+    )
+
+
+def encode_done(sub: int = 1) -> bytes:
+    """Encode L1CTL_DONE (0x0d) : 0d 00 00 00 SS 00 00 00"""
+    return struct.pack(">II", CMD_DONE, sub)
+
+
+def decode_pm_conf(b: bytes) -> tuple[int, int, list[int]]:
+    """
+    Decode L1CTL_PM_CONF :
+      09 00 00 00 SS 00 00 00 [arfcn 32-bit BE]*
+
+    Returns (cmd, sub, arfcn_list)
+    """
+    if len(b) < 8:
+        raise ValueError("PM_CONF too short")
+    cmd, sub = struct.unpack(">II", b[:8])
+    if cmd != CMD_PM_CONF:
+        raise ValueError(f"not a PM_CONF (cmd=0x{cmd:02x})")
+    n = (len(b) - 8) // 4
+    arfcns = list(struct.unpack(f">{n}I", b[8 : 8 + 4 * n]))
+    return cmd, sub, arfcns
+
+
+# ---------- HDLC framing (DLCI 5) ----------
+#
+# osmocon hdlc protocol : frame_start(0x7E) [escaped payload] frame_end(0x7E)
+# Escape : 0x7D 0x5D = literal 0x7D ; 0x7D 0x5E = literal 0x7E
+#
+# DLCI byte prepended to payload, then HDLC framing.
+HDLC_FLAG    = 0x7E
+HDLC_ESC     = 0x7D
+HDLC_ESC_XOR = 0x20
+DLCI_SERCOMM = 5
+
+
+def hdlc_escape(b: bytes) -> bytes:
+    out = bytearray()
+    for x in b:
+        if x in (HDLC_FLAG, HDLC_ESC):
+            out.append(HDLC_ESC)
+            out.append(x ^ HDLC_ESC_XOR)
+        else:
+            out.append(x)
+    return bytes(out)
+
+
+def hdlc_frame(dlci: int, payload: bytes) -> bytes:
+    """Wrap payload in HDLC framing for given DLCI."""
+    body = bytes([dlci]) + payload
+    return bytes([HDLC_FLAG]) + hdlc_escape(body) + bytes([HDLC_FLAG])
+
+
+# ---------- Scenarios ----------
+
+def build_observed_sequence() -> list[tuple[str, bytes]]:
+    """Reproduit la sequence exacte du log."""
+    seq = []
+    # DCS 1800 scan : ARFCN 940..954
+    seq.append(("PM_REQ DCS 940-954", encode_pm_req(BAND_DCS1800, 940, 954)))
+    # CONF expected : list of arfcn 940..954
+    arfcn_list = list(range(940, 955))
+    conf = struct.pack(">II", CMD_PM_CONF, 1) + b"".join(
+        struct.pack(">I", a) for a in arfcn_list
+    )
+    seq.append(("PM_CONF DCS 940-954 (expected)", conf))
+    seq.append(("DONE sub=1", encode_done(1)))
+
+    # GSM 900 scan : ARFCN 1..124
+    seq.append(("PM_REQ GSM900 1-124", encode_pm_req(BAND_GSM900, 1, 124)))
+    arfcn_list2 = list(range(1, 125))
+    conf2 = struct.pack(">II", CMD_PM_CONF, 0) + b"".join(
+        struct.pack(">I", a) for a in arfcn_list2
+    )
+    seq.append(("PM_CONF GSM900 1-124 (expected)", conf2))
+    seq.append(("DONE sub=1", encode_done(1)))
+    return seq
+
+
+# ---------- Main ----------
+
+def hex_pretty(b: bytes, line_len: int = 32) -> str:
+    out = []
+    for i in range(0, len(b), line_len):
+        chunk = b[i : i + line_len]
+        hexpart = " ".join(f"{x:02x}" for x in chunk)
+        asciipart = "".join(chr(x) if 32 <= x < 127 else "." for x in chunk)
+        out.append(f"  {hexpart:<{line_len*3}}  {asciipart}")
+    return "\n".join(out)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Replay L1CTL PM scan payload")
+    ap.add_argument("--dump", action="store_true",
+                    help="print expected bytes (no I/O)")
+    ap.add_argument("--to-socket", metavar="PATH",
+                    help="send PM_REQs as L1CTL frames to unix socket")
+    ap.add_argument("--hdlc-pty", metavar="PATH",
+                    help="wrap in HDLC DLCI 5 and write to PTY")
+    ap.add_argument("--band", choices=["gsm900", "dcs1800"], default="gsm900")
+    ap.add_argument("--arfcn-lo", type=int, default=1)
+    ap.add_argument("--arfcn-hi", type=int, default=124)
+    args = ap.parse_args()
+
+    band = BAND_DCS1800 if args.band == "dcs1800" else BAND_GSM900
+    custom_req = encode_pm_req(band, args.arfcn_lo, args.arfcn_hi)
+
+    if args.dump:
+        print("=== Observed sequence reproduction ===\n")
+        for label, payload in build_observed_sequence():
+            print(f"-- {label} ({len(payload)} bytes) --")
+            print(hex_pretty(payload))
+            print()
+        print("=== Custom PM_REQ ===")
+        print(f"  band={args.band} arfcn={args.arfcn_lo}-{args.arfcn_hi}")
+        print(hex_pretty(custom_req))
+        print()
+        print("=== HDLC framed (DLCI 5) ===")
+        framed = hdlc_frame(DLCI_SERCOMM, custom_req)
+        print(hex_pretty(framed))
+        return
+
+    if args.to_socket:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.connect(args.to_socket)
+        # L1CTL frame = 16-bit BE length prefix + payload (per osmocom-bb l1ctl)
+        framed = struct.pack(">H", len(custom_req)) + custom_req
+        s.sendall(framed)
+        print(f"sent {len(framed)} bytes to {args.to_socket}")
+        # Optionally wait for CONF
+        s.settimeout(2.0)
+        try:
+            r = s.recv(4096)
+            print(f"recv {len(r)} bytes :")
+            print(hex_pretty(r))
+        except socket.timeout:
+            print("(no response in 2s)")
+        s.close()
+        return
+
+    if args.hdlc_pty:
+        framed = hdlc_frame(DLCI_SERCOMM, custom_req)
+        with open(args.hdlc_pty, "wb") as f:
+            f.write(framed)
+        print(f"sent HDLC frame ({len(framed)} bytes) to {args.hdlc_pty}")
+        return
+
+    ap.print_help()
+    sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+
+```

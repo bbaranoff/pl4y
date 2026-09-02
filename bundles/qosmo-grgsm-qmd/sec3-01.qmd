@@ -1,0 +1,476 @@
+---
+title: "3 - Headers"
+---
+
+
+## `hw/arm/calypso/calypso_trf6151.h` {#f-hw-arm-calypso-calypso-trf6151-h}
+
+::: {.file-meta}
+[.h]{.tag} 14 lignes - 340B
+:::
+
+```{.c .numberLines filename="hw/arm/calypso/calypso_trf6151.h"}
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+#ifndef HW_ARM_CALYPSO_TRF6151_H
+#define HW_ARM_CALYPSO_TRF6151_H
+
+#include <stdint.h>
+
+void calypso_trf6151_tsp_write(uint8_t dev_idx, uint32_t word);
+
+int calypso_trf6151_total_gain_db(void);
+
+uint16_t calypso_trf6151_apm_for_rf(int target_rf_dbm);
+int calypso_trf6151_arfcn(void);
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_inth.h` {#f-include-hw-arm-calypso-calypso-inth-h}
+
+::: {.file-meta}
+[.h]{.tag} 32 lignes - 580B
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_inth.h"}
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#ifndef HW_INTC_CALYPSO_INTH_H
+#define HW_INTC_CALYPSO_INTH_H
+
+#include "hw/sysbus.h"
+#include "qom/object.h"
+
+#define TYPE_CALYPSO_INTH "calypso-inth"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoINTHState, CALYPSO_INTH)
+
+#define CALYPSO_INTH_NUM_IRQS  32
+
+struct CalypsoINTHState {
+
+    SysBusDevice parent_obj;
+
+    MemoryRegion iomem;
+
+    qemu_irq parent_irq;
+    qemu_irq parent_fiq;
+
+    uint16_t ilr[CALYPSO_INTH_NUM_IRQS];
+
+    uint16_t ith_v;
+    uint16_t fiq_v;
+    uint32_t levels;
+    uint32_t mask;
+    int rr_start;
+};
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_sim.h` {#f-include-hw-arm-calypso-calypso-sim-h}
+
+::: {.file-meta}
+[.h]{.tag} 47 lignes - 1,6KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_sim.h"}
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+#ifndef HW_ARM_CALYPSO_SIM_H
+#define HW_ARM_CALYPSO_SIM_H
+
+#include "qemu/osdep.h"
+#include "exec/hwaddr.h"
+#include "hw/irq.h"
+
+#define CALYPSO_SIM_REG_CMD      0x00
+#define CALYPSO_SIM_REG_STAT     0x02
+#define CALYPSO_SIM_REG_CONF1    0x04
+#define CALYPSO_SIM_REG_CONF2    0x06
+#define CALYPSO_SIM_REG_IT       0x08
+#define CALYPSO_SIM_REG_DRX      0x0A
+#define CALYPSO_SIM_REG_DTX      0x0C
+#define CALYPSO_SIM_REG_MASKIT   0x0E
+#define CALYPSO_SIM_REG_IT_CD    0x10
+
+#define CALYPSO_SIM_CMD_CARDRST       (1 << 0)
+#define CALYPSO_SIM_CMD_IFRST         (1 << 1)
+#define CALYPSO_SIM_CMD_STOP          (1 << 2)
+#define CALYPSO_SIM_CMD_START         (1 << 3)
+#define CALYPSO_SIM_CMD_MODULE_CLK_EN (1 << 4)
+
+#define CALYPSO_SIM_STAT_NOCARD       (1 << 0)
+#define CALYPSO_SIM_STAT_TXPAR        (1 << 1)
+#define CALYPSO_SIM_STAT_FIFOFULL     (1 << 2)
+#define CALYPSO_SIM_STAT_FIFOEMPTY    (1 << 3)
+
+#define CALYPSO_SIM_IT_NATR           (1 << 0)
+#define CALYPSO_SIM_IT_WT             (1 << 1)
+#define CALYPSO_SIM_IT_OV             (1 << 2)
+#define CALYPSO_SIM_IT_TX             (1 << 3)
+#define CALYPSO_SIM_IT_RX             (1 << 4)
+
+#define CALYPSO_SIM_CONF1_BYPASS      (1 << 8)
+#define CALYPSO_SIM_CONF1_SVCCLEV     (1 << 9)
+#define CALYPSO_SIM_CONF1_SRSTLEV     (1 << 10)
+
+typedef struct CalypsoSim CalypsoSim;
+
+CalypsoSim *calypso_sim_new(qemu_irq sim_irq);
+
+uint16_t calypso_sim_reg_read(CalypsoSim *s, hwaddr off);
+void     calypso_sim_reg_write(CalypsoSim *s, hwaddr off, uint16_t val);
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_soc.h` {#f-include-hw-arm-calypso-calypso-soc-h}
+
+::: {.file-meta}
+[.h]{.tag} 43 lignes - 892B
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_soc.h"}
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#ifndef HW_ARM_CALYPSO_SOC_H
+#define HW_ARM_CALYPSO_SOC_H
+
+#include "hw/sysbus.h"
+#include "qom/object.h"
+#include "hw/arm/calypso/calypso_inth.h"
+#include "hw/arm/calypso/calypso_timer.h"
+#include "hw/arm/calypso/calypso_uart.h"
+#include "hw/arm/calypso/calypso_spi.h"
+
+#define TYPE_CALYPSO_SOC "calypso-soc"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoSoCState, CALYPSO_SOC)
+
+#define CALYPSO_SOC_NUM_IRQS  2
+
+struct CalypsoSoCState {
+
+    SysBusDevice parent_obj;
+
+    MemoryRegion iram;
+
+    CalypsoINTHState  inth;
+    CalypsoTimerState timer1;
+    CalypsoTimerState timer2;
+    CalypsoUARTState  uart_modem;
+    CalypsoUARTState  uart_irda;
+    CalypsoSPIState   spi;
+
+    void *trx;
+
+    qemu_irq cpu_irq;
+    qemu_irq cpu_fiq;
+
+    MemoryRegion iram_alias;
+    bool iram_at_zero;
+    MemoryRegion cntl_iomem;
+    uint16_t extra_conf;
+
+};
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_spi.h` {#f-include-hw-arm-calypso-calypso-spi-h}
+
+::: {.file-meta}
+[.h]{.tag} 43 lignes - 869B
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_spi.h"}
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#ifndef HW_SSI_CALYPSO_SPI_H
+#define HW_SSI_CALYPSO_SPI_H
+
+#include "hw/sysbus.h"
+#include "qom/object.h"
+
+#define TYPE_CALYPSO_SPI "calypso-spi"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoSPIState, CALYPSO_SPI)
+
+struct CalypsoSPIState {
+
+    SysBusDevice parent_obj;
+
+    MemoryRegion iomem;
+    qemu_irq     irq;
+
+    uint16_t set1;
+    uint16_t set2;
+    uint16_t ctrl;
+    uint16_t status;
+    uint16_t tx_data;
+    uint16_t rx_data;
+
+    uint16_t abb_regs[256];
+};
+
+#define ABB_VRPCDEV    0x01
+#define ABB_VRPCSTS    0x02
+#define ABB_VBUCTRL    0x03
+#define ABB_VBDR1      0x04
+#define ABB_TOGBR1     0x09
+#define ABB_TOGBR2     0x0A
+#define ABB_AUXLED     0x17
+#define ABB_ITSTATREG  0x1B
+
+#define SPI_STATUS_RE        (1 << 1)
+
+#define SPI_STATUS_TX_READY  SPI_STATUS_RE
+#define SPI_STATUS_RX_READY  SPI_STATUS_RE
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_timer.h` {#f-include-hw-arm-calypso-calypso-timer-h}
+
+::: {.file-meta}
+[.h]{.tag} 38 lignes - 778B
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_timer.h"}
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#ifndef HW_TIMER_CALYPSO_TIMER_H
+#define HW_TIMER_CALYPSO_TIMER_H
+
+#include "hw/sysbus.h"
+#include "qom/object.h"
+#include "qemu/timer.h"
+
+#define TYPE_CALYPSO_TIMER "calypso-timer"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoTimerState, CALYPSO_TIMER)
+
+struct CalypsoTimerState {
+
+    SysBusDevice parent_obj;
+
+    MemoryRegion iomem;
+    QEMUTimer    *timer;
+    qemu_irq     irq;
+
+    uint16_t load;
+    uint16_t count;
+    uint16_t ctrl;
+    uint16_t prescaler;
+    int64_t  tick_ns;
+    int64_t  epoch_ns;
+    bool     running;
+
+    bool     lost_latch_active;
+    uint16_t lost_latch_count;
+    uint32_t lost_read_phase;
+};
+
+void calypso_timer_register_lost(DeviceState *d);
+
+void calypso_timer_lost_frame_tick(uint32_t fn);
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_trx.h` {#f-include-hw-arm-calypso-calypso-trx-h}
+
+::: {.file-meta}
+[.h]{.tag} 68 lignes - 2,2KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_trx.h"}
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+#ifndef CALYPSO_TRX_H
+#define CALYPSO_TRX_H
+
+#include "hw/irq.h"
+#include "exec/memory.h"
+
+#define CALYPSO_IRQ_WATCHDOG       0
+#define CALYPSO_IRQ_TIMER1         1
+#define CALYPSO_IRQ_TIMER2         2
+#define CALYPSO_IRQ_TSP_RX         3
+#define CALYPSO_IRQ_TPU_FRAME      4
+#define CALYPSO_IRQ_TPU_PAGE       5
+#define CALYPSO_IRQ_SIM            6
+#define CALYPSO_IRQ_UART_MODEM     7
+#define CALYPSO_IRQ_KEYPAD_GPIO    8
+#define CALYPSO_IRQ_RTC_TIMER      9
+#define CALYPSO_IRQ_RTC_ALARM      10
+#define CALYPSO_IRQ_ULPD_GAUGING   11
+#define CALYPSO_IRQ_EXTERNAL       12
+#define CALYPSO_IRQ_SPI            13
+#define CALYPSO_IRQ_DMA            14
+#define CALYPSO_IRQ_API            15
+#define CALYPSO_IRQ_SIM_DETECT     16
+#define CALYPSO_IRQ_EXTERNAL_FIQ   17
+#define CALYPSO_IRQ_UART_IRDA      18
+#define CALYPSO_IRQ_ULPD_GSM_TIMER 19
+#define CALYPSO_IRQ_GEA            20
+#define CALYPSO_NUM_IRQS           32
+
+#define CALYPSO_TPU_BASE      0xFFFF1000
+#define CALYPSO_TPU_SIZE      0x0100
+#define CALYPSO_TPU_RAM_BASE  0xFFFF9000
+#define CALYPSO_TPU_RAM_SIZE  0x0800
+#define CALYPSO_TSP_BASE      0xFFFE0800
+#define CALYPSO_TSP_SIZE      0x0100
+#define CALYPSO_SIM_BASE      0xFFFE0000
+#define CALYPSO_SIM_SIZE      0x0100
+#define CALYPSO_ULPD_BASE     0xFFFE2800
+#define CALYPSO_ULPD_SIZE     0x0100
+
+#define TPU_CTRL              0x0000
+#define TPU_INT_CTRL          0x0002
+#define TPU_INT_STAT          0x0004
+#define TPU_OFFSET            0x000C
+#define TPU_SYNCHRO           0x000E
+#define TPU_IT_DSP_PG         0x0020
+
+#define TPU_CTRL_EN           (1 << 2)
+#define TPU_CTRL_DSP_EN       (1 << 4)
+#define TPU_CTRL_IDLE         (1 << 8)
+
+#define ICTRL_MCU_FRAME       (1 << 0)
+#define ICTRL_DSP_FRAME       (1 << 2)
+
+#define TSP_RX_REG            0x08
+
+#define ULPD_SETUP_CLK13      0x00
+#define ULPD_COUNTER_HI       0x1C
+#define ULPD_COUNTER_LO       0x1E
+#define ULPD_GAUGING_CTRL     0x24
+#define ULPD_GSM_TIMER        0x28
+
+void calypso_trx_init(MemoryRegion *sysmem, qemu_irq *irqs);
+void calypso_tpu_run_scenario(uint16_t *tpu_ram, uint32_t fn, uint16_t *tpu_regs);
+void calypso_tpu_sequencer_tick(uint32_t fn);
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_tsp.h` {#f-include-hw-arm-calypso-calypso-tsp-h}
+
+::: {.file-meta}
+[.h]{.tag} 26 lignes - 629B
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_tsp.h"}
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+#ifndef CALYPSO_TSP_H
+#define CALYPSO_TSP_H
+
+#include <stdint.h>
+
+#define TPUI_TSP_CTRL1   0x00
+#define TPUI_TSP_CTRL2   0x01
+#define TPUI_TX_3        0x02
+#define TPUI_TX_2        0x03
+#define TPUI_TX_1        0x04
+#define TPUI_TX_4        0x05
+#define TPUI_TSP_ACT_L   0x06
+#define TPUI_TSP_ACT_U   0x07
+#define TPUI_TSP_SET1    0x09
+#define TPUI_TSP_SET2    0x0a
+#define TPUI_TSP_SET3    0x0b
+
+#define TPUI_CTRL2_RD    (1 << 0)
+#define TPUI_CTRL2_WR    (1 << 1)
+
+bool calypso_tsp_owns_addr(uint8_t addr);
+
+void calypso_tsp_move(uint8_t addr, uint8_t data, uint32_t fn);
+
+#endif
+
+```
+
+## `include/hw/arm/calypso/calypso_uart.h` {#f-include-hw-arm-calypso-calypso-uart-h}
+
+::: {.file-meta}
+[.h]{.tag} 71 lignes - 1,4KB
+:::
+
+```{.c .numberLines filename="include/hw/arm/calypso/calypso_uart.h"}
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#ifndef HW_CHAR_CALYPSO_UART_H
+#define HW_CHAR_CALYPSO_UART_H
+
+#include "hw/sysbus.h"
+#include "chardev/char-fe.h"
+#include "qom/object.h"
+
+#define TYPE_CALYPSO_UART "calypso-uart"
+OBJECT_DECLARE_SIMPLE_TYPE(CalypsoUARTState, CALYPSO_UART)
+
+#define CALYPSO_UART_RX_FIFO_SIZE 8192
+
+typedef struct CalypsoUARTState {
+    SysBusDevice parent_obj;
+
+    MemoryRegion iomem;
+
+    CharBackend chr;
+    qemu_irq irq;
+
+    char *label;
+
+    uint8_t ier;
+    uint8_t iir;
+    uint8_t fcr;
+    uint8_t lcr;
+    uint8_t mcr;
+    uint8_t lsr;
+    uint8_t msr;
+    uint8_t spr;
+    uint8_t dll;
+    uint8_t dlh;
+    uint8_t mdr1;
+
+    uint8_t efr;
+    uint8_t xon1;
+    uint8_t xon2;
+    uint8_t xoff1;
+    uint8_t xoff2;
+    uint8_t scr;
+    uint8_t ssr;
+
+    uint8_t rx_fifo[CALYPSO_UART_RX_FIFO_SIZE];
+    uint16_t rx_head;
+    uint16_t rx_tail;
+    uint16_t rx_count;
+
+    bool thr_empty_pending;
+
+    uint8_t tx_empty_reads;
+
+    QEMUTimer *rx_poll_timer;
+
+} CalypsoUARTState;
+
+int calypso_uart_can_receive(void *opaque);
+void calypso_uart_receive(void *opaque, const uint8_t *buf, int size);
+
+void calypso_uart_inject_raw(CalypsoUARTState *s, const uint8_t *buf, int size);
+
+void calypso_uart_kick_rx(CalypsoUARTState *s);
+
+void calypso_uart_poll_backend(CalypsoUARTState *s);
+
+void calypso_uart_kick_tx(CalypsoUARTState *s);
+void calypso_uart_force_init(CalypsoUARTState *s);
+
+
+#endif
+
+```
