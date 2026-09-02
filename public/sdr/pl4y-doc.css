@@ -579,7 +579,7 @@ h1.title {
 /* --- titres : plus de pancarte, plus de rotation ------------------------- */
 h1.title, h1:not(.title), h2, h2.anchored {
   background:none !important; box-shadow:none !important;
-  transform:none !important; border-radius:0 !important;
+  transform:none !important; border:0 !important; border-radius:0 !important;
   display:block !important; padding:0 !important;
   font-family:var(--display) !important;
 }
