@@ -586,7 +586,7 @@ if ($mode -eq "build-iso") {
     Warn "BUILD-ISO ne fonctionne pas sous Windows (WSL). Telecharge l'ISO pre-faite :"
     Warn "  Release GitHub : https://github.com/bbaranoff/osmo_egprs/releases#release-main"
     Warn "  MEGA interstp.iso              : https://mega.nz/file/meYhVZzK#Xw1MFkTrFCtf9pGW-9zhH30jIzfoa1y_AdUIZe4JwMk"
-    Warn "  MEGA osmo-operator-desktop.iso : https://mega.nz/file/3LBmlZDJ#ogCuugj5sxR3iL0mnrDh17__jsCDCg2BQEdbL3tBX1k"
+    Warn "  MEGA osmo-operator-desktop.iso : https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag"
     Warn "  Doc VirtualBox : https://pl4y.store/wiki#virtualbox"
     exit 0
 }

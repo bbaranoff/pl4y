@@ -27,18 +27,32 @@ autre outil CLI (`curl`, `wget`, `httpie`, …) → `.sh` ; sinon `Accept: text/
 → la page. **L'UA l'emporte sur `Accept`** : un `curl -H 'Accept: text/html'`
 reçoit le script bash, pas la page — c'est voulu, car c'est `curl … | bash` qui
 doit marcher à tous les coups. Pour obtenir la page en ligne de commande, passer
-un UA de navigateur (`-A 'Mozilla/5.0'`) ou demander `/wiki`. Par défaut on sert
+un UA de navigateur (`-A 'Mozilla/5.0'`) ou demander `/wiki` (page
+installeur + wiki ; l'accueil `/` est la page de présentation de l'ISO). Par défaut on sert
 le script bash : un client exotique qui pipe ne casse jamais.
 
-## Page unique (accueil + wiki fusionnés)
+## Page d'accueil : le design osmo-operator-desktop
 
-Une **seule page** regroupe l'accueil (installeur + source des scripts) **et**
-tout le wiki technique **QEMU Calypso / osmo_egprs / EGPRS** (téléchargements
-ISO/MEGA, GIFs d'install, installation VirtualBox, architecture multi-PLMN, pile
-Osmocom, émulation baseband Calypso, plan SS7, GPRS/EGPRS, VTY, débogage, bugs
-observés, références). Les routes **`/` et `/wiki` renvoient cette même page** ;
-le sommaire pointe vers des ancres (`#wiki`, `#virtualbox`, `#bugs`, …). En CLI
+Au navigateur, **`/` renvoie la page d'accueil** `home.template.html` : le
+design *osmo-operator-desktop.iso* (claude.ai/design, système « Nocturne »,
+fond sombre) — hero, chiffres, contenu de l'ISO, les trois icônes du bureau
+(`/m/osmo-*.svg`), démarrage rapide, installation. Le **bandeau pl4y** commun
+au reste du site est conservé en haut, avec sa bascule clair/sombre. Le bouton
+*Télécharger l'ISO* pointe sur le miroir MEGA d'`osmo-operator-desktop.iso`.
+`build.mjs` injecte la palette partagée (`__THEME_TOKENS__`) dans cette page
+puis la page entière dans le Worker (`__HOME_HTML__`). En CLI
 (`curl`/`wget`/PowerShell), `/` renvoie toujours le script brut.
+
+## Page installeur + wiki (`/wiki`)
+
+Une **seule page** regroupe l'installeur (source des scripts, boutons copier)
+**et** tout le wiki technique **QEMU Calypso / osmo_egprs / EGPRS**
+(téléchargements ISO/MEGA, GIFs d'install, installation VirtualBox,
+architecture multi-PLMN, pile Osmocom, émulation baseband Calypso, plan SS7,
+GPRS/EGPRS, VTY, débogage, bugs observés, références). Elle est servie sur
+**`/wiki`** (et sur tout chemin inconnu demandé par un navigateur) ; l'onglet
+**Installeur &amp; wiki** du bandeau y mène depuis toutes les pages du site. Le
+sommaire pointe vers des ancres (`#wiki`, `#virtualbox`, `#bugs`, …).
 
 Les images et GIFs du screencast d'install sont servis en **Static Assets** sur
 `/m/` (`motorola_c123.jpg`, `screencast_demo.jpg`, `iso.gif`, `launch.gif`,

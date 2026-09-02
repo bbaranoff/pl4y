@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pl4y.store &mdash; osmo-operator-desktop.iso</title>
+<style>
+/* Les @import doivent ouvrir le bloc : Inter (Nocturne) puis, dans les
+   tokens partages, les polices du theme sketchy. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+__THEME_TOKENS__
+
+/* =========================================================================
+   Page d'accueil — design "Nocturne" (claude.ai/design, osmo-operator-desktop).
+   Le bandeau pl4y (.pl4y-bar) garde le theme sketchy du reste du site ; tout
+   ce qui suit est la page Nocturne, sombre par construction (--color-*).
+   Les deux jeux de variables ne se recouvrent pas.
+   ========================================================================= */
+
+:root {
+  --color-bg: #161826;
+  --color-surface: #232532;
+  --color-text: #e9e9ed;
+  --color-accent: #9184d9;
+  --color-accent-2: #a7a1db;
+  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
+
+  --color-neutral-700: #595d6c;
+  --color-neutral-800: #3f424d;
+  --color-neutral-900: #292b31;
+
+  --color-accent-400: #b5abfc;
+  --color-accent-900: #2b2741;
+
+  --color-section: #262a60;
+  --color-section-glow: #353b80;
+
+  --font-heading: "Inter", system-ui, sans-serif;
+  --font-heading-weight: 500;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  --space-1: 2.8px;
+  --space-2: 5.6px;
+  --space-3: 8.4px;
+  --space-4: 11.2px;
+  --space-6: 16.8px;
+  --space-8: 22.4px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+
+  --nc-shadow-sm: 0 0 0 1px #3f424d;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; font-size: 15px; line-height: 1.55; font-weight: 400;
+  font-family: var(--font-body); color: var(--color-text);
+  text-wrap: pretty;
+  background:
+    radial-gradient(1200px 720px at 82% -160px, color-mix(in srgb, var(--color-accent-900) 75%, transparent), transparent 60%),
+    radial-gradient(1100px 800px at -10% 100%, color-mix(in srgb, black 30%, transparent), transparent 55%),
+    var(--color-bg);
+}
+h1, h2, h3, h4 {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  line-height: 1.12; letter-spacing: -0.015em; margin: 0 0 var(--space-2);
+}
+p { margin: 0 0 var(--space-3); }
+a { color: var(--color-accent); text-decoration: none; text-underline-offset: 3px; }
+a:hover { color: var(--color-accent-400); }
+img { display: block; max-width: 100%; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+/* — rules — */
+.hr {
+  height: 1px; border: 0; margin: var(--space-4) 0;
+  background: linear-gradient(to right,
+    transparent, var(--color-divider) 48px,
+    var(--color-divider) calc(100% - 48px), transparent);
+}
+
+/* — buttons — */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; text-decoration: none;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 14px; line-height: 1.2; color: var(--color-text);
+  background: transparent; border: 1px solid transparent;
+  padding: var(--space-2) calc(var(--space-3) * 1.2);
+  border-radius: var(--radius-md);
+}
+.btn-primary { color: var(--color-accent); border-color: var(--color-accent); }
+.btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); color: var(--color-accent); }
+.btn-primary:active { background: color-mix(in srgb, var(--color-accent) 22%, transparent); }
+.btn-ghost { color: var(--color-accent); padding-inline: var(--space-1); }
+.btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); color: var(--color-accent); }
+.btn-ghost:active { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
+
+/* — cards — */
+.card {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface);
+}
+
+/* — navigation (interne a la page) — */
+.nav {
+  display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: none;
+}
+.nav-brand {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 18px; margin-right: auto;
+}
+.nav a { color: inherit; text-decoration: none; font-size: 14px; }
+.nav a:hover, .nav a[aria-current='page'] { color: var(--color-accent); }
+
+/* — tables — */
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th {
+  text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  padding: var(--space-2); border-bottom: 1px solid transparent;
+}
+.table td { padding: var(--space-2); border-bottom: 1px solid transparent; }
+.table thead tr {
+  background: linear-gradient(to right,
+    transparent, var(--color-divider) 48px,
+    var(--color-divider) calc(100% - 48px), transparent) no-repeat bottom / 100% 1px;
+}
+.table tbody tr {
+  background: linear-gradient(to right,
+    transparent, color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
+    color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px), transparent) no-repeat bottom / 100% 1px;
+}
+.table tbody tr:hover {
+  background:
+    linear-gradient(color-mix(in srgb, var(--color-text) 4%, transparent),
+                    color-mix(in srgb, var(--color-text) 4%, transparent)) no-repeat 0 0 / 100% 100%,
+    linear-gradient(to right,
+      transparent, color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
+      color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px), transparent) no-repeat bottom / 100% 1px;
+}
+
+/* — utilitaires de la page — */
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 72px); }
+.kicker {
+  display: block; font-size: 13px; line-height: 14px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--color-accent); margin: 0 0 14px;
+}
+.lead { font-size: 15.5px; line-height: 28px; margin: 0; color: color-mix(in srgb, var(--color-text) 78%, transparent); }
+.muted { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+code.k {
+  font-size: 13.5px; background: var(--color-neutral-900);
+  padding: 1px 6px; border-radius: var(--radius-sm);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.row {
+  position: relative; display: grid;
+  grid-template-columns: minmax(64px, 160px) minmax(0, 420px) minmax(0, 1fr);
+  gap: 28px clamp(24px, 4vw, 72px); align-items: baseline; padding: 42px 0;
+}
+.row + .row::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(to right, transparent, var(--color-neutral-700) 48px calc(100% - 48px), transparent);
+}
+.row .num {
+  font-family: var(--font-heading); font-weight: 500; font-size: 15px; line-height: 28px;
+  color: var(--color-accent); font-feature-settings: 'tnum' 1; margin: 0;
+}
+.row h2 { font-size: 24px; line-height: 28px; letter-spacing: -0.01em; margin: 0; }
+.row .lead { max-width: 52ch; }
+.stat-num {
+  font-family: var(--font-heading); font-weight: 500;
+  font-size: clamp(36px, 3.6vw, 52px); line-height: 56px; margin: 0 0 0 -0.055em;
+}
+.stat-label {
+  font-size: 13px; line-height: 14px; letter-spacing: .06em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 64%, transparent); margin: 14px 0 0;
+}
+.bureau {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 28px clamp(24px, 5vw, 96px); align-items: center; padding: 56px 0 84px;
+}
+.icons { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+.icons .card { text-align: center; padding: 28px 14px; align-items: center; }
+.icons img { width: 72px; height: 72px; margin: 0 auto 14px; }
+.icons .name { font-size: 14px; line-height: 20px; margin: 0; font-weight: 500; }
+.icons .file { font-size: 12px; line-height: 18px; margin: 4px 0 0; }
+.term {
+  background: var(--color-neutral-900); border-radius: var(--radius-md);
+  box-shadow: var(--nc-shadow-sm); padding: var(--space-6) var(--space-8);
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13.5px; line-height: 24px;
+  overflow-x: auto;
+}
+.term div { color: color-mix(in srgb, var(--color-text) 50%, transparent); white-space: nowrap; }
+.term .in { color: var(--color-text); }
+.term .c { color: color-mix(in srgb, var(--color-text) 40%, transparent); }
+.term .cursor {
+  display: inline-block; width: 8px; height: 15px; vertical-align: -2px;
+  background: var(--color-accent); animation: blink 1s steps(1) infinite;
+}
+.actions { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
+.clone {
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13.5px;
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+  background: var(--color-neutral-900); padding: 8px 14px; border-radius: var(--radius-sm);
+  overflow-x: auto; max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  .row { grid-template-columns: 1fr; gap: 10px; padding: 32px 0; }
+  .row .num { line-height: 20px; }
+  .bureau { grid-template-columns: 1fr; padding: 40px 0 60px; }
+  .icons { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .nav .nav-brand { flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .term .cursor { animation: none; }
+}
+
+/* =========================================================================
+   Bandeau pl4y — identique a l'ancienne page d'accueil et aux sections
+   documentaires (docs/theme/pl4y-bar.html). Il vit dans le theme sketchy
+   (papier / tableau noir) et garde sa bascule clair/sombre.
+   ========================================================================= */
+.pl4y-bar {
+  position: sticky; top: 0; z-index: 1050; display: flex; align-items: center;
+  gap: .8rem; flex-wrap: wrap;
+  padding: .55rem clamp(.8rem, 3vw, 1.6rem);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 2px solid var(--border);
+  font-size: .88rem;
+  font-family: var(--sans);
+  color: var(--fg);
+}
+.pl4y-bar .pl4y-home {
+  font-weight: 800; letter-spacing: -.02em; text-decoration: none;
+  color: var(--fg); font-size: 1rem;
+}
+.pl4y-bar .pl4y-home:hover { color: var(--fg); }
+.pl4y-bar .pl4y-home .dot { color: var(--accent-2); }
+.pl4y-bar nav { display: flex; gap: .4rem; flex-wrap: wrap; }
+.pl4y-bar nav a {
+  text-decoration: none; color: var(--muted); padding: .22rem .6rem;
+  border: 1px solid transparent; border-radius: var(--sk-rough2); font-size: .82rem;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.pl4y-bar nav a:hover { color: var(--fg); background: var(--btn-hover); border-color: var(--border); }
+.pl4y-bar nav a[aria-current="page"] {
+  color: var(--fg); background: var(--btn-hover); border-color: var(--border); font-weight: 600;
+}
+.pl4y-bar .spacer { flex: 1; }
+.theme-toggle {
+  background: var(--panel); color: var(--fg);
+  border-radius: var(--sk-rough2); padding: .32rem .8rem; font-size: .82rem; cursor: pointer;
+  border: 2px solid var(--border);
+  font-family: inherit; line-height: 1; box-shadow: var(--shadow);
+  transition: background .15s ease, transform .15s ease;
+}
+.theme-toggle:hover { background: var(--btn-hover); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .theme-toggle { transition: none; } }
+</style>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/" aria-current="page">Accueil</a>
+    <a href="/wiki" data-pl4y-nav="/wiki">Installeur &amp; wiki</a>
+    <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
+    <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="theme-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+
+<nav class="nav" style="padding-inline: max(clamp(20px,5vw,72px), calc((100% - 1200px) / 2 + clamp(20px,5vw,72px)));">
+  <span class="nav-brand">osmo-operator-desktop.iso</span>
+  <a href="#contenu">Contenu</a>
+  <a href="#bureau">Bureau</a>
+  <a href="#demarrer">Démarrer</a>
+  <a href="#installer">Installer</a>
+  <a class="btn btn-primary" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener">Télécharger l'ISO</a>
+</nav>
+
+<div class="wrap">
+  <section style="padding:112px 0 84px;">
+    <h1 style="font-weight:500; font-size:clamp(44px,6.4vw,88px); line-height:1.11; letter-spacing:-0.015em; margin:0 0 0 -0.06em;">
+      <span style="display:block;">Un réseau GSM dans la boîte.</span>
+      <span style="display:block;">Double-clic, et il émet.</span>
+    </h1>
+    <p style="font-size:17px; line-height:28px; max-width:58ch; margin:36px 0 0;">Une image Ubuntu 22.04 (noyau 6.8) qui embarque la pile Osmocom complète, Asterisk, et <strong style="font-weight:500;">qosmo-grgsm</strong>, le fork gr-gsm de qemu-calypso : un baseband TI Calypso émulé qui fait tourner le vrai firmware OsmocomBB. Aucune radio à brancher. Un à neuf opérateurs, interconnectés en SS7. Live, ou installable sur disque.</p>
+    <div class="actions" style="margin-top:28px;">
+      <a class="btn btn-primary" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener">Télécharger l'ISO</a>
+      <a class="btn btn-ghost" href="#demarrer">Voir le démarrage</a>
+    </div>
+  </section>
+</div>
+
+<section aria-label="En chiffres" style="padding:70px 0; background: radial-gradient(900px 420px at 85% -40%, color-mix(in srgb, var(--color-section-glow) 70%, transparent), transparent 64%), var(--color-section);">
+  <div class="wrap" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:42px 28px;">
+    <div><p class="stat-num">22.04</p><p class="stat-label">Ubuntu LTS, noyau 6.8</p></div>
+    <div><p class="stat-num">1 à 9</p><p class="stat-label">Opérateurs en interco SS7</p></div>
+    <div><p class="stat-num">0</p><p class="stat-label">Matériel radio requis</p></div>
+    <div><p class="stat-num">1 clic</p><p class="stat-label">Deux, pour être précis</p></div>
+  </div>
+</section>
+
+<div class="wrap">
+
+  <section id="contenu" style="padding:98px 0 70px;">
+    <span class="kicker">Ce qu'il y a dedans</span>
+
+    <div class="row">
+      <p class="num">01</p>
+      <h2>Réseau autonome au double-clic</h2>
+      <p class="lead">Le lanceur <em>Lancer le banc GSM</em> ouvre quatre fenêtres, une par quart d'écran : le terminal du banc (<code class="k">start-direct.sh</code>), la console web sur 127.0.0.1:8080, Wireshark sur GSMTAP udp/4729, et Linphone avec les postes 100 et 200 déjà enregistrés. Une à deux minutes plus tard, la radio est stable.</p>
+    </div>
+
+    <div class="row">
+      <p class="num">02</p>
+      <h2>qosmo-grgsm : le baseband émulé</h2>
+      <p class="lead">Fork de gr-gsm issu de qemu-calypso : une machine QEMU <code class="k">calypso</code> émule le SoC TI Calypso (ARM7TDMI + DSP TMS320C54x) et exécute le vrai firmware <code class="k">layer1.highram.elf</code>. Un pont relaie les bursts vers osmo-bts-trx, QEMU tient l'horloge TDMA, et <code class="k">mobile</code> s'attache par L1CTL. Un vrai téléphone, sans téléphone.</p>
+    </div>
+
+    <div class="row">
+      <p class="num">03</p>
+      <h2>Multi-opérateur, généré à la volée</h2>
+      <p class="lead">Le lanceur <em>multi-operator</em> démarre N PLMN, chacun avec BSC, MSC, HLR, MGW, STP et Asterisk, reliés par un inter-STP central en M3UA/SCCP. Point codes N.23.x, routing contexts, trunks SIP, dialplan et routage SMS inter-op sont écrits au démarrage selon N. Un « DHCP pour SS7 ».</p>
+    </div>
+
+    <div class="row">
+      <p class="num">04</p>
+      <h2>Live, puis installable</h2>
+      <p class="lead">L'ISO démarre en session live avec le bureau prêt. Pour la garder, l'installateur Calamares la pose sur disque ; les paquets .deb de chaque composant (osmo-operator, pont, qemu-calypso, firmware Calypso) sont embarqués dans l'image et s'installent sans git ni réseau.</p>
+    </div>
+  </section>
+
+  <section id="bureau" class="bureau">
+    <div>
+      <span class="kicker">Le bureau</span>
+      <h2 style="font-size:32px; line-height:42px; letter-spacing:-0.012em; margin:0;">Trois icônes. Rien à taper.</h2>
+      <p class="lead" style="margin:20px 0 0; max-width:48ch;">Les mêmes raccourcis que pose <code class="k">install.sh --only bureau</code> sur une machine déjà installée : dans le menu des applications et sur le bureau. Le tutoriel s'ouvre dans le navigateur.</p>
+    </div>
+    <div class="icons">
+      <div class="card">
+        <img src="/m/osmo-launch.svg" alt="">
+        <p class="name">Lancer le banc GSM</p>
+        <p class="file muted mono">launch.sh</p>
+      </div>
+      <div class="card">
+        <img src="/m/osmo-multi.svg" alt="">
+        <p class="name">multi-operator</p>
+        <p class="file muted mono">start-multi.sh</p>
+      </div>
+      <div class="card">
+        <img src="/m/osmo-tutorial.svg" alt="">
+        <p class="name">Tutoriel</p>
+        <p class="file muted mono">tutorial.html</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="hr" style="margin:0;">
+
+  <section id="demarrer" style="padding:70px 0 84px;">
+    <span class="kicker">Démarrage rapide</span>
+    <h2 style="font-size:32px; line-height:42px; letter-spacing:-0.012em; margin:0 0 42px;">Commencez par le 600.</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:42px clamp(24px,5vw,96px); align-items:start;">
+      <div>
+        <p class="lead" style="margin:0 0 14px;">Dans Linphone, composez un numéro et décrochez. Si le 600 vous répond, la chaîne SIP et l'audio sont bonnes.</p>
+        <table class="table">
+          <thead><tr><th>Numéro</th><th>Destination</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">100</td><td>Linphone A</td></tr>
+            <tr><td class="mono">200</td><td>Linphone B</td></tr>
+            <tr><td class="mono">600</td><td>Test d'écho, votre voix vous revient</td></tr>
+            <tr><td class="mono">500 / 700</td><td>Annonces enregistrées</td></tr>
+            <tr><td class="mono">1001XX</td><td>Un mobile GSM du réseau local</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <p class="lead" style="margin:0 0 14px;">Depuis un mobile, tout passe par le VTY de la console web : choisissez l'opérateur, le mobile, puis <strong style="font-weight:500;">Go</strong>.</p>
+        <div class="term">
+          <div>OsmoMobile&gt; <span class="in">call 1 100</span>   <span class="c"># appelle Linphone A</span></div>
+          <div>OsmoMobile&gt; <span class="in">call 1 answer</span> <span class="c"># décroche</span></div>
+          <div>OsmoMobile&gt; <span class="in">call 1 hangup</span> <span class="c"># raccroche</span></div>
+          <div>OsmoMobile&gt; <span class="cursor"></span></div>
+        </div>
+        <p class="muted" style="font-size:13px; line-height:20px; margin:14px 0 0;">Arrêter : <code class="k" style="font-size:12.5px;">sudo /opt/osmo-launch.sh stop</code>, ou Ctrl+C dans le terminal du banc.</p>
+      </div>
+    </div>
+  </section>
+  <hr class="hr" style="margin:0;">
+
+  <section id="installer" style="padding:70px 0 56px;">
+    <h3 style="font-size:24px; line-height:28px; margin:0;">Gravez, démarrez, double-cliquez.</h3>
+    <p class="lead" style="margin:20px 0 0; max-width:58ch;">L'image se construit avec <code class="k">build-iso.sh</code> depuis le dépôt. Sur un Ubuntu 22.04 déjà en place, le même dépôt s'installe en natif. L'installeur en une ligne, les liens de téléchargement et le wiki technique restent sur la page <a href="/wiki">Installeur &amp; wiki</a>.</p>
+    <div class="actions" style="margin-top:28px;">
+      <a class="btn btn-primary" href="https://github.com/bbaranoff/osmo-operator" target="_blank" rel="noopener">Dépôt osmo-operator</a>
+      <a class="btn btn-ghost" href="https://github.com/bbaranoff/qosmo-grgsm" target="_blank" rel="noopener">qosmo-grgsm</a>
+      <code class="clone">git clone https://github.com/bbaranoff/osmo-operator &amp;&amp; sudo ./install.sh</code>
+    </div>
+  </section>
+
+  <section id="telechargement" aria-label="Lien de téléchargement" style="margin:8px 0 0; padding:34px clamp(20px,4vw,44px); border:2px solid var(--color-accent); border-radius:var(--radius-md); background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface)); box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 14%, transparent);">
+    <p class="muted" style="margin:0; font-size:12px; letter-spacing:0.12em; text-transform:uppercase;">Téléchargement</p>
+    <h3 style="font-size:24px; line-height:30px; margin:10px 0 0;">osmo-operator-desktop.iso</h3>
+    <p class="lead" style="margin:8px 0 0; max-width:58ch;">L'image complète, hébergée sur MEGA : Ubuntu 22.04, pile Osmocom, Asterisk et qosmo-grgsm.</p>
+    <div class="actions" style="margin-top:22px; display:flex; flex-wrap:wrap; align-items:center; gap:14px 18px;">
+      <a class="btn btn-primary" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener" style="font-size:16px; padding:14px 26px; background: color-mix(in srgb, var(--color-accent) 18%, transparent);">&#11015; Télécharger osmo-operator-desktop.iso</a>
+      <a class="mono" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener" style="font-size:13px; word-break:break-all;">https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag</a>
+    </div>
+  </section>
+
+  <footer class="muted" style="padding:56px 0; font-size:13px; line-height:28px;">osmo-operator-desktop.iso · Ubuntu 22.04 · noyau 6.8 · Osmocom · Asterisk · qosmo-grgsm · usage pédagogique, en environnement blindé.</footer>
+</div>
+<script>
+  (function(){
+    var btn = document.querySelector(".theme-toggle");
+    if (!btn) return;
+    function label(){
+      var light = document.documentElement.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    btn.addEventListener("click", function(){
+      var next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", next);
+      try { localStorage.setItem("pl4y-theme", next); } catch(e){}
+      label();
+    });
+  })();
+</script>
+</body>
+</html>

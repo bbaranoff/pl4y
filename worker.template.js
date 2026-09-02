@@ -376,7 +376,8 @@ __THEME_TOKENS__
 <div class="pl4y-bar">
   <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
   <nav>
-    <a href="/" data-pl4y-nav="/" aria-current="page">Accueil</a>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/wiki" data-pl4y-nav="/wiki" aria-current="page">Installeur &amp; wiki</a>
     <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
     <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
     <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
@@ -489,7 +490,7 @@ __THEME_TOKENS__
        lance (<code>172.20.0.11:80</code>). Depuis l'exterieur elles ne menent nulle part.</p>
     <span class="dl-label">&#11015; Telechargements &mdash; image ISO bootable</span>
     <a class="dl-btn alt" href="https://mega.nz/file/meYhVZzK#Xw1MFkTrFCtf9pGW-9zhH30jIzfoa1y_AdUIZe4JwMk" target="_blank" rel="noopener">&#9729;&#65039; MEGA &mdash; interstp.iso</a>
-    <a class="dl-btn alt" href="https://mega.nz/file/3LBmlZDJ#ogCuugj5sxR3iL0mnrDh17__jsCDCg2BQEdbL3tBX1k" target="_blank" rel="noopener">&#9729;&#65039; MEGA &mdash; osmo-operator-desktop.iso</a>
+    <a class="dl-btn alt" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener">&#9729;&#65039; MEGA &mdash; osmo-operator-desktop.iso</a>
     <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases#release-main" target="_blank" rel="noopener">&#128230; Release GitHub (ISO en parties)</a>
     <p class="hint"><strong>QEMU-CALYPSO ISO &mdash; POC voix</strong> : QEMU dans un reseau Osmocom
        <em>network in the box</em>, environnement NOFR. Support <strong>voix</strong> et
@@ -632,7 +633,7 @@ $env:OSMO_REF="main"; irm pl4y.store | iex               # Windows</code></pre>
 sha256sum -c osmo_egprs.iso.sha256        # -&gt; osmo_egprs.iso: Reussi</code></pre>
   <p>Ou via le miroir <strong>MEGA</strong> :
      <a href="https://mega.nz/file/meYhVZzK#Xw1MFkTrFCtf9pGW-9zhH30jIzfoa1y_AdUIZe4JwMk" target="_blank" rel="noopener"><strong>interstp.iso</strong></a>,
-     <a href="https://mega.nz/file/3LBmlZDJ#ogCuugj5sxR3iL0mnrDh17__jsCDCg2BQEdbL3tBX1k" target="_blank" rel="noopener"><strong>osmo-operator-desktop.iso</strong></a>.</p>
+     <a href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener"><strong>osmo-operator-desktop.iso</strong></a>.</p>
 
   <h3>2. Creer la VM</h3>
   <ul>
@@ -939,6 +940,10 @@ const ASSET_PREFIXES = [
 // l'initialisation de l'isolate, et on resert la meme chaine ensuite.
 const PAGE = renderPage(SCRIPT, PS_SCRIPT);
 
+// Page d'accueil : le design "osmo-operator-desktop" (home.template.html),
+// injecte par build.mjs. Bandeau pl4y en haut, comme partout ailleurs.
+const HOME = `__HOME_HTML__`;
+
 const HTML_HEADERS = {
   "content-type": "text/html; charset=utf-8",
   "cache-control": "public, max-age=300",
@@ -969,14 +974,18 @@ export default {
       return new Response(PS_SCRIPT, { headers: TEXT_HEADERS });
     }
 
-    // Page unique (accueil + wiki fusionnes). /wiki reste une URL valide et
-    // renvoie toujours la page ; sinon HTML pour les navigateurs, script brut
-    // pour les clients CLI (curl/wget/PowerShell).
+    // Navigateur : "/" renvoie la page d'accueil (design osmo-operator-desktop),
+    // tout le reste — dont /wiki — renvoie la page installeur + wiki. /wiki
+    // reste une URL valide meme pour un client CLI. Les clients CLI
+    // (curl/wget/PowerShell) recoivent le script brut sur "/".
     const kind = pickKind(request);
-    const wantsPage =
-      url.pathname === "/wiki" || url.pathname === "/wiki/" || kind === "html";
-    if (wantsPage) {
+    const isWiki = url.pathname === "/wiki" || url.pathname === "/wiki/";
+    if (isWiki) {
       return new Response(PAGE, { headers: HTML_HEADERS });
+    }
+    if (kind === "html") {
+      const isHome = url.pathname === "/" || url.pathname === "";
+      return new Response(isHome ? HOME : PAGE, { headers: HTML_HEADERS });
     }
 
     // CLI / pipe : script brut (bash ou PowerShell).

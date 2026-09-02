@@ -23,6 +23,10 @@ import { skin } from "./docs/skin.mjs";
 const SCRIPT = "setup_osmo_egprs.sh";
 const PS_SCRIPT = "setup_osmo_egprs.ps1";
 const TEMPLATE = "worker.template.js";
+// Page d'accueil (design Nocturne "osmo-operator-desktop") : un document HTML
+// complet, injecte tel quel dans le Worker. L'ancienne page (installeur + wiki)
+// reste dans worker.template.js et se sert sur /wiki.
+const HOME = "home.template.html";
 const OUT = "src/worker.js";
 
 // Medias servis en Static Assets sous /m/ : source -> nom publie.
@@ -32,6 +36,10 @@ const MEDIA = {
   "assets/demo_iso.gif": "iso.gif",
   "assets/demo_launch.gif": "launch.gif",
   "assets/demo_console.gif": "console.gif",
+  // Icones du bureau de l'ISO, affichees sur la page d'accueil.
+  "assets/osmo-launch.svg": "osmo-launch.svg",
+  "assets/osmo-multi.svg": "osmo-multi.svg",
+  "assets/osmo-tutorial.svg": "osmo-tutorial.svg",
 };
 
 const b64 = readFileSync(SCRIPT).toString("base64");
@@ -40,6 +48,11 @@ const tpl = readFileSync(TEMPLATE, "utf8");
 // Source unique de la palette : le meme fichier que docs/skin.mjs prefixe a
 // pl4y-doc.css dans chaque arbre documentaire.
 const themeTokens = readFileSync("docs/theme/pl4y-tokens.css", "utf8").trimEnd();
+const homeTpl = readFileSync(HOME, "utf8");
+if (!homeTpl.includes("__THEME_TOKENS__")) {
+  console.error(`[build] ERREUR: placeholder __THEME_TOKENS__ introuvable dans ${HOME}`);
+  process.exit(1);
+}
 
 // Cartes de documentation : ecrites par docs/unify.mjs, identiques a celles du
 // hub /docs/. Versionnees, car Cloudflare ne rejoue pas unify.mjs au build.
@@ -57,7 +70,7 @@ if (!existsSync(CARDS)) {
   console.warn(`[build] ATTENTION: ${CARDS} absent — lancer \`node docs/unify.mjs\``);
 }
 
-for (const ph of ["__SCRIPT_B64__", "__PS_SCRIPT_B64__", "__DOC_CARDS__", "__THEME_TOKENS__"]) {
+for (const ph of ["__SCRIPT_B64__", "__PS_SCRIPT_B64__", "__DOC_CARDS__", "__THEME_TOKENS__", "__HOME_HTML__"]) {
   if (!tpl.includes(ph)) {
     console.error(`[build] ERREUR: placeholder ${ph} introuvable dans ${TEMPLATE}`);
     process.exit(1);
@@ -185,6 +198,10 @@ function fill(str, placeholder, value) {
   return str.replace(placeholder, () => value);
 }
 
+// La page d'accueil recoit les memes tokens (pour le bandeau pl4y), puis est
+// neutralisee comme le reste : elle finit dans un template literal.
+const home = fill(homeTpl, "__THEME_TOKENS__", themeTokens);
+
 mkdirSync("src", { recursive: true });
 writeFileSync(
   OUT,
@@ -197,6 +214,7 @@ writeFileSync(
     // sinon le navigateur l'ignore et les titres retombent sur la police
     // systeme.
     ["__THEME_TOKENS__", forTemplateLiteral(themeTokens)],
+    ["__HOME_HTML__", forTemplateLiteral(home)],
   ].reduce((acc, [ph, v]) => fill(acc, ph, v), tpl),
 );
 
