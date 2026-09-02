@@ -43,6 +43,16 @@
   --sk-rough:12px;
   --sk-rough2:999px;      /* pilules de la barre de navigation */
   --sk-grid:transparent;  /* plus de papier quadrille : fond Nocturne uni */
+  /* Alias du vieux vocabulaire sketchy, remappes sur Nocturne. Les bundles
+     Quarto embarquent leur PROPRE sketchy.css qui dessine avec ces variables ;
+     pl4y-doc.css se charge APRES, donc ces valeurs-ci gagnent et le bundle
+     devient Nocturne sans le retoucher. (Les fonds codes en dur `#fff` du
+     sketchy.css, eux, sont surcharges explicitement dans pl4y-doc.css.) */
+  --sk-ink:var(--fg);
+  --sk-paper:var(--bg);
+  --sk-yellow:var(--accent);
+  --sk-red:var(--red);
+  --sk-teal:var(--accent-2);
 
   /* --- tokens du site, remappes sur la palette Nocturne --- */
   --bg:var(--nc-bg); --bg-2:#1c1e2b; --panel:var(--nc-surface);
