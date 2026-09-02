@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>1 - Documentation - partie 3 – Calypso QEMU</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-5d3fe5d98f1cce310cef56e039380f2c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+<link rel="stylesheet" href="sketchy.css">
+
+<!-- pl4y-skin v1 -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
+     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("pl4y-theme") || "dark";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="pl4y-doc.css">
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
+     Injectee en haut du <body> de chaque page generee. -->
+<div class="pl4y-bar">
+  <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
+  <nav>
+    <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/wiki#demarrage" class="pl4y-quick">Quick start</a>
+    <a href="/wiki" data-pl4y-nav="/wiki">Installeur &amp; wiki</a>
+    <a href="/qosmo-grgsm/" data-pl4y-nav="/qosmo-grgsm/">qosmo-grgsm</a>
+    <a href="/osmo-operator/" data-pl4y-nav="/osmo-operator/">osmo-operator</a>
+    <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>
+    <a href="/sdr/" data-pl4y-nav="/sdr/">SDR</a>
+    <a href="/bbaranoff/" data-pl4y-nav="/bbaranoff/">Cours &amp; CTF</a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="pl4y-toggle" type="button" aria-label="Basculer le theme clair / sombre">&#127769; Theme</button>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.querySelector(".pl4y-toggle");
+    function label() {
+      if (!btn) return;
+      var light = root.getAttribute("data-theme") === "light";
+      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+    }
+    label();
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("pl4y-theme", next); } catch (e) {}
+        label();
+      });
+    }
+    // marque l'onglet courant
+    var path = location.pathname;
+    document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
+      var p = a.getAttribute("data-pl4y-nav");
+      if (p !== "/" && path.indexOf(p) === 0) a.setAttribute("aria-current", "page");
+      if (p === "/" && path === "/") a.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
+
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./sec1-01.html">1 - Documentation</a></li><li class="breadcrumb-item"><a href="./sec1-03.html">partie 3</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Calypso QEMU</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Index</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">1 - Documentation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec1-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec1-02.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 2</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec1-03.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">partie 3</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">2 - Tests</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec2-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">3 - Headers</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec3-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">4 - Sources</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec4-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+ <span class="menu-text">5 - Python</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec5-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false">
+ <span class="menu-text">6 - Shell</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec6-01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 1</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec6-02.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 2</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec6-03.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 3</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sec6-04.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">partie 4</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Fichiers</h2>
+   
+  <ul class="collapse">
+  <li><a href="#f-pont-readme-md" id="toc-f-pont-readme-md" class="nav-link active" data-scroll-target="#f-pont-readme-md"><code>pont/README.md</code></a></li>
+  <li><a href="#f-readme-md" id="toc-f-readme-md" class="nav-link" data-scroll-target="#f-readme-md"><code>README.md</code></a></li>
+  <li><a href="#f-services-readme-md" id="toc-f-services-readme-md" class="nav-link" data-scroll-target="#f-services-readme-md"><code>services/README.md</code></a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./sec1-01.html">1 - Documentation</a></li><li class="breadcrumb-item"><a href="./sec1-03.html">partie 3</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">1 - Documentation - partie 3</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="f-pont-readme-md" class="level2">
+<h2 class="anchored" data-anchor-id="f-pont-readme-md"><code>pont/README.md</code></h2>
+<div class="file-meta">
+<p><span class="tag">.md</span> 507 lignes - 23KB</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>pont/README.md</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-filename="pont/README.md"><pre class="sourceCode numberSource markdown numberLines code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-label="1"></a><span class="fu"># Chiffrement A5, Kc et SACCH — ce qui a été mesuré, et pourquoi c'est écrit ainsi</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-label="2"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-label="3"></a>Ce document est un **compte rendu de mesure**, pas une présentation. Il existe</span>
+<span id="cb1-4"><a href="#cb1-4" aria-label="4"></a>parce que chacune des pannes ci-dessous s'est présentée comme « le pont a des</span>
+<span id="cb1-5"><a href="#cb1-5" aria-label="5"></a>CRC » — un compteur global qui ne distingue rien — et qu'il a fallu à chaque</span>
+<span id="cb1-6"><a href="#cb1-6" aria-label="6"></a>fois remonter d'un symptôme identique à des causes sans rapport entre elles.</span>
+<span id="cb1-7"><a href="#cb1-7" aria-label="7"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-label="8"></a>Tout ce qui est chiffré ici vient des journaux du banc. Les hypothèses écartées</span>
+<span id="cb1-9"><a href="#cb1-9" aria-label="9"></a>sont conservées : elles étaient plausibles, et les réécarter coûte moins cher que</span>
+<span id="cb1-10"><a href="#cb1-10" aria-label="10"></a>les redécouvrir.</span>
+<span id="cb1-11"><a href="#cb1-11" aria-label="11"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-label="12"></a>---</span>
+<span id="cb1-13"><a href="#cb1-13" aria-label="13"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-label="14"></a><span class="fu">## 1. Le Kc — trois écrivains, aucun arbitrage</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-label="15"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-label="16"></a><span class="fu">### Le symptôme</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-label="17"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-label="18"></a><span class="in">`/dev/shm/calypso_kc`</span> à 32 zéros. <span class="in">`A5=non`</span> sur la totalité du canal dédié.</span>
+<span id="cb1-19"><a href="#cb1-19" aria-label="19"></a><span class="in">`SOUS-VOIE ACTIVE : clair 50/277  chiffre 0/96`</span> — **zéro** bloc chiffré décodé</span>
+<span id="cb1-20"><a href="#cb1-20" aria-label="20"></a>sur 96. Tout ce qui suit le CIPHERING MODE COMMAND rate le CRC, SDCCH puis TCH</span>
+<span id="cb1-21"><a href="#cb1-21" aria-label="21"></a>(qui conserve le chiffrement après l'ASSIGNMENT COMMAND). D'où des CRC qui</span>
+<span id="cb1-22"><a href="#cb1-22" aria-label="22"></a>n'apparaissent qu'au deuxième appel : le premier passe en clair, le second</span>
+<span id="cb1-23"><a href="#cb1-23" aria-label="23"></a>trouve un réseau qui chiffre.</span>
+<span id="cb1-24"><a href="#cb1-24" aria-label="24"></a></span>
+<span id="cb1-25"><a href="#cb1-25" aria-label="25"></a><span class="fu">### La cause</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-label="26"></a></span>
+<span id="cb1-27"><a href="#cb1-27" aria-label="27"></a>Trois producteurs écrivaient le même fichier, sans le moindre arbitrage :</span>
+<span id="cb1-28"><a href="#cb1-28" aria-label="28"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-label="29"></a><span class="pp">|</span> # <span class="pp">|</span> écrivain <span class="pp">|</span> état <span class="pp">|</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-label="30"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-label="31"></a><span class="pp">|</span> 1 <span class="pp">|</span> <span class="in">`osmocon`</span> <span class="pp">|</span> hors dépôt, **efface** le fichier sur <span class="in">`DM_EST_REQ`</span> <span class="pp">|</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-label="32"></a><span class="pp">|</span> 2 <span class="pp">|</span> <span class="in">`l1ctl_sock.c`</span> (QEMU) <span class="pp">|</span> chemin mort — le socket l1ctl est orphelin, le mobile parle à osmocon <span class="pp">|</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-label="33"></a><span class="pp">|</span> 3 <span class="pp">|</span> <span class="in">`calypso_dsp_shunt.c`</span> <span class="pp">|</span> **n'existait pas** <span class="pp">|</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-label="34"></a></span>
+<span id="cb1-35"><a href="#cb1-35" aria-label="35"></a>Le troisième est le point clé. <span class="in">`pont.py`</span> documentait <span class="in">`shunt_publish_kc`</span> depuis le</span>
+<span id="cb1-36"><a href="#cb1-36" aria-label="36"></a>27/08 et avait mis <span class="in">`PONT_KC_RETENTION=0`</span> *sur la foi de son existence*. Or</span>
+<span id="cb1-37"><a href="#cb1-37" aria-label="37"></a><span class="in">`grep shunt_publish_kc`</span> ne rendait rien dans tout <span class="in">`qosmo-grgsm`</span>. On avait donc</span>
+<span id="cb1-38"><a href="#cb1-38" aria-label="38"></a>coupé le dernier filet en se fiant à un producteur imaginaire.</span>
+<span id="cb1-39"><a href="#cb1-39" aria-label="39"></a></span>
+<span id="cb1-40"><a href="#cb1-40" aria-label="40"></a>Le dernier qui écrit gagne — et c'est l'effaceur.</span>
+<span id="cb1-41"><a href="#cb1-41" aria-label="41"></a></span>
+<span id="cb1-42"><a href="#cb1-42" aria-label="42"></a><span class="fu">### Pourquoi osmocon effaçait</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-label="43"></a></span>
+<span id="cb1-44"><a href="#cb1-44" aria-label="44"></a>osmocon est le multiplexeur série entre le mobile et le firmware. Il</span>
+<span id="cb1-45"><a href="#cb1-45" aria-label="45"></a>**espionnait** <span class="in">`L1CTL_CRYPTO_REQ`</span> au passage et en profitait pour publier la clé.</span>
+<span id="cb1-46"><a href="#cb1-46" aria-label="46"></a>C'était la seule façon de la sortir à l'époque.</span>
+<span id="cb1-47"><a href="#cb1-47" aria-label="47"></a></span>
+<span id="cb1-48"><a href="#cb1-48" aria-label="48"></a>Mais un espion voit passer la clé, pas sa fin de vie : il doit la **deviner**. Il</span>
+<span id="cb1-49"><a href="#cb1-49" aria-label="49"></a>la devinait sur <span class="in">`DM_EST_REQ`</span> et <span class="in">`DM_REL_REQ`</span>. L'intention est juste pour le</span>
+<span id="cb1-50"><a href="#cb1-50" aria-label="50"></a>RELEASE, **fausse pour l'ESTABLISH** : le mobile émet aussi un <span class="in">`DM_EST_REQ`</span> pour</span>
+<span id="cb1-51"><a href="#cb1-51" aria-label="51"></a>ouvrir un lien *supplémentaire* sur un canal **déjà chiffré** (le SAPI 3 du SMS,</span>
+<span id="cb1-52"><a href="#cb1-52" aria-label="52"></a>un ré-établissement LAPDm). La clé disparaissait en pleine session.</span>
+<span id="cb1-53"><a href="#cb1-53" aria-label="53"></a></span>
+<span id="cb1-54"><a href="#cb1-54" aria-label="54"></a><span class="fu">### Le correctif</span></span>
+<span id="cb1-55"><a href="#cb1-55" aria-label="55"></a></span>
+<span id="cb1-56"><a href="#cb1-56" aria-label="56"></a>Un format commun ne règle pas une course — c'était l'erreur de la première passe.</span>
+<span id="cb1-57"><a href="#cb1-57" aria-label="57"></a>Il faut séparer les **autorités** :</span>
+<span id="cb1-58"><a href="#cb1-58" aria-label="58"></a></span>
+<span id="cb1-59"><a href="#cb1-59" aria-label="59"></a><span class="ss">* </span>**La source autoritaire a son propre fichier.** <span class="in">`calypso_dsp_shunt.c`</span> publie</span>
+<span id="cb1-60"><a href="#cb1-60" aria-label="60"></a>  <span class="in">`/dev/shm/calypso_kc_l1`</span> depuis <span class="in">`d_a5mode`</span> et <span class="in">`a_kc[4]`</span> du NDB, c'est-à-dire ce</span>
+<span id="cb1-61"><a href="#cb1-61" aria-label="61"></a>  que le **firmware** a réellement chargé dans le DSP</span>
+<span id="cb1-62"><a href="#cb1-62" aria-label="62"></a>  (<span class="in">`calypso/dsp.c:dsp_load_ciph_param`</span>). Aucun autre écrivain ne connaît ce</span>
+<span id="cb1-63"><a href="#cb1-63" aria-label="63"></a>  chemin. La course disparaît au lieu d'être arbitrée.</span>
+<span id="cb1-64"><a href="#cb1-64" aria-label="64"></a><span class="ss">* </span>**Le patch osmocon est retiré** du <span class="in">`Dockerfile`</span>, désappliqué, et osmocon</span>
+<span id="cb1-65"><a href="#cb1-65" aria-label="65"></a>  reconstruit. Il n'écrit plus rien. Le patch reste dans <span class="in">`patches/`</span> à titre</span>
+<span id="cb1-66"><a href="#cb1-66" aria-label="66"></a>  documentaire.</span>
+<span id="cb1-67"><a href="#cb1-67" aria-label="67"></a><span class="ss">* </span><span class="in">`pont.py`</span> lit <span class="in">`calypso_kc_l1`</span> en priorité et ne retombe sur l'historique que</span>
+<span id="cb1-68"><a href="#cb1-68" aria-label="68"></a>  s'il est absent — **jamais un mélange des deux**, sous peine de réintroduire la</span>
+<span id="cb1-69"><a href="#cb1-69" aria-label="69"></a>  course.</span>
+<span id="cb1-70"><a href="#cb1-70" aria-label="70"></a></span>
+<span id="cb1-71"><a href="#cb1-71" aria-label="71"></a><span class="fu">### Les offsets NDB ne se devinent pas</span></span>
+<span id="cb1-72"><a href="#cb1-72" aria-label="72"></a></span>
+<span id="cb1-73"><a href="#cb1-73" aria-label="73"></a><span class="in">`d_a5mode`</span> et <span class="in">`a_kc`</span> sont résolus **du DWARF du firmware vivant**, via</span>
+<span id="cb1-74"><a href="#cb1-74" aria-label="74"></a><span class="in">`tools/ndb-offsets.py`</span>, comme les six autres champs. Valeurs au 2026-08-30 :</span>
+<span id="cb1-75"><a href="#cb1-75" aria-label="75"></a><span class="in">`d_a5mode=0x1ce`</span>, <span class="in">`a_kc=0x2ce`</span>.</span>
+<span id="cb1-76"><a href="#cb1-76" aria-label="76"></a></span>
+<span id="cb1-77"><a href="#cb1-77" aria-label="77"></a>C'est ici que le repli par <span class="in">`#define`</span> est le plus dangereux : un offset faux ne</span>
+<span id="cb1-78"><a href="#cb1-78" aria-label="78"></a>produit pas d'erreur, il produit une **clé fausse**. <span class="in">`osmo_a5`</span> accepte n'importe</span>
+<span id="cb1-79"><a href="#cb1-79" aria-label="79"></a>quels 8 octets et rend un keystream. Le trafic se « déchiffre » alors en bruit,</span>
+<span id="cb1-80"><a href="#cb1-80" aria-label="80"></a>et le CRC accuse la radio.</span>
+<span id="cb1-81"><a href="#cb1-81" aria-label="81"></a></span>
+<span id="cb1-82"><a href="#cb1-82" aria-label="82"></a>Même piège sur l'ordre des octets : le firmware range la clé **à l'envers, et par</span>
+<span id="cb1-83"><a href="#cb1-83" aria-label="83"></a>mots** — <span class="in">`a_kc[0] = key[7] | key[6]&lt;&lt;8`</span> … <span class="in">`a_kc[3] = key[1] | key[0]&lt;&lt;8`</span>. Il faut</span>
+<span id="cb1-84"><a href="#cb1-84" aria-label="84"></a>défaire les **deux** inversions.</span>
+<span id="cb1-85"><a href="#cb1-85" aria-label="85"></a></span>
+<span id="cb1-86"><a href="#cb1-86" aria-label="86"></a><span class="fu">### Preuve de fonctionnement</span></span>
+<span id="cb1-87"><a href="#cb1-87" aria-label="87"></a></span>
+<span id="cb1-88"><a href="#cb1-88" aria-label="88"></a><span class="in">```</span></span>
+<span id="cb1-89"><a href="#cb1-89" aria-label="89"></a><span class="in">KC : couche 1 EN CLAIR (d_a5mode=0, seq=1)</span></span>
+<span id="cb1-90"><a href="#cb1-90" aria-label="90"></a><span class="in">KC : A5/1 actif, Kc=29365ddd5623c400 (NDB d_a5mode@0x1ce a_kc@0x2ce, seq=2)</span></span>
+<span id="cb1-91"><a href="#cb1-91" aria-label="91"></a><span class="in">KC : couche 1 EN CLAIR (d_a5mode=0, seq=3)</span></span>
+<span id="cb1-92"><a href="#cb1-92" aria-label="92"></a><span class="in">KC : A5/1 actif, Kc=29365ddd5623c400 (seq=4)   …</span></span>
+<span id="cb1-93"><a href="#cb1-93" aria-label="93"></a><span class="in">```</span></span>
+<span id="cb1-94"><a href="#cb1-94" aria-label="94"></a></span>
+<span id="cb1-95"><a href="#cb1-95" aria-label="95"></a>Côté pont : <span class="in">`clair 21/21`</span>, <span class="in">`chiffre 62/69`</span>.</span>
+<span id="cb1-96"><a href="#cb1-96" aria-label="96"></a></span>
+<span id="cb1-97"><a href="#cb1-97" aria-label="97"></a>---</span>
+<span id="cb1-98"><a href="#cb1-98" aria-label="98"></a></span>
+<span id="cb1-99"><a href="#cb1-99" aria-label="99"></a><span class="fu">## 2. La rétention du Kc — trois marqueurs faux, puis le bon critère</span></span>
+<span id="cb1-100"><a href="#cb1-100" aria-label="100"></a></span>
+<span id="cb1-101"><a href="#cb1-101" aria-label="101"></a>Quatre tentatives, dont **trois miennes ou héritées, et fausses**. Elles sont</span>
+<span id="cb1-102"><a href="#cb1-102" aria-label="102"></a>listées parce que chacune paraît raisonnable jusqu'à la mesure qui la tue.</span>
+<span id="cb1-103"><a href="#cb1-103" aria-label="103"></a></span>
+<span id="cb1-104"><a href="#cb1-104" aria-label="104"></a><span class="pp">|</span> marqueur de relâchement <span class="pp">|</span> pourquoi c'est faux <span class="pp">|</span></span>
+<span id="cb1-105"><a href="#cb1-105" aria-label="105"></a><span class="pp">|---|---|</span></span>
+<span id="cb1-106"><a href="#cb1-106" aria-label="106"></a><span class="pp">|</span> <span class="in">`seq`</span> de <span class="in">`calypso_dcch_cfg`</span> <span class="pp">|</span> ne bouge pas du LU à l'appel (<span class="in">`chan_nr`</span> reste 0x41) → clé retenue **indéfiniment**, A5 appliqué à un canal qui démarre en clair → UA brouillée, T200 ×6, appel mort <span class="pp">|</span></span>
+<span id="cb1-107"><a href="#cb1-107" aria-label="107"></a><span class="pp">|</span> SABM montante <span class="pp">|</span> une SABM ne veut **pas** dire « on repart en clair » : un ré-établissement LAPDm sur canal chiffré en est une, le SAPI 3 du SMS aussi. Mesuré : 11 lâchers en pleine session <span class="pp">|</span></span>
+<span id="cb1-108"><a href="#cb1-108" aria-label="108"></a><span class="pp">|</span> <span class="in">`algo=0`</span> d'un producteur autoritaire <span class="pp">|</span> <span class="in">`d_a5mode`</span> décrit **notre** L1, pas le **réseau**. Le firmware appelle `dsp_load_ciph_param(0, NULL)` à chaque resynchronisation (`sync.c:419`), donc **pendant** la bascule SDCCH→TCH. Lâcher là, c'est cesser de déchiffrer l'ASSIGNMENT COMMAND elle-même <span class="pp">|</span></span>
+<span id="cb1-109"><a href="#cb1-109" aria-label="109"></a></span>
+<span id="cb1-110"><a href="#cb1-110" aria-label="110"></a>Le troisième est instructif : il a produit, en une ligne de journal chacun, la</span>
+<span id="cb1-111"><a href="#cb1-111" aria-label="111"></a>cause **et** l'effet.</span>
+<span id="cb1-112"><a href="#cb1-112" aria-label="112"></a></span>
+<span id="cb1-113"><a href="#cb1-113" aria-label="113"></a><span class="in">```</span></span>
+<span id="cb1-114"><a href="#cb1-114" aria-label="114"></a><span class="in">Kc LACHE (la couche 1 declare le clair (seq=7))</span></span>
+<span id="cb1-115"><a href="#cb1-115" aria-label="115"></a><span class="in">TCH arme TN=2 depuis 5 s SANS ASSIGNMENT COMPLETE : le mobile n'a pas bascule</span></span>
+<span id="cb1-116"><a href="#cb1-116" aria-label="116"></a><span class="in">```</span></span>
+<span id="cb1-117"><a href="#cb1-117" aria-label="117"></a></span>
+<span id="cb1-118"><a href="#cb1-118" aria-label="118"></a>Le DSP étant shunté, **c'est le pont qui déchiffre pour le firmware**. Le mobile</span>
+<span id="cb1-119"><a href="#cb1-119" aria-label="119"></a>ne recevait donc jamais l'ordre de basculer.</span>
+<span id="cb1-120"><a href="#cb1-120" aria-label="120"></a></span>
+<span id="cb1-121"><a href="#cb1-121" aria-label="121"></a><span class="fu">### La règle retenue</span></span>
+<span id="cb1-122"><a href="#cb1-122" aria-label="122"></a></span>
+<span id="cb1-123"><a href="#cb1-123" aria-label="123"></a><span class="at">&gt; La fin de vie d'une clé est un **événement réseau**, pas un état local.</span></span>
+<span id="cb1-124"><a href="#cb1-124" aria-label="124"></a></span>
+<span id="cb1-125"><a href="#cb1-125" aria-label="125"></a>Les trois marqueurs conservés le sont tous : <span class="in">`IMMEDIATE ASSIGNMENT`</span> (seul octroi</span>
+<span id="cb1-126"><a href="#cb1-126" aria-label="126"></a>d'un canal **neuf**, qui démarre toujours en clair), <span class="in">`CHANNEL RELEASE`</span> sur SDCCH,</span>
+<span id="cb1-127"><a href="#cb1-127" aria-label="127"></a><span class="in">`CHANNEL RELEASE`</span> sur FACCH. La rétention (<span class="in">`PONT_KC_RETENTION`</span>, défaut <span class="in">`1`</span>) ne</span>
+<span id="cb1-128"><a href="#cb1-128" aria-label="128"></a>compense plus l'effaceur d'osmocon — il n'existe plus — mais la fenêtre pendant</span>
+<span id="cb1-129"><a href="#cb1-129" aria-label="129"></a>laquelle notre L1 est en clair alors que le réseau chiffre encore.</span>
+<span id="cb1-130"><a href="#cb1-130" aria-label="130"></a></span>
+<span id="cb1-131"><a href="#cb1-131" aria-label="131"></a>---</span>
+<span id="cb1-132"><a href="#cb1-132" aria-label="132"></a></span>
+<span id="cb1-133"><a href="#cb1-133" aria-label="133"></a><span class="fu">## 3. `unsupported SAPI` — deux diagnostics faux, un vrai défaut trouvé en chemin</span></span>
+<span id="cb1-134"><a href="#cb1-134" aria-label="134"></a></span>
+<span id="cb1-135"><a href="#cb1-135" aria-label="135"></a><span class="fu">### Le symptôme</span></span>
+<span id="cb1-136"><a href="#cb1-136" aria-label="136"></a></span>
+<span id="cb1-137"><a href="#cb1-137" aria-label="137"></a>Côté mobile, en boucle :</span>
+<span id="cb1-138"><a href="#cb1-138" aria-label="138"></a></span>
+<span id="cb1-139"><a href="#cb1-139" aria-label="139"></a><span class="in">```</span></span>
+<span id="cb1-140"><a href="#cb1-140" aria-label="140"></a><span class="in">DLLAPD lapdm.c Received frame for unsupported SAPI 6!</span></span>
+<span id="cb1-141"><a href="#cb1-141" aria-label="141"></a><span class="in">DRR    gsm48_rr.c:4390 Radio link is released</span></span>
+<span id="cb1-142"><a href="#cb1-142" aria-label="142"></a><span class="in">DMNCC  mnccms.c:714    Call has been released (cause 16)</span></span>
+<span id="cb1-143"><a href="#cb1-143" aria-label="143"></a><span class="in">```</span></span>
+<span id="cb1-144"><a href="#cb1-144" aria-label="144"></a></span>
+<span id="cb1-145"><a href="#cb1-145" aria-label="145"></a>SAPI 6 n'existe pas en LAPDm (0 = signalisation, 3 = SMS).</span>
+<span id="cb1-146"><a href="#cb1-146" aria-label="146"></a></span>
+<span id="cb1-147"><a href="#cb1-147" aria-label="147"></a><span class="fu">### Une fausse piste, gardée parce qu'elle était convaincante</span></span>
+<span id="cb1-148"><a href="#cb1-148" aria-label="148"></a></span>
+<span id="cb1-149"><a href="#cb1-149" aria-label="149"></a>Première explication : l'en-tête L1 du SACCH (2 octets) ne serait pas retiré, et</span>
+<span id="cb1-150"><a href="#cb1-150" aria-label="150"></a>LAPDm lirait l'octet de **puissance ordonnée** comme octet d'adresse. Le</span>
+<span id="cb1-151"><a href="#cb1-151" aria-label="151"></a>comptage collait parfaitement — 33 SAPI invalides pour exactement 33 blocs SACCH</span>
+<span id="cb1-152"><a href="#cb1-152" aria-label="152"></a>tentés (<span class="in">`TS1/32 : 30/33`</span>), et les quatre valeurs observées se rangeaient dans les</span>
+<span id="cb1-153"><a href="#cb1-153" aria-label="153"></a>paliers de puissance.</span>
+<span id="cb1-154"><a href="#cb1-154" aria-label="154"></a></span>
+<span id="cb1-155"><a href="#cb1-155" aria-label="155"></a>**C'était faux.** Le tampon réellement présenté commence par <span class="in">`07`</span> :</span>
+<span id="cb1-156"><a href="#cb1-156" aria-label="156"></a><span class="in">`(0x07 &gt;&gt; 2) &amp; 7`</span> = **SAPI 1** — une valeur jamais observée. Une corrélation de</span>
+<span id="cb1-157"><a href="#cb1-157" aria-label="157"></a>comptage n'est pas une preuve tant que l'arithmétique du mécanisme ne suit pas.</span>
+<span id="cb1-158"><a href="#cb1-158" aria-label="158"></a></span>
+<span id="cb1-159"><a href="#cb1-159" aria-label="159"></a>Vérifié au passage, et négatif aussi : la table <span class="in">`mf_sdcch8_0`</span> du firmware est</span>
+<span id="cb1-160"><a href="#cb1-160" aria-label="160"></a>conforme au 05.02 (<span class="in">`MF_F_SACCH`</span> bien posé à <span class="in">`fn%102 ∈ [32,35]`</span>), et</span>
+<span id="cb1-161"><a href="#cb1-161" aria-label="161"></a><span class="in">`prim_rx_nb.c:122`</span> en tire correctement <span class="in">`link_id = 0x40`</span>. **Aucun patch firmware</span>
+<span id="cb1-162"><a href="#cb1-162" aria-label="162"></a>n'était nécessaire** — c'est précisément ce que la mesure a évité.</span>
+<span id="cb1-163"><a href="#cb1-163" aria-label="163"></a></span>
+<span id="cb1-164"><a href="#cb1-164" aria-label="164"></a><span class="fu">### Deuxième explication : le SI du camp — réfutée elle aussi</span></span>
+<span id="cb1-165"><a href="#cb1-165" aria-label="165"></a></span>
+<span id="cb1-166"><a href="#cb1-166" aria-label="166"></a><span class="in">`lapdm_rx_ph_data_ind`</span> calcule <span class="in">`sapi = (l2h[0] &gt;&gt; 2) &amp; 7`</span>. Les valeurs observées</span>
+<span id="cb1-167"><a href="#cb1-167" aria-label="167"></a>correspondent à des premiers octets dans <span class="in">`0x08–0x1B`</span>, soit la forme d'un **octet</span>
+<span id="cb1-168"><a href="#cb1-168" aria-label="168"></a>de pseudo-longueur** de bloc BCCH — <span class="in">`(L &lt;&lt; 2) | 1`</span>, donc <span class="in">`SAPI = L &amp; 7`</span> :</span>
+<span id="cb1-169"><a href="#cb1-169" aria-label="169"></a></span>
+<span id="cb1-170"><a href="#cb1-170" aria-label="170"></a><span class="pp">|</span> SI <span class="pp">|</span> L <span class="pp">|</span> 1er octet <span class="pp">|</span> <span class="in">`L &amp; 7`</span> <span class="pp">|</span> SAPI observé <span class="pp">|</span></span>
+<span id="cb1-171"><a href="#cb1-171" aria-label="171"></a><span class="pp">|---|---|---|---|---|</span></span>
+<span id="cb1-172"><a href="#cb1-172" aria-label="172"></a><span class="pp">|</span> SI1 / SI2 <span class="pp">|</span> 21 <span class="pp">|</span> <span class="in">`0x55`</span> <span class="pp">|</span> 5 <span class="pp">|</span> 5 (×2) <span class="pp">|</span></span>
+<span id="cb1-173"><a href="#cb1-173" aria-label="173"></a><span class="pp">|</span> SI3 <span class="pp">|</span> 18 <span class="pp">|</span> <span class="in">`0x49`</span> <span class="pp">|</span> 2 <span class="pp">|</span> 2 (×2) <span class="pp">|</span></span>
+<span id="cb1-174"><a href="#cb1-174" aria-label="174"></a><span class="pp">|</span> SI4 <span class="pp">|</span> 12 <span class="pp">|</span> <span class="in">`0x31`</span> <span class="pp">|</span> 4 <span class="pp">|</span> 4 (×1) <span class="pp">|</span></span>
+<span id="cb1-175"><a href="#cb1-175" aria-label="175"></a><span class="pp">|</span> — <span class="pp">|</span> 22 <span class="pp">|</span> <span class="in">`0x59`</span> <span class="pp">|</span> 6 <span class="pp">|</span> 6 (×28) <span class="pp">|</span></span>
+<span id="cb1-176"><a href="#cb1-176" aria-label="176"></a></span>
+<span id="cb1-177"><a href="#cb1-177" aria-label="177"></a>Ce ne sont pas des blocs SACCH : ce sont les **SI du camp**, injectés dans <span class="in">`a_cd`</span></span>
+<span id="cb1-178"><a href="#cb1-178" aria-label="178"></a>pendant le canal dédié. Le rapport de forces, mesuré :</span>
+<span id="cb1-179"><a href="#cb1-179" aria-label="179"></a></span>
+<span id="cb1-180"><a href="#cb1-180" aria-label="180"></a><span class="pp">|</span> écrivain de <span class="in">`a_cd`</span> <span class="pp">|</span> occurrences <span class="pp">|</span></span>
+<span id="cb1-181"><a href="#cb1-181" aria-label="181"></a><span class="pp">|---|---|</span></span>
+<span id="cb1-182"><a href="#cb1-182" aria-label="182"></a><span class="pp">|</span> <span class="in">`DCCH-SACCH #`</span> (présentation légitime) <span class="pp">|</span> **3** <span class="pp">|</span></span>
+<span id="cb1-183"><a href="#cb1-183" aria-label="183"></a><span class="pp">|</span> <span class="in">`DISPATCH ALLC → SI3 a_cd[3..14]`</span> <span class="pp">|</span> **29 483** <span class="pp">|</span></span>
+<span id="cb1-184"><a href="#cb1-184" aria-label="184"></a></span>
+<span id="cb1-185"><a href="#cb1-185" aria-label="185"></a><span class="in">`DCCH-GARDE`</span> doit empêcher exactement cela. Elle s'armait bien, mais se levait</span>
+<span id="cb1-186"><a href="#cb1-186" aria-label="186"></a>sur un **TTL de fraîcheur de blocs** (<span class="in">`dcch_guard_tick`</span>, ~2 s) rafraîchi</span>
+<span id="cb1-187"><a href="#cb1-187" aria-label="187"></a>uniquement par le **descendant** — donc par notre chance de décodage. Trois blocs</span>
+<span id="cb1-188"><a href="#cb1-188" aria-label="188"></a>sur tout le run : entre deux, le TTL expirait, la garde concluait « canal fini »,</span>
+<span id="cb1-189"><a href="#cb1-189" aria-label="189"></a>et le camp reprenait <span class="in">`a_cd`</span>.</span>
+<span id="cb1-190"><a href="#cb1-190" aria-label="190"></a></span>
+<span id="cb1-191"><a href="#cb1-191" aria-label="191"></a><span class="in">```</span></span>
+<span id="cb1-192"><a href="#cb1-192" aria-label="192"></a><span class="in">DCCH-GARDE : ARMEE  -- SI du camp supprime dans a_cd</span></span>
+<span id="cb1-193"><a href="#cb1-193" aria-label="193"></a><span class="in">DCCH-GARDE : levee (peremption) -- SI du camp retabli     ← ×4, canal bien vivant</span></span>
+<span id="cb1-194"><a href="#cb1-194" aria-label="194"></a><span class="in">```</span></span>
+<span id="cb1-195"><a href="#cb1-195" aria-label="195"></a></span>
+<span id="cb1-196"><a href="#cb1-196" aria-label="196"></a>C'est **la même erreur de raisonnement** qu'aux §1 et §2 : déduire un événement de</span>
+<span id="cb1-197"><a href="#cb1-197" aria-label="197"></a>cycle de vie (« le canal est fini ») d'un symptôme local (« je n'ai rien décodé</span>
+<span id="cb1-198"><a href="#cb1-198" aria-label="198"></a>depuis 2 s »). Sur un banc où le décodage est imparfait, les deux sont confondus</span>
+<span id="cb1-199"><a href="#cb1-199" aria-label="199"></a>en permanence, et la garde se retourne contre le canal qu'elle protège.</span>
+<span id="cb1-200"><a href="#cb1-200" aria-label="200"></a></span>
+<span id="cb1-201"><a href="#cb1-201" aria-label="201"></a><span class="fu">### Le correctif — et ce qu'il a prouvé, ce qu'il n'a pas prouvé</span></span>
+<span id="cb1-202"><a href="#cb1-202" aria-label="202"></a></span>
+<span id="cb1-203"><a href="#cb1-203" aria-label="203"></a>La garde est rafraîchie par le **montant dédié** (<span class="in">`d_task_u`</span> ∈ {12 DUL, 13 TCHT,</span>
+<span id="cb1-204"><a href="#cb1-204" aria-label="204"></a>14 TCHA}) : le mobile qui émet sur son canal dédié prouve que ce canal existe,</span>
+<span id="cb1-205"><a href="#cb1-205" aria-label="205"></a>indépendamment de notre décodage.</span>
+<span id="cb1-206"><a href="#cb1-206" aria-label="206"></a></span>
+<span id="cb1-207"><a href="#cb1-207" aria-label="207"></a>**Mesuré, et le correctif fait ce qu'il annonce** — sonde du site de présentation</span>
+<span id="cb1-208"><a href="#cb1-208" aria-label="208"></a>(<span class="in">`CAMP: a_cd&lt;-SI`</span>), et non celle du point d'injection, qui continue d'imprimer en</span>
+<span id="cb1-209"><a href="#cb1-209" aria-label="209"></a>amont de la garde :</span>
+<span id="cb1-210"><a href="#cb1-210" aria-label="210"></a></span>
+<span id="cb1-211"><a href="#cb1-211" aria-label="211"></a><span class="pp">|</span> <span class="pp">|</span> avant <span class="pp">|</span> après <span class="pp">|</span></span>
+<span id="cb1-212"><a href="#cb1-212" aria-label="212"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb1-213"><a href="#cb1-213" aria-label="213"></a><span class="pp">|</span> <span class="in">`CAMP: a_cd&lt;-SI`</span> pendant le dédié <span class="pp">|</span> flot continu <span class="pp">|</span> **0** <span class="pp">|</span></span>
+<span id="cb1-214"><a href="#cb1-214" aria-label="214"></a><span class="pp">|</span> <span class="in">`levee (peremption)`</span> <span class="pp">|</span> ×4 <span class="pp">|</span> **0** <span class="pp">|</span></span>
+<span id="cb1-215"><a href="#cb1-215" aria-label="215"></a></span>
+<span id="cb1-216"><a href="#cb1-216" aria-label="216"></a>**Mais les SAPI invalides ont AUGMENTÉ : 33 → 52.** Le SI du camp n'était donc</span>
+<span id="cb1-217"><a href="#cb1-217" aria-label="217"></a>pas leur source. La cause reste **inconnue** — c'est le deuxième diagnostic faux</span>
+<span id="cb1-218"><a href="#cb1-218" aria-label="218"></a>sur ce même symptôme, après celui des paliers de puissance. Le correctif de la</span>
+<span id="cb1-219"><a href="#cb1-219" aria-label="219"></a>garde est conservé parce qu'il corrige un défaut réel et démontré ; il ne corrige</span>
+<span id="cb1-220"><a href="#cb1-220" aria-label="220"></a>simplement pas celui-là.</span>
+<span id="cb1-221"><a href="#cb1-221" aria-label="221"></a></span>
+<span id="cb1-222"><a href="#cb1-222" aria-label="222"></a><span class="fu">### Entretenir n'est pas armer</span></span>
+<span id="cb1-223"><a href="#cb1-223" aria-label="223"></a></span>
+<span id="cb1-224"><a href="#cb1-224" aria-label="224"></a>La première version **armait** la garde depuis le montant. <span class="in">`task_u`</span> vaut 12/13/14</span>
+<span id="cb1-225"><a href="#cb1-225" aria-label="225"></a>bien au-delà du canal dédié (621 / 1954 / 81 sur le run) : la garde s'est armée à</span>
+<span id="cb1-226"><a href="#cb1-226" aria-label="226"></a>6 % du journal et n'a **jamais** été levée — <span class="in">`CAMP: a_cd&lt;-SI`</span> = 0 sur les 94 %</span>
+<span id="cb1-227"><a href="#cb1-227" aria-label="227"></a>restants, et 27 lignes de sélection de cellule côté mobile. C'est trait pour trait</span>
+<span id="cb1-228"><a href="#cb1-228" aria-label="228"></a>la famine de SI que ce TTL existait pour éviter (commentaire du 2026-08-12), et</span>
+<span id="cb1-229"><a href="#cb1-229" aria-label="229"></a>qu'on réintroduisait en croyant la contourner.</span>
+<span id="cb1-230"><a href="#cb1-230" aria-label="230"></a></span>
+<span id="cb1-231"><a href="#cb1-231" aria-label="231"></a>Corrigé : l'**armement** reste au descendant (<span class="in">`set_dcch_active`</span>), seul signal lié</span>
+<span id="cb1-232"><a href="#cb1-232" aria-label="232"></a>à un bloc dédié réel ; le montant ne fait que **repousser la péremption** d'une</span>
+<span id="cb1-233"><a href="#cb1-233" aria-label="233"></a>garde déjà armée. Le TTL reste court (~2 s) — c'est lui qui rend le camp au mobile</span>
+<span id="cb1-234"><a href="#cb1-234" aria-label="234"></a>dès la fin du canal, et l'allonger l'affame. Le montant couvre les trous *pendant*</span>
+<span id="cb1-235"><a href="#cb1-235" aria-label="235"></a>le canal ; le TTL tranche *après*.</span>
+<span id="cb1-236"><a href="#cb1-236" aria-label="236"></a></span>
+<span id="cb1-237"><a href="#cb1-237" aria-label="237"></a><span class="fu">## 3bis. Identité n'est pas instance — un vrai défaut, mais pas LA cause</span></span>
+<span id="cb1-238"><a href="#cb1-238" aria-label="238"></a></span>
+<span id="cb1-239"><a href="#cb1-239" aria-label="239"></a><span class="fu">### La mesure</span></span>
+<span id="cb1-240"><a href="#cb1-240" aria-label="240"></a></span>
+<span id="cb1-241"><a href="#cb1-241" aria-label="241"></a>Un LU suivi de **deux appels**, tous trois sur SDCCH/8 SS0 :</span>
+<span id="cb1-242"><a href="#cb1-242" aria-label="242"></a></span>
+<span id="cb1-243"><a href="#cb1-243" aria-label="243"></a><span class="in">```</span></span>
+<span id="cb1-244"><a href="#cb1-244" aria-label="244"></a><span class="in">DCCH #1 : chan_nr=0x41 -&gt; SDCCH/8 SS=0 TN=1 (vu sur DATA_IND)     ← et c'est tout</span></span>
+<span id="cb1-245"><a href="#cb1-245" aria-label="245"></a><span class="in">/dev/shm/calypso_dcch_cfg : seq=1</span></span>
+<span id="cb1-246"><a href="#cb1-246" aria-label="246"></a><span class="in">```</span></span>
+<span id="cb1-247"><a href="#cb1-247" aria-label="247"></a></span>
+<span id="cb1-248"><a href="#cb1-248" aria-label="248"></a>**Trois canaux dédiés successifs, un seul appris.**</span>
+<span id="cb1-249"><a href="#cb1-249" aria-label="249"></a></span>
+<span id="cb1-250"><a href="#cb1-250" aria-label="250"></a><span class="fu">### La cause</span></span>
+<span id="cb1-251"><a href="#cb1-251" aria-label="251"></a></span>
+<span id="cb1-252"><a href="#cb1-252" aria-label="252"></a><span class="in">```c</span></span>
+<span id="cb1-253"><a href="#cb1-253" aria-label="253"></a><span class="co">/* l1ctl_sock.c */</span></span>
+<span id="cb1-254"><a href="#cb1-254" aria-label="254"></a><span class="cf">if</span> <span class="op">(</span>kind <span class="op">&gt;=</span> <span class="dv">0</span> <span class="op">&amp;&amp;</span> chan_nr <span class="op">!=</span> last_chan_nr<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb1-255"><a href="#cb1-255" aria-label="255"></a>    dcch_seq<span class="op">++;</span></span>
+<span id="cb1-256"><a href="#cb1-256" aria-label="256"></a>    <span class="op">...</span> écrit <span class="op">/</span>dev<span class="op">/</span>shm<span class="op">/</span>calypso_dcch_cfg <span class="op">...</span></span>
+<span id="cb1-257"><a href="#cb1-257" aria-label="257"></a>    calypso_dsp_shunt_set_dcch<span class="op">(</span>kind<span class="op">,</span> ss<span class="op">);</span></span>
+<span id="cb1-258"><a href="#cb1-258" aria-label="258"></a><span class="op">}</span></span>
+<span id="cb1-259"><a href="#cb1-259" aria-label="259"></a><span class="in">```</span></span>
+<span id="cb1-260"><a href="#cb1-260" aria-label="260"></a></span>
+<span id="cb1-261"><a href="#cb1-261" aria-label="261"></a>La mise à jour ne se déclenche que si <span class="in">`chan_nr`</span> **change**. Or le BSC réalloue</span>
+<span id="cb1-262"><a href="#cb1-262" aria-label="262"></a>volontiers la même sous-voie : un second appel qui retombe sur SDCCH/8 SS0</span>
+<span id="cb1-263"><a href="#cb1-263" aria-label="263"></a>présente le même <span class="in">`chan_nr = 0x41`</span>. Rien ne se passe — ni nouveau <span class="in">`dcch_seq`</span>, ni</span>
+<span id="cb1-264"><a href="#cb1-264" aria-label="264"></a><span class="in">`set_dcch()`</span>. Le shunt reste configuré sur l'**instance précédente** : fenêtre de</span>
+<span id="cb1-265"><a href="#cb1-265" aria-label="265"></a>présentation <span class="in">`a_cd`</span> périmée pour le canal courant.</span>
+<span id="cb1-266"><a href="#cb1-266" aria-label="266"></a></span>
+<span id="cb1-267"><a href="#cb1-267" aria-label="267"></a><span class="in">`chan_nr`</span> **est** l'identité du canal ; il ne porte aucun numéro d'instance. On ne</span>
+<span id="cb1-268"><a href="#cb1-268" aria-label="268"></a>peut donc pas comparer plus finement — il faut **oublier** l'identité quand le</span>
+<span id="cb1-269"><a href="#cb1-269" aria-label="269"></a>canal se termine.</span>
+<span id="cb1-270"><a href="#cb1-270" aria-label="270"></a></span>
+<span id="cb1-271"><a href="#cb1-271" aria-label="271"></a><span class="fu">### Le correctif</span></span>
+<span id="cb1-272"><a href="#cb1-272" aria-label="272"></a></span>
+<span id="cb1-273"><a href="#cb1-273" aria-label="273"></a><span class="in">`calypso_l1ctl_dcch_forget()`</span> remet <span class="in">`last_chan_nr`</span> à <span class="in">`0xFF`</span>. Elle est appelée par</span>
+<span id="cb1-274"><a href="#cb1-274" aria-label="274"></a>la garde <span class="in">`DCCH`</span> au moment où celle-ci conclut à la fin du canal — et la mesure</span>
+<span id="cb1-275"><a href="#cb1-275" aria-label="275"></a>montre que la garde, elle, cycle correctement (**4** paires <span class="in">`ARMEE`</span>/<span class="in">`levee`</span> sur ce</span>
+<span id="cb1-276"><a href="#cb1-276" aria-label="276"></a>run). C'est donc elle qui sait, et c'est d'elle qu'on prévient.</span>
+<span id="cb1-277"><a href="#cb1-277" aria-label="277"></a></span>
+<span id="cb1-278"><a href="#cb1-278" aria-label="278"></a>La prochaine établissement redéclenche alors, même à <span class="in">`chan_nr`</span> égal.</span>
+<span id="cb1-279"><a href="#cb1-279" aria-label="279"></a></span>
+<span id="cb1-280"><a href="#cb1-280" aria-label="280"></a><span class="fu">### Confirmation par le réseau, et par la mesure d'après</span></span>
+<span id="cb1-281"><a href="#cb1-281" aria-label="281"></a></span>
+<span id="cb1-282"><a href="#cb1-282" aria-label="282"></a>Le BSC voit la même chose par l'autre bout — il réutilise tout, jusqu'à l'objet :</span>
+<span id="cb1-283"><a href="#cb1-283" aria-label="283"></a></span>
+<span id="cb1-284"><a href="#cb1-284" aria-label="284"></a><span class="in">```</span></span>
+<span id="cb1-285"><a href="#cb1-285" aria-label="285"></a><span class="in">lchan(0-0-2-TCH_F-0)[0x5e7e3da21f50]   ×7    (jamais TS3..TS7, sur six TCH/F)</span></span>
+<span id="cb1-286"><a href="#cb1-286" aria-label="286"></a><span class="in">lchan(0-0-1-SDCCH8-0)[0x5e7e3da21e20]  ×4    (jamais SS1..SS7, sur huit)</span></span>
+<span id="cb1-287"><a href="#cb1-287" aria-label="287"></a><span class="in">lchan(0-0-1-SDCCH8-0){ESTABLISHED}: ERROR INDICATION</span></span>
+<span id="cb1-288"><a href="#cb1-288" aria-label="288"></a><span class="in">    cause=SABM frame with information not allowed in this state   ×4</span></span>
+<span id="cb1-289"><a href="#cb1-289" aria-label="289"></a><span class="in">```</span></span>
+<span id="cb1-290"><a href="#cb1-290" aria-label="290"></a></span>
+<span id="cb1-291"><a href="#cb1-291" aria-label="291"></a>Le mobile réémet un SABM sur un lien que le BSC tient pour établi : il n'a jamais</span>
+<span id="cb1-292"><a href="#cb1-292" aria-label="292"></a>vu l'UA. Puis <span class="in">`EQUIPMENT FAILURE: Timeout`</span> et <span class="in">`rll_ready=no`</span>.</span>
+<span id="cb1-293"><a href="#cb1-293" aria-label="293"></a></span>
+<span id="cb1-294"><a href="#cb1-294" aria-label="294"></a>**La réutilisation n'est pas le défaut, c'est le révélateur.** Rien dans le GSM ne</span>
+<span id="cb1-295"><a href="#cb1-295" aria-label="295"></a>l'interdit, et l'allocateur reprend naturellement le premier canal libre : avec un</span>
+<span id="cb1-296"><a href="#cb1-296" aria-label="296"></a>seul mobile, c'est toujours le même. Un réseau réel ferait pareil — donc ce défaut</span>
+<span id="cb1-297"><a href="#cb1-297" aria-label="297"></a>frapperait *tous* les deuxièmes appels, partout. Ce n'est pas un artefact de banc.</span>
+<span id="cb1-298"><a href="#cb1-298" aria-label="298"></a></span>
+<span id="cb1-299"><a href="#cb1-299" aria-label="299"></a>Après correctif :</span>
+<span id="cb1-300"><a href="#cb1-300" aria-label="300"></a></span>
+<span id="cb1-301"><a href="#cb1-301" aria-label="301"></a><span class="in">```</span></span>
+<span id="cb1-302"><a href="#cb1-302" aria-label="302"></a><span class="in">DCCH #1 : chan_nr=0x41 -&gt; SDCCH/8 SS=0 TN=1</span></span>
+<span id="cb1-303"><a href="#cb1-303" aria-label="303"></a><span class="in">DCCH #2 : chan_nr=0x41 -&gt; SDCCH/8 SS=0 TN=1     ← MEME chan_nr, et pourtant appris</span></span>
+<span id="cb1-304"><a href="#cb1-304" aria-label="304"></a><span class="in">dcch_cfg : seq=2      identite oubliee : x1      DCCH-GARDE : ARMEE x2, levee x1</span></span>
+<span id="cb1-305"><a href="#cb1-305" aria-label="305"></a><span class="in">```</span></span>
+<span id="cb1-306"><a href="#cb1-306" aria-label="306"></a></span>
+<span id="cb1-307"><a href="#cb1-307" aria-label="307"></a><span class="fu">### Le motif, pour la quatrième fois</span></span>
+<span id="cb1-308"><a href="#cb1-308" aria-label="308"></a></span>
+<span id="cb1-309"><a href="#cb1-309" aria-label="309"></a>Déduire un **événement** (« canal neuf ») d'une **comparaison d'état**</span>
+<span id="cb1-310"><a href="#cb1-310" aria-label="310"></a>(« <span class="in">`chan_nr`</span> a changé ») au lieu de l'événement lui-même. Exactement comme :</span>
+<span id="cb1-311"><a href="#cb1-311" aria-label="311"></a>osmocon devinant la fin de vie du Kc sur <span class="in">`DM_EST_REQ`</span> (§1), les trois marqueurs</span>
+<span id="cb1-312"><a href="#cb1-312" aria-label="312"></a>de relâchement (§2), et la garde concluant « canal fini » sur un TTL de fraîcheur</span>
+<span id="cb1-313"><a href="#cb1-313" aria-label="313"></a>de décodage (§3). Quand ce dépôt se trompe, c'est presque toujours de cette</span>
+<span id="cb1-314"><a href="#cb1-314" aria-label="314"></a>façon-là.</span>
+<span id="cb1-315"><a href="#cb1-315" aria-label="315"></a></span>
+<span id="cb1-316"><a href="#cb1-316" aria-label="316"></a>---</span>
+<span id="cb1-317"><a href="#cb1-317" aria-label="317"></a></span>
+<span id="cb1-318"><a href="#cb1-318" aria-label="318"></a><span class="fu">## 3ter. Le DISC de l'appel précédent rejoué sur le canal suivant — LA cause</span></span>
+<span id="cb1-319"><a href="#cb1-319" aria-label="319"></a></span>
+<span id="cb1-320"><a href="#cb1-320" aria-label="320"></a>C'est le défaut qui produisait les échecs d'assignation intermittents. Trouvé par</span>
+<span id="cb1-321"><a href="#cb1-321" aria-label="321"></a>un fan-out de 29 agents avec réfutation adversariale, après que quatre</span>
+<span id="cb1-322"><a href="#cb1-322" aria-label="322"></a>hypothèses posées à la main se soient révélées fausses.</span>
+<span id="cb1-323"><a href="#cb1-323" aria-label="323"></a></span>
+<span id="cb1-324"><a href="#cb1-324" aria-label="324"></a><span class="fu">### Le mécanisme</span></span>
+<span id="cb1-325"><a href="#cb1-325" aria-label="325"></a></span>
+<span id="cb1-326"><a href="#cb1-326" aria-label="326"></a><span class="in">`/dev/shm/calypso_tch_facch_ul`</span> est un slot **unique**, dont le <span class="in">`seq`</span> est de</span>
+<span id="cb1-327"><a href="#cb1-327" aria-label="327"></a>portée-processus côté shunt : il n'a aucune notion d'époque de canal dédié.</span>
+<span id="cb1-328"><a href="#cb1-328" aria-label="328"></a></span>
+<span id="cb1-329"><a href="#cb1-329" aria-label="329"></a><span class="ss">1. </span>Un appel se termine **normalement** → <span class="in">`tch_desarme()`</span> met <span class="in">`_tch_tn = None`</span>.</span>
+<span id="cb1-330"><a href="#cb1-330" aria-label="330"></a><span class="ss">2. </span><span class="in">`ul_facch_from_sideband`</span> part alors en <span class="in">`continue`</span> sans jamais lire</span>
+<span id="cb1-331"><a href="#cb1-331" aria-label="331"></a>   (<span class="in">`pont.py:941-942`</span>) — et son curseur <span class="in">`last`</span>, **local au thread**, gèle.</span>
+<span id="cb1-332"><a href="#cb1-332" aria-label="332"></a><span class="ss">3. </span>Le mobile émet ensuite son **DISC** LAPDm de libération. Le shunt le publie</span>
+<span id="cb1-333"><a href="#cb1-333" aria-label="333"></a>   dans le slot avec un <span class="in">`seq`</span> neuf. Le bloc y reste, avec <span class="in">`seq &gt; last`</span>.</span>
+<span id="cb1-334"><a href="#cb1-334" aria-label="334"></a><span class="ss">4. </span>À l'ASSIGNMENT COMMAND suivant, le thread se réveille, voit <span class="in">`seq != last`</span>, et</span>
+<span id="cb1-335"><a href="#cb1-335" aria-label="335"></a>   traite ce vieux DISC comme un montant frais : il pose <span class="in">`_tch_mobile_ok`</span></span>
+<span id="cb1-336"><a href="#cb1-336" aria-label="336"></a>   **avant toute bascule réelle**, et l'ordonnanceur l'émet sur la FACCH du TCH</span>
+<span id="cb1-337"><a href="#cb1-337" aria-label="337"></a>   tout neuf.</span>
+<span id="cb1-338"><a href="#cb1-338" aria-label="338"></a><span class="ss">5. </span>La LAPDm de la BTS, en <span class="in">`LAPD_STATE_IDLE`</span> sur ce lchan fraîchement activé,</span>
+<span id="cb1-339"><a href="#cb1-339" aria-label="339"></a>   répond **DM**.</span>
+<span id="cb1-340"><a href="#cb1-340" aria-label="340"></a><span class="ss">6. </span>Le mobile, qui vient d'envoyer son vrai SABM, reçoit ce DM en <span class="in">`SABM_SENT`</span> →</span>
+<span id="cb1-341"><a href="#cb1-341" aria-label="341"></a>   <span class="in">`ASSIGNMENT FAILURE`</span>. Le BSC n'a jamais son ASSIGNMENT COMPLETE → <span class="in">`T10`</span> →</span>
+<span id="cb1-342"><a href="#cb1-342" aria-label="342"></a>   <span class="in">`EQUIPMENT FAILURE: Timeout`</span>.</span>
+<span id="cb1-343"><a href="#cb1-343" aria-label="343"></a></span>
+<span id="cb1-344"><a href="#cb1-344" aria-label="344"></a><span class="fu">### La mesure qui l'établit</span></span>
+<span id="cb1-345"><a href="#cb1-345" aria-label="345"></a></span>
+<span id="cb1-346"><a href="#cb1-346" aria-label="346"></a>Capture GSMTAP, premier bloc FACCH montant réellement **émis par le pont** après</span>
+<span id="cb1-347"><a href="#cb1-347" aria-label="347"></a>chaque ASSIGNMENT COMMAND — corrélation **6/6**, aux octets :</span>
+<span id="cb1-348"><a href="#cb1-348" aria-label="348"></a></span>
+<span id="cb1-349"><a href="#cb1-349" aria-label="349"></a><span class="in">```</span></span>
+<span id="cb1-350"><a href="#cb1-350" aria-label="350"></a><span class="in">01 3f (SABM) -&gt; 01 73 (UA)    =&gt; appel OK</span></span>
+<span id="cb1-351"><a href="#cb1-351" aria-label="351"></a><span class="in">01 53 (DISC) -&gt; 01 1f (DM)    =&gt; appel ECHOUE</span></span>
+<span id="cb1-352"><a href="#cb1-352" aria-label="352"></a><span class="in">```</span></span>
+<span id="cb1-353"><a href="#cb1-353" aria-label="353"></a></span>
+<span id="cb1-354"><a href="#cb1-354" aria-label="354"></a>Et l'arithmétique de propagation exclut « le DM répondait au SABM » :</span>
+<span id="cb1-355"><a href="#cb1-355" aria-label="355"></a>DISC fn 26340 → DM fn 26367 (Δ=27) ; SABM fn 26353 → UA fn 26380 (Δ=27). **Même</span>
+<span id="cb1-356"><a href="#cb1-356" aria-label="356"></a>delta** — le DM répond au bloc émis 13 trames *avant* le SABM.</span>
+<span id="cb1-357"><a href="#cb1-357" aria-label="357"></a></span>
+<span id="cb1-358"><a href="#cb1-358" aria-label="358"></a><span class="fu">### Pourquoi c'était intermittent — et pas « le 2ᵉ appel »</span></span>
+<span id="cb1-359"><a href="#cb1-359" aria-label="359"></a></span>
+<span id="cb1-360"><a href="#cb1-360" aria-label="360"></a>Rien de positionnel : ce qui compte est le **mode de sortie de l'appel</span>
+<span id="cb1-361"><a href="#cb1-361" aria-label="361"></a>précédent**.</span>
+<span id="cb1-362"><a href="#cb1-362" aria-label="362"></a></span>
+<span id="cb1-363"><a href="#cb1-363" aria-label="363"></a><span class="pp">|</span> sortie précédente <span class="pp">|</span> effet <span class="pp">|</span> appel suivant <span class="pp">|</span></span>
+<span id="cb1-364"><a href="#cb1-364" aria-label="364"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb1-365"><a href="#cb1-365" aria-label="365"></a><span class="pp">|</span> normale → <span class="in">`tch_desarme`</span> (<span class="in">`_tch_tn = None`</span>) <span class="pp">|</span> le thread cesse de lire, le DISC empoisonne le slot <span class="pp">|</span> **échoue** <span class="pp">|</span></span>
+<span id="cb1-366"><a href="#cb1-366" aria-label="366"></a><span class="pp">|</span> en échec → <span class="in">`tch_suspend`</span> (**conserve** `_tch_tn`) | le thread continue de vider la bande latérale | **réussit** <span class="pp">|</span></span>
+<span id="cb1-367"><a href="#cb1-367" aria-label="367"></a><span class="pp">|</span> premier appel <span class="pp">|</span> slot à <span class="in">`seq=0`</span>, la garde <span class="in">`if seq and ...`</span> saute <span class="pp">|</span> réussit <span class="pp">|</span></span>
+<span id="cb1-368"><a href="#cb1-368" aria-label="368"></a></span>
+<span id="cb1-369"><a href="#cb1-369" aria-label="369"></a>D'où des séries <span class="in">`ÉCHEC/OK/ÉCHEC`</span> ou <span class="in">`OK/ÉCHEC/OK`</span> selon l'amorce. Toute la</span>
+<span id="cb1-370"><a href="#cb1-370" aria-label="370"></a>formulation « le 2ᵉ appel échoue », qui a orienté des heures d'enquête, était un</span>
+<span id="cb1-371"><a href="#cb1-371" aria-label="371"></a>artefact d'échantillon.</span>
+<span id="cb1-372"><a href="#cb1-372" aria-label="372"></a></span>
+<span id="cb1-373"><a href="#cb1-373" aria-label="373"></a><span class="fu">### Le correctif</span></span>
+<span id="cb1-374"><a href="#cb1-374" aria-label="374"></a></span>
+<span id="cb1-375"><a href="#cb1-375" aria-label="375"></a>À chaque **nouvelle époque de canal**, resynchroniser <span class="in">`last`</span> sur le <span class="in">`seq`</span> courant</span>
+<span id="cb1-376"><a href="#cb1-376" aria-label="376"></a>**sans consommer** le bloc : ce qui date d'avant l'armement n'appartient pas à ce</span>
+<span id="cb1-377"><a href="#cb1-377" aria-label="377"></a>canal. C'est exactement l'idiome que ce fichier applique déjà à l'anneau voix</span>
+<span id="cb1-378"><a href="#cb1-378" aria-label="378"></a>montant (<span class="in">`session precedente : on ignore`</span>) et qui n'avait pas été porté sur ce</span>
+<span id="cb1-379"><a href="#cb1-379" aria-label="379"></a>sideband-ci.</span>
+<span id="cb1-380"><a href="#cb1-380" aria-label="380"></a></span>
+<span id="cb1-381"><a href="#cb1-381" aria-label="381"></a>L'époque est suivie par <span class="in">`_tn_epoque`</span>, remis à <span class="in">`None`</span> au désarmement — car le BSC</span>
+<span id="cb1-382"><a href="#cb1-382" aria-label="382"></a>réalloue toujours TS2, donc comparer les TN ne suffit pas : **identité n'est pas</span>
+<span id="cb1-383"><a href="#cb1-383" aria-label="383"></a>instance**, encore (cf. §3bis).</span>
+<span id="cb1-384"><a href="#cb1-384" aria-label="384"></a></span>
+<span id="cb1-385"><a href="#cb1-385" aria-label="385"></a><span class="fu">### Validation</span></span>
+<span id="cb1-386"><a href="#cb1-386" aria-label="386"></a></span>
+<span id="cb1-387"><a href="#cb1-387" aria-label="387"></a><span class="in">`scripts/banc-repro.sh --calls 4`</span>, pile redémarrée :</span>
+<span id="cb1-388"><a href="#cb1-388" aria-label="388"></a></span>
+<span id="cb1-389"><a href="#cb1-389" aria-label="389"></a><span class="pp">|</span> <span class="pp">|</span> avant <span class="pp">|</span> après <span class="pp">|</span></span>
+<span id="cb1-390"><a href="#cb1-390" aria-label="390"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb1-391"><a href="#cb1-391" aria-label="391"></a><span class="pp">|</span> appels <span class="pp">|</span> ÉCHEC / OK / ÉCHEC <span class="pp">|</span> **OK / OK / OK / OK** <span class="pp">|</span></span>
+<span id="cb1-392"><a href="#cb1-392" aria-label="392"></a><span class="pp">|</span> <span class="in">`Assignment failed`</span> (BSC) <span class="pp">|</span> 20 <span class="pp">|</span> **0** <span class="pp">|</span></span>
+<span id="cb1-393"><a href="#cb1-393" aria-label="393"></a><span class="pp">|</span> <span class="in">`unsupported SAPI`</span> <span class="pp">|</span> 14 <span class="pp">|</span> 4 <span class="pp">|</span></span>
+<span id="cb1-394"><a href="#cb1-394" aria-label="394"></a></span>
+<span id="cb1-395"><a href="#cb1-395" aria-label="395"></a>---</span>
+<span id="cb1-396"><a href="#cb1-396" aria-label="396"></a></span>
+<span id="cb1-397"><a href="#cb1-397" aria-label="397"></a><span class="fu">## 4. Le remplissage de C0 compté comme échec</span></span>
+<span id="cb1-398"><a href="#cb1-398" aria-label="398"></a></span>
+<span id="cb1-399"><a href="#cb1-399" aria-label="399"></a><span class="in">`osmo-bts`</span> remplit **tous** les timeslots de C0 avec le dummy burst</span>
+<span id="cb1-400"><a href="#cb1-400" aria-label="400"></a>(<span class="in">`scheduler_trx.c`</span>) pour tenir la puissance de la balise. Un canal dédié inactif</span>
+<span id="cb1-401"><a href="#cb1-401" aria-label="401"></a>reçoit donc du remplissage en continu.</span>
+<span id="cb1-402"><a href="#cb1-402" aria-label="402"></a></span>
+<span id="cb1-403"><a href="#cb1-403" aria-label="403"></a>Le filtre <span class="in">`_is_dummy()`</span> existait pour le xcch — avec sa mesure : *515 blocs de</span>
+<span id="cb1-404"><a href="#cb1-404" aria-label="404"></a>remplissage comptés en <span class="in">`crc_fail`</span>, 76 % d'échec annoncés sur une radio saine*.</span>
+<span id="cb1-405"><a href="#cb1-405" aria-label="405"></a>**Le chemin TCH ne l'avait jamais eu** : <span class="in">`dl_dispatch`</span> fait <span class="in">`return`</span> sur la</span>
+<span id="cb1-406"><a href="#cb1-406" aria-label="406"></a>branche TCH avant d'atteindre le filtre.</span>
+<span id="cb1-407"><a href="#cb1-407" aria-label="407"></a></span>
+<span id="cb1-408"><a href="#cb1-408" aria-label="408"></a>Le traçage <span class="in">`PONT_TCH_TRACE=1`</span> a montré la même cause sous **deux signatures**,</span>
+<span id="cb1-409"><a href="#cb1-409" aria-label="409"></a>selon que le Kc était disponible ou non :</span>
+<span id="cb1-410"><a href="#cb1-410" aria-label="410"></a></span>
+<span id="cb1-411"><a href="#cb1-411" aria-label="411"></a><span class="pp">|</span> phase <span class="pp">|</span> entrée du Viterbi <span class="pp">|</span> <span class="in">`ne`</span> <span class="pp">|</span></span>
+<span id="cb1-412"><a href="#cb1-412" aria-label="412"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb1-413"><a href="#cb1-413" aria-label="413"></a><span class="pp">|</span> pas de Kc <span class="pp">|</span> dummy brut, motif **figé** <span class="pp">|</span> <span class="in">`0`</span>, constant <span class="pp">|</span></span>
+<span id="cb1-414"><a href="#cb1-414" aria-label="414"></a><span class="pp">|</span> Kc arrivé <span class="pp">|</span> dummy **chiffré**, clé variant par trame <span class="pp">|</span> ~50 <span class="pp">|</span></span>
+<span id="cb1-415"><a href="#cb1-415" aria-label="415"></a></span>
+<span id="cb1-416"><a href="#cb1-416" aria-label="416"></a><span class="in">`ne=0`</span> avec <span class="in">`rc=-1`</span> ne s'obtient pas sur du bruit : c'est la signature d'une</span>
+<span id="cb1-417"><a href="#cb1-417" aria-label="417"></a>entrée constante. Le filtre est posé **avant** l'<span class="in">`a5_apply`</span>, pour la même raison</span>
+<span id="cb1-418"><a href="#cb1-418" aria-label="418"></a>que côté xcch — le dummy n'est jamais chiffré, et le passer au keystream le</span>
+<span id="cb1-419"><a href="#cb1-419" aria-label="419"></a>rendrait méconnaissable.</span>
+<span id="cb1-420"><a href="#cb1-420" aria-label="420"></a></span>
+<span id="cb1-421"><a href="#cb1-421" aria-label="421"></a>---</span>
+<span id="cb1-422"><a href="#cb1-422" aria-label="422"></a></span>
+<span id="cb1-423"><a href="#cb1-423" aria-label="423"></a><span class="fu">## 5. `CALYPSO_CANNED=1` ne cannait rien</span></span>
+<span id="cb1-424"><a href="#cb1-424" aria-label="424"></a></span>
+<span id="cb1-425"><a href="#cb1-425" aria-label="425"></a><span class="in">`shunt_parse_canned()`</span> attend une **liste de jetons** :</span>
+<span id="cb1-426"><a href="#cb1-426" aria-label="426"></a><span class="in">`FBDET,TOA,PM,SNR,ANGLE,CRC | FULL | ALL | NONE`</span>.</span>
+<span id="cb1-427"><a href="#cb1-427" aria-label="427"></a></span>
+<span id="cb1-428"><a href="#cb1-428" aria-label="428"></a><span class="in">`start-direct.sh`</span> posait <span class="in">`CALYPSO_CANNED=1`</span> depuis toujours. <span class="in">`1`</span> n'est aucun de</span>
+<span id="cb1-429"><a href="#cb1-429" aria-label="429"></a>ces jetons : il tombait dans le <span class="in">`else`</span>, sortait un <span class="in">`token inconnu '1' ignore`</span></span>
+<span id="cb1-430"><a href="#cb1-430" aria-label="430"></a>noyé dans le démarrage, et le masque restait **vide** :</span>
+<span id="cb1-431"><a href="#cb1-431" aria-label="431"></a></span>
+<span id="cb1-432"><a href="#cb1-432" aria-label="432"></a><span class="in">```</span></span>
+<span id="cb1-433"><a href="#cb1-433" aria-label="433"></a><span class="in">CALYPSO_CANNED (dette fabriquée EXPLICITE) : FBDET=0 TOA=0 PM=0 SNR=0 ANGLE=0 CRC=0</span></span>
+<span id="cb1-434"><a href="#cb1-434" aria-label="434"></a><span class="in">```</span></span>
+<span id="cb1-435"><a href="#cb1-435" aria-label="435"></a></span>
+<span id="cb1-436"><a href="#cb1-436" aria-label="436"></a>Le banc tournait avec **rien de canné** pendant que sa configuration affichait</span>
+<span id="cb1-437"><a href="#cb1-437" aria-label="437"></a>l'inverse.</span>
+<span id="cb1-438"><a href="#cb1-438" aria-label="438"></a></span>
+<span id="cb1-439"><a href="#cb1-439" aria-label="439"></a>Corrigé des deux côtés — et les deux comptent : <span class="in">`start-direct.sh`</span> pose désormais</span>
+<span id="cb1-440"><a href="#cb1-440" aria-label="440"></a><span class="in">`FULL`</span>, **et** le parseur accepte <span class="in">`1/ON/YES/TRUE`</span> et <span class="in">`0/OFF/NO/FALSE`</span>. Une</span>
+<span id="cb1-441"><a href="#cb1-441" aria-label="441"></a>variable booléenne qui veut dire « rien » au lieu de « tout » est un piège ;</span>
+<span id="cb1-442"><a href="#cb1-442" aria-label="442"></a>changer la valeur sans changer le parseur l'aurait laissé armé.</span>
+<span id="cb1-443"><a href="#cb1-443" aria-label="443"></a></span>
+<span id="cb1-444"><a href="#cb1-444" aria-label="444"></a>---</span>
+<span id="cb1-445"><a href="#cb1-445" aria-label="445"></a></span>
+<span id="cb1-446"><a href="#cb1-446" aria-label="446"></a><span class="fu">## 6. Hypothèses écartées</span></span>
+<span id="cb1-447"><a href="#cb1-447" aria-label="447"></a></span>
+<span id="cb1-448"><a href="#cb1-448" aria-label="448"></a>Conservées pour ne pas être réexplorées.</span>
+<span id="cb1-449"><a href="#cb1-449" aria-label="449"></a></span>
+<span id="cb1-450"><a href="#cb1-450" aria-label="450"></a><span class="pp">|</span> hypothèse <span class="pp">|</span> verdict <span class="pp">|</span></span>
+<span id="cb1-451"><a href="#cb1-451" aria-label="451"></a><span class="pp">|---|---|</span></span>
+<span id="cb1-452"><a href="#cb1-452" aria-label="452"></a><span class="pp">|</span> Plan SDCCH/8 mal implémenté <span class="pp">|</span> **non** — <span class="in">`PLAN_SD8`</span> est conforme au 05.02 : blocs à <span class="in">`4·ss`</span>, SACCH/C8 à 32/36/40/44 avec report <span class="in">`+51`</span> pour SS4..7, UL à <span class="in">`+15`</span> <span class="pp">|</span></span>
+<span id="cb1-453"><a href="#cb1-453" aria-label="453"></a><span class="pp">|</span> Trame idle (<span class="in">`m26=25`</span>) empoisonnant la fenêtre TCH <span class="pp">|</span> **non** — <span class="in">`tch_dl_burst`</span> écarte <span class="in">`m26 in (12, 25)`</span>, et <span class="in">`gap=0`</span> sur tout le run <span class="pp">|</span></span>
+<span id="cb1-454"><a href="#cb1-454" aria-label="454"></a><span class="pp">|</span> Alias SACCH 32/83 en <span class="in">`fn%51`</span> <span class="pp">|</span> **non** — filtré sur la 102-multitrame : <span class="in">`(k[1] % 102) != plan.sacch_dl102[_act]`</span> <span class="pp">|</span></span>
+<span id="cb1-455"><a href="#cb1-455" aria-label="455"></a><span class="pp">|</span> TCH resté armé après l'appel <span class="pp">|</span> **non** — compteurs figés sur cinq intervalles après <span class="in">`DESARME`</span> <span class="pp">|</span></span>
+<span id="cb1-456"><a href="#cb1-456" aria-label="456"></a><span class="pp">|</span> <span class="in">`_TBL_SOFT`</span> écrasant deux encodages <span class="pp">|</span> **non pour ce symptôme** — le DL TRXD arrive en bits durs <span class="in">`0x00/0x01`</span>. La fragilité reste réelle (une table, deux encodages : <span class="in">`0x01`</span> et <span class="in">`0xFF`</span> donnent tous deux <span class="in">`-127`</span>) mais n'est pas la cause <span class="pp">|</span></span>
+<span id="cb1-457"><a href="#cb1-457" aria-label="457"></a></span>
+<span id="cb1-458"><a href="#cb1-458" aria-label="458"></a>---</span>
+<span id="cb1-459"><a href="#cb1-459" aria-label="459"></a></span>
+<span id="cb1-460"><a href="#cb1-460" aria-label="460"></a><span class="fu">## 7. Reste ouvert</span></span>
+<span id="cb1-461"><a href="#cb1-461" aria-label="461"></a></span>
+<span id="cb1-462"><a href="#cb1-462" aria-label="462"></a><span class="ss">* </span>**`unsupported SAPI` côté mobile** — tombés de 64 à 4, mais pas à zéro.</span>
+<span id="cb1-463"><a href="#cb1-463" aria-label="463"></a>  Source résiduelle inconnue. Ne bloque plus les appels (§3ter : 0 échec</span>
+<span id="cb1-464"><a href="#cb1-464" aria-label="464"></a>  d'assignation sur 4 appels). Ni l'en-tête</span>
+<span id="cb1-465"><a href="#cb1-465" aria-label="465"></a>  L1 du SACCH (§3, réfuté), ni le SI du camp (§3, réfuté par la mesure). Source</span>
+<span id="cb1-466"><a href="#cb1-466" aria-label="466"></a>  toujours inconnue : chercher qui d'autre atteint <span class="in">`a_cd`</span>, ou si le firmware</span>
+<span id="cb1-467"><a href="#cb1-467" aria-label="467"></a>  relit un bloc périmé faute de rafraîchissement (<span class="in">`B_BLUD`</span>).</span>
+<span id="cb1-468"><a href="#cb1-468" aria-label="468"></a><span class="ss">* </span>**CRC résiduels** — <span class="in">`chiffre 62/69`</span>, soit 7 échecs sur le SDCCH chiffré, plus</span>
+<span id="cb1-469"><a href="#cb1-469" aria-label="469"></a>  3 sur le SACCH. Non isolés.</span>
+<span id="cb1-470"><a href="#cb1-470" aria-label="470"></a><span class="ss">* </span>**TCH** — l'histogramme rend <span class="in">`octets[00:928]`</span> : les 928 octets de la fenêtre</span>
+<span id="cb1-471"><a href="#cb1-471" aria-label="471"></a>  sont à **zéro**. Ce ne sont ni des dummy bursts (motif non nul, désormais</span>
+<span id="cb1-472"><a href="#cb1-472" aria-label="472"></a>  filtrés) ni du bruit : le timeslot ne porte rien. Vraisemblablement en aval du</span>
+<span id="cb1-473"><a href="#cb1-473" aria-label="473"></a>  mobile qui ne bascule pas, donc à revoir **après** le correctif SACCH.</span>
+<span id="cb1-474"><a href="#cb1-474" aria-label="474"></a></span>
+<span id="cb1-475"><a href="#cb1-475" aria-label="475"></a>---</span>
+<span id="cb1-476"><a href="#cb1-476" aria-label="476"></a></span>
+<span id="cb1-477"><a href="#cb1-477" aria-label="477"></a><span class="fu">## Rejouer une experience</span></span>
+<span id="cb1-478"><a href="#cb1-478" aria-label="478"></a></span>
+<span id="cb1-479"><a href="#cb1-479" aria-label="479"></a><span class="in">`scripts/banc-repro.sh`</span> fige toute la sequence : demarrage detache</span>
+<span id="cb1-480"><a href="#cb1-480" aria-label="480"></a>(<span class="in">`CALYPSO_NO_ATTACH=1`</span>), attente du camp **interrogee** au VTY (<span class="in">`show ms`</span> -&gt;</span>
+<span id="cb1-481"><a href="#cb1-481" aria-label="481"></a><span class="in">`C3`</span>) et non supposee par un <span class="in">`sleep`</span>, N appels identiques, verdict par appel</span>
+<span id="cb1-482"><a href="#cb1-482" aria-label="482"></a>calcule sur la seule tranche de <span class="in">`pont.log`</span> de cet appel, collecte horodatee dans</span>
+<span id="cb1-483"><a href="#cb1-483" aria-label="483"></a><span class="in">`/root/repro-&lt;stamp&gt;/`</span>.</span>
+<span id="cb1-484"><a href="#cb1-484" aria-label="484"></a></span>
+<span id="cb1-485"><a href="#cb1-485" aria-label="485"></a><span class="in">```</span></span>
+<span id="cb1-486"><a href="#cb1-486" aria-label="486"></a><span class="in">scripts/banc-repro.sh --calls 4                 # avec redemarrage</span></span>
+<span id="cb1-487"><a href="#cb1-487" aria-label="487"></a><span class="in">scripts/banc-repro.sh --no-restart --calls 3    # sur la pile en cours</span></span>
+<span id="cb1-488"><a href="#cb1-488" aria-label="488"></a><span class="in">PONT_KC_RETENTION=0 scripts/banc-repro.sh       # A/B d'un reglage</span></span>
+<span id="cb1-489"><a href="#cb1-489" aria-label="489"></a><span class="in">```</span></span>
+<span id="cb1-490"><a href="#cb1-490" aria-label="490"></a></span>
+<span id="cb1-491"><a href="#cb1-491" aria-label="491"></a>C'est ce qui a permis de decouvrir que l'echec n'etait pas positionnel : trois</span>
+<span id="cb1-492"><a href="#cb1-492" aria-label="492"></a>appels suffisent, et deux runs successifs donnent <span class="in">`ECHEC/OK/ECHEC`</span> puis</span>
+<span id="cb1-493"><a href="#cb1-493" aria-label="493"></a><span class="in">`OK/ECHEC/OK`</span>. Sans sequence figee, on compare des runs qui ne se comparent pas.</span>
+<span id="cb1-494"><a href="#cb1-494" aria-label="494"></a></span>
+<span id="cb1-495"><a href="#cb1-495" aria-label="495"></a><span class="fu">## Outils de diagnostic</span></span>
+<span id="cb1-496"><a href="#cb1-496" aria-label="496"></a></span>
+<span id="cb1-497"><a href="#cb1-497" aria-label="497"></a><span class="pp">|</span> variable <span class="pp">|</span> effet <span class="pp">|</span></span>
+<span id="cb1-498"><a href="#cb1-498" aria-label="498"></a><span class="pp">|---|---|</span></span>
+<span id="cb1-499"><a href="#cb1-499" aria-label="499"></a><span class="pp">|</span> <span class="in">`PONT_TCH_TRACE=1`</span> <span class="pp">|</span> une ligne par bloc TCH/F en échec : <span class="in">`fn/m26/idx/acc`</span> (alignement), <span class="in">`A5`</span> (déchiffrement et clé), <span class="in">`rc/ne/nb`</span> (décodeur), et l'**histogramme des octets** de la fenêtre <span class="pp">|</span></span>
+<span id="cb1-500"><a href="#cb1-500" aria-label="500"></a><span class="pp">|</span> <span class="in">`PONT_KC_RETENTION=0`</span> <span class="pp">|</span> désactive la rétention, pour comparer <span class="pp">|</span></span>
+<span id="cb1-501"><a href="#cb1-501" aria-label="501"></a><span class="pp">|</span> <span class="in">`PONT_A5=1..3`</span> <span class="pp">|</span> force l'algorithme au lieu de suivre celui du Kc <span class="pp">|</span></span>
+<span id="cb1-502"><a href="#cb1-502" aria-label="502"></a><span class="pp">|</span> <span class="in">`CALYPSO_CANNED=NONE`</span> <span class="pp">|</span> rien de canné, tout réel <span class="pp">|</span></span>
+<span id="cb1-503"><a href="#cb1-503" aria-label="503"></a></span>
+<span id="cb1-504"><a href="#cb1-504" aria-label="504"></a>Lecture des compteurs : <span class="in">`ne`</span> est le nombre d'erreurs binaires, <span class="in">`nb`</span> le nombre</span>
+<span id="cb1-505"><a href="#cb1-505" aria-label="505"></a>**total** de bits (378 pour TCH/FS — constant, ce n'est pas un compteur</span>
+<span id="cb1-506"><a href="#cb1-506" aria-label="506"></a>d'erreurs). <span class="in">`ne=0`</span> avec <span class="in">`rc=-1`</span> signale une entrée constante, pas une radio</span>
+<span id="cb1-507"><a href="#cb1-507" aria-label="507"></a>saine.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-readme-md" class="level2">
+<h2 class="anchored" data-anchor-id="f-readme-md"><code>README.md</code></h2>
+<div class="file-meta">
+<p><span class="tag">.md</span> 587 lignes - 21KB</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>README.md</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-filename="README.md"><pre class="sourceCode numberSource markdown numberLines code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-label="1"></a><span class="fu"># osmo-nitb-for-calypso — Architecture Multi-PLMN SS7/IP</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-label="2"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-label="3"></a>Standalone mode (no interstp)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-label="4"></a><span class="in">```bash</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-label="5"></a><span class="fu">sudo</span> docker pull bastienbaranoff/norf_gsm</span>
+<span id="cb2-6"><a href="#cb2-6" aria-label="6"></a><span class="fu">sudo</span> docker tag bastienbaranoff/norf_gsm osmocom-nitb</span>
+<span id="cb2-7"><a href="#cb2-7" aria-label="7"></a><span class="fu">git</span> clone https://github.com/bbaranoff/osmo-operator</span>
+<span id="cb2-8"><a href="#cb2-8" aria-label="8"></a><span class="bu">cd</span> osmo-operator</span>
+<span id="cb2-9"><a href="#cb2-9" aria-label="9"></a><span class="fu">sudo</span> ./start.sh</span>
+<span id="cb2-10"><a href="#cb2-10" aria-label="10"></a><span class="in">```</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-label="11"></a>To go in container</span>
+<span id="cb2-12"><a href="#cb2-12" aria-label="12"></a><span class="in">```bash</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-label="13"></a><span class="fu">sudo</span> docker exec <span class="at">-ti</span> osmo-operator-1 bash</span>
+<span id="cb2-14"><a href="#cb2-14" aria-label="14"></a><span class="in">```</span> </span>
+<span id="cb2-15"><a href="#cb2-15" aria-label="15"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-label="16"></a>then in docker container</span>
+<span id="cb2-17"><a href="#cb2-17" aria-label="17"></a><span class="in">```bash</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-label="18"></a><span class="bu">cd</span> /opt/GSM/osmo-operator</span>
+<span id="cb2-19"><a href="#cb2-19" aria-label="19"></a><span class="ex">./start-direct.sh</span> <span class="at">--regen</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-label="20"></a><span class="ex">./start-direct.sh</span> <span class="at">--stop</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-label="21"></a><span class="ex">./start-direct.sh</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-label="22"></a><span class="in">```</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-label="23"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-label="24"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-label="25"></a>Documentation d'architecture du projet **osmo-nitb-for-calypso** : simulation multi-opérateur GSM complète avec interconnexion SS7 sur IP, entièrement conteneurisée via Docker.</span>
+<span id="cb2-26"><a href="#cb2-26" aria-label="26"></a></span>
+<span id="cb2-27"><a href="#cb2-27" aria-label="27"></a>Ce projet réalise ce qui s'apparente à un « DHCP pour SS7 » — l'automatisation complète d'une configuration SS7 inter-opérateurs habituellement réalisée à la main, reproductible d'un simple <span class="in">`tools/make-docker-image.sh &amp;&amp; start.sh`</span>.</span>
+<span id="cb2-28"><a href="#cb2-28" aria-label="28"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-label="29"></a>**Support N opérateurs** : le démarrage en mode bridge accepte de 1 à 9 opérateurs sans modifier aucune configuration. Tous les fichiers (pjsip, dialplan, SMS routing, inter-STP) sont générés dynamiquement selon N.</span>
+<span id="cb2-30"><a href="#cb2-30" aria-label="30"></a></span>
+<span id="cb2-31"><a href="#cb2-31" aria-label="31"></a><span class="fu">### Documents voisins</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-label="32"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-label="33"></a><span class="pp">|</span> document <span class="pp">|</span> sujet <span class="pp">|</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-label="34"></a><span class="pp">|---|---|</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-label="35"></a><span class="pp">|</span> <span class="co">[</span><span class="ot">`pont/README.md`</span><span class="co">](pont/README.md)</span> <span class="pp">|</span> **Chiffrement A5, Kc et SACCH** — compte rendu de mesure. À lire avant de chercher une panne radio dans un compteur de CRC : les causes documentées là (Kc écrasé, en-tête L1 du SACCH, remplissage de C0, `CALYPSO_CANNED` inopérant) se présentent **toutes** comme « le pont a des CRC ». <span class="pp">|</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-label="36"></a><span class="pp">|</span> <span class="co">[</span><span class="ot">`environment/README.md`</span><span class="co">](environment/README.md)</span> <span class="pp">|</span> variables d'environnement et résolution des chemins <span class="pp">|</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-label="37"></a><span class="pp">|</span> <span class="co">[</span><span class="ot">`services/README.md`</span><span class="co">](services/README.md)</span> <span class="pp">|</span> unités systemd livrées <span class="pp">|</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-label="38"></a><span class="pp">|</span> <span class="co">[</span><span class="ot">`navigation/QUICKSTART.md`</span><span class="co">](navigation/QUICKSTART.md)</span> <span class="pp">|</span> prise en main <span class="pp">|</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-label="39"></a></span>
+<span id="cb2-40"><a href="#cb2-40" aria-label="40"></a>---</span>
+<span id="cb2-41"><a href="#cb2-41" aria-label="41"></a></span>
+<span id="cb2-42"><a href="#cb2-42" aria-label="42"></a><span class="fu">## 1. Architecture d'un PLMN (Osmocom)</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-label="43"></a></span>
+<span id="cb2-44"><a href="#cb2-44" aria-label="44"></a>Chaque opérateur simulé repose sur la stack Osmocom standard, tous les composants dans un seul conteneur Docker.</span>
+<span id="cb2-45"><a href="#cb2-45" aria-label="45"></a></span>
+<span id="cb2-46"><a href="#cb2-46" aria-label="46"></a><span class="in">```mermaid</span></span>
+<span id="cb2-47"><a href="#cb2-47" aria-label="47"></a>flowchart LR</span>
+<span id="cb2-48"><a href="#cb2-48" aria-label="48"></a>    UE --&gt; BTS</span>
+<span id="cb2-49"><a href="#cb2-49" aria-label="49"></a>    BTS --&gt;|Abis/IP| BSC</span>
+<span id="cb2-50"><a href="#cb2-50" aria-label="50"></a>    BSC --&gt;|SCCP via STP| MSC</span>
+<span id="cb2-51"><a href="#cb2-51" aria-label="51"></a>    MSC --&gt;|GSUP| HLR</span>
+<span id="cb2-52"><a href="#cb2-52" aria-label="52"></a>    MSC --&gt;|MGCP| MGW</span>
+<span id="cb2-53"><a href="#cb2-53" aria-label="53"></a>    MSC --&gt;|MNCC| Asterisk</span>
+<span id="cb2-54"><a href="#cb2-54" aria-label="54"></a><span class="in">```</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-label="55"></a></span>
+<span id="cb2-56"><a href="#cb2-56" aria-label="56"></a>Tous ces composants tournent dans le même conteneur et communiquent via <span class="in">`127.0.0.1`</span>. Le STP local sert de hub de signalisation intra-PLMN.</span>
+<span id="cb2-57"><a href="#cb2-57" aria-label="57"></a></span>
+<span id="cb2-58"><a href="#cb2-58" aria-label="58"></a>---</span>
+<span id="cb2-59"><a href="#cb2-59" aria-label="59"></a></span>
+<span id="cb2-60"><a href="#cb2-60" aria-label="60"></a><span class="fu">## 2. Interconnexion Multi-PLMN</span></span>
+<span id="cb2-61"><a href="#cb2-61" aria-label="61"></a></span>
+<span id="cb2-62"><a href="#cb2-62" aria-label="62"></a>L'architecture centrale du projet. N opérateurs distincts, chacun avec son core network dans un conteneur dédié, reliés par un Inter-STP central qui route la signalisation M3UA/SCCP entre eux.</span>
+<span id="cb2-63"><a href="#cb2-63" aria-label="63"></a></span>
+<span id="cb2-64"><a href="#cb2-64" aria-label="64"></a><span class="in">```mermaid</span></span>
+<span id="cb2-65"><a href="#cb2-65" aria-label="65"></a>flowchart LR</span>
+<span id="cb2-66"><a href="#cb2-66" aria-label="66"></a>    subgraph <span class="ot">"</span><span class="st">Conteneur osmo-operator-1</span><span class="ot">"</span></span>
+<span id="cb2-67"><a href="#cb2-67" aria-label="67"></a>        BSC_A[<span class="ot">"</span><span class="st">BSC (1.23.3)</span><span class="ot">"</span>]</span>
+<span id="cb2-68"><a href="#cb2-68" aria-label="68"></a>        MSC_A[<span class="ot">"</span><span class="st">MSC (1.23.1)</span><span class="ot">"</span>]</span>
+<span id="cb2-69"><a href="#cb2-69" aria-label="69"></a>        STP_A[<span class="ot">"</span><span class="st">STP (1.23.2)</span><span class="ot">"</span>]</span>
+<span id="cb2-70"><a href="#cb2-70" aria-label="70"></a>        BSC_A --&gt;|<span class="fl">127.0</span>.<span class="fl">0.1</span>:<span class="dv">2905</span>| STP_A</span>
+<span id="cb2-71"><a href="#cb2-71" aria-label="71"></a>        MSC_A --&gt;|<span class="fl">127.0</span>.<span class="fl">0.1</span>:<span class="dv">2905</span>| STP_A</span>
+<span id="cb2-72"><a href="#cb2-72" aria-label="72"></a>    end</span>
+<span id="cb2-73"><a href="#cb2-73" aria-label="73"></a></span>
+<span id="cb2-74"><a href="#cb2-74" aria-label="74"></a>    subgraph <span class="ot">"</span><span class="st">Conteneur osmo-operator-2</span><span class="ot">"</span></span>
+<span id="cb2-75"><a href="#cb2-75" aria-label="75"></a>        BSC_B[<span class="ot">"</span><span class="st">BSC (2.23.3)</span><span class="ot">"</span>]</span>
+<span id="cb2-76"><a href="#cb2-76" aria-label="76"></a>        MSC_B[<span class="ot">"</span><span class="st">MSC (2.23.1)</span><span class="ot">"</span>]</span>
+<span id="cb2-77"><a href="#cb2-77" aria-label="77"></a>        STP_B[<span class="ot">"</span><span class="st">STP (2.23.2)</span><span class="ot">"</span>]</span>
+<span id="cb2-78"><a href="#cb2-78" aria-label="78"></a>        BSC_B --&gt;|<span class="fl">127.0</span>.<span class="fl">0.1</span>:<span class="dv">2905</span>| STP_B</span>
+<span id="cb2-79"><a href="#cb2-79" aria-label="79"></a>        MSC_B --&gt;|<span class="fl">127.0</span>.<span class="fl">0.1</span>:<span class="dv">2905</span>| STP_B</span>
+<span id="cb2-80"><a href="#cb2-80" aria-label="80"></a>    end</span>
+<span id="cb2-81"><a href="#cb2-81" aria-label="81"></a></span>
+<span id="cb2-82"><a href="#cb2-82" aria-label="82"></a>    subgraph <span class="ot">"</span><span class="st">Conteneur osmo-operator-N</span><span class="ot">"</span></span>
+<span id="cb2-83"><a href="#cb2-83" aria-label="83"></a>        BSC_N[<span class="ot">"</span><span class="st">BSC (N.23.3)</span><span class="ot">"</span>]</span>
+<span id="cb2-84"><a href="#cb2-84" aria-label="84"></a>        MSC_N[<span class="ot">"</span><span class="st">MSC (N.23.1)</span><span class="ot">"</span>]</span>
+<span id="cb2-85"><a href="#cb2-85" aria-label="85"></a>        STP_N[<span class="ot">"</span><span class="st">STP (N.23.2)</span><span class="ot">"</span>]</span>
+<span id="cb2-86"><a href="#cb2-86" aria-label="86"></a>    end</span>
+<span id="cb2-87"><a href="#cb2-87" aria-label="87"></a></span>
+<span id="cb2-88"><a href="#cb2-88" aria-label="88"></a>    subgraph <span class="ot">"</span><span class="st">Conteneur osmo-inter-stp</span><span class="ot">"</span></span>
+<span id="cb2-89"><a href="#cb2-89" aria-label="89"></a>        INTER[<span class="ot">"</span><span class="st">Inter-STP (0.23.0)</span><span class="ot">"</span>]</span>
+<span id="cb2-90"><a href="#cb2-90" aria-label="90"></a>    end</span>
+<span id="cb2-91"><a href="#cb2-91" aria-label="91"></a></span>
+<span id="cb2-92"><a href="#cb2-92" aria-label="92"></a>    STP_A &lt;--&gt;|<span class="ot">"</span><span class="st">RCTX 150 / :2908</span><span class="ot">"</span>| INTER</span>
+<span id="cb2-93"><a href="#cb2-93" aria-label="93"></a>    STP_B &lt;--&gt;|<span class="ot">"</span><span class="st">RCTX 250 / :2908</span><span class="ot">"</span>| INTER</span>
+<span id="cb2-94"><a href="#cb2-94" aria-label="94"></a>    STP_N &lt;--&gt;|<span class="ot">"</span><span class="st">RCTX N×50 / :2908</span><span class="ot">"</span>| INTER</span>
+<span id="cb2-95"><a href="#cb2-95" aria-label="95"></a><span class="in">```</span></span>
+<span id="cb2-96"><a href="#cb2-96" aria-label="96"></a></span>
+<span id="cb2-97"><a href="#cb2-97" aria-label="97"></a>---</span>
+<span id="cb2-98"><a href="#cb2-98" aria-label="98"></a></span>
+<span id="cb2-99"><a href="#cb2-99" aria-label="99"></a><span class="fu">## 3. Topologie réseau Docker</span></span>
+<span id="cb2-100"><a href="#cb2-100" aria-label="100"></a></span>
+<span id="cb2-101"><a href="#cb2-101" aria-label="101"></a><span class="fu">### 3.1 Réseaux</span></span>
+<span id="cb2-102"><a href="#cb2-102" aria-label="102"></a></span>
+<span id="cb2-103"><a href="#cb2-103" aria-label="103"></a><span class="pp">|</span> Réseau Docker <span class="pp">|</span> Plage <span class="pp">|</span> Rôle <span class="pp">|</span></span>
+<span id="cb2-104"><a href="#cb2-104" aria-label="104"></a><span class="pp">|---------------|-------|------|</span></span>
+<span id="cb2-105"><a href="#cb2-105" aria-label="105"></a><span class="pp">|</span> <span class="in">`gsm-inter`</span> <span class="pp">|</span> <span class="in">`172.20.0.0/24`</span> <span class="pp">|</span> Backbone interop (M3UA inter-STP) <span class="pp">|</span></span>
+<span id="cb2-106"><a href="#cb2-106" aria-label="106"></a><span class="pp">|</span> <span class="in">`gsm-net-opN`</span> <span class="pp">|</span> <span class="in">`172.20.N.0/24`</span> <span class="pp">|</span> Réseau privé opérateur N (GSMTAP, GPRS) <span class="pp">|</span></span>
+<span id="cb2-107"><a href="#cb2-107" aria-label="107"></a></span>
+<span id="cb2-108"><a href="#cb2-108" aria-label="108"></a><span class="fu">### 3.2 Adresses IP</span></span>
+<span id="cb2-109"><a href="#cb2-109" aria-label="109"></a></span>
+<span id="cb2-110"><a href="#cb2-110" aria-label="110"></a><span class="pp">|</span> Composant <span class="pp">|</span> IP backbone (<span class="in">`gsm-inter`</span>) <span class="pp">|</span> IP privée (<span class="in">`gsm-net-opN`</span>) <span class="pp">|</span></span>
+<span id="cb2-111"><a href="#cb2-111" aria-label="111"></a><span class="pp">|-----------|--------------------------|--------------------------|</span></span>
+<span id="cb2-112"><a href="#cb2-112" aria-label="112"></a><span class="pp">|</span> Inter-STP <span class="pp">|</span> <span class="in">`172.20.0.10`</span> <span class="pp">|</span> — <span class="pp">|</span></span>
+<span id="cb2-113"><a href="#cb2-113" aria-label="113"></a><span class="pp">|</span> Conteneur OpN <span class="pp">|</span> <span class="in">`172.20.0.(10+N)`</span> <span class="pp">|</span> <span class="in">`172.20.N.10`</span> <span class="pp">|</span></span>
+<span id="cb2-114"><a href="#cb2-114" aria-label="114"></a></span>
+<span id="cb2-115"><a href="#cb2-115" aria-label="115"></a>**Formule générale** : opérateur N → backbone <span class="in">`172.20.0.(10+N)`</span>, privé <span class="in">`172.20.N.10`</span></span>
+<span id="cb2-116"><a href="#cb2-116" aria-label="116"></a></span>
+<span id="cb2-117"><a href="#cb2-117" aria-label="117"></a><span class="fu">### 3.3 Communication intra-conteneur</span></span>
+<span id="cb2-118"><a href="#cb2-118" aria-label="118"></a></span>
+<span id="cb2-119"><a href="#cb2-119" aria-label="119"></a>Tous les composants communiquent via <span class="in">`127.0.0.1`</span> (fix de la race condition Docker) :</span>
+<span id="cb2-120"><a href="#cb2-120" aria-label="120"></a></span>
+<span id="cb2-121"><a href="#cb2-121" aria-label="121"></a><span class="in">```</span></span>
+<span id="cb2-122"><a href="#cb2-122" aria-label="122"></a><span class="in">BSC ──(127.0.0.1:2905)──► STP local</span></span>
+<span id="cb2-123"><a href="#cb2-123" aria-label="123"></a><span class="in">MSC ──(127.0.0.1:2905)──► STP local</span></span>
+<span id="cb2-124"><a href="#cb2-124" aria-label="124"></a><span class="in">MSC ──(127.0.0.2:4222)──► HLR</span></span>
+<span id="cb2-125"><a href="#cb2-125" aria-label="125"></a><span class="in">MSC ──(127.0.0.1:2427)──► MGW</span></span>
+<span id="cb2-126"><a href="#cb2-126" aria-label="126"></a><span class="in">```</span></span>
+<span id="cb2-127"><a href="#cb2-127" aria-label="127"></a></span>
+<span id="cb2-128"><a href="#cb2-128" aria-label="128"></a>Le STP écoute sur <span class="in">`127.0.0.1:2905`</span> immédiatement, sans dépendre de l'interface réseau Docker (attachée après démarrage du container via <span class="in">`docker network connect`</span>).</span>
+<span id="cb2-129"><a href="#cb2-129" aria-label="129"></a></span>
+<span id="cb2-130"><a href="#cb2-130" aria-label="130"></a><span class="fu">### 3.4 Communication inter-conteneur</span></span>
+<span id="cb2-131"><a href="#cb2-131" aria-label="131"></a></span>
+<span id="cb2-132"><a href="#cb2-132" aria-label="132"></a>Uniquement le lien STP↔Inter-STP traverse le réseau Docker :</span>
+<span id="cb2-133"><a href="#cb2-133" aria-label="133"></a></span>
+<span id="cb2-134"><a href="#cb2-134" aria-label="134"></a><span class="in">```</span></span>
+<span id="cb2-135"><a href="#cb2-135" aria-label="135"></a><span class="in">STP OpN (172.20.0.(10+N)) ──SCTP──► Inter-STP (172.20.0.10:2908)</span></span>
+<span id="cb2-136"><a href="#cb2-136" aria-label="136"></a><span class="in">```</span></span>
+<span id="cb2-137"><a href="#cb2-137" aria-label="137"></a></span>
+<span id="cb2-138"><a href="#cb2-138" aria-label="138"></a>---</span>
+<span id="cb2-139"><a href="#cb2-139" aria-label="139"></a></span>
+<span id="cb2-140"><a href="#cb2-140" aria-label="140"></a><span class="fu">## 4. Signalisation SS7</span></span>
+<span id="cb2-141"><a href="#cb2-141" aria-label="141"></a></span>
+<span id="cb2-142"><a href="#cb2-142" aria-label="142"></a><span class="fu">### 4.1 Point codes</span></span>
+<span id="cb2-143"><a href="#cb2-143" aria-label="143"></a></span>
+<span id="cb2-144"><a href="#cb2-144" aria-label="144"></a>Format ITU 14-bit (3.8.3 : <span class="in">`zone.network.node`</span>)</span>
+<span id="cb2-145"><a href="#cb2-145" aria-label="145"></a></span>
+<span id="cb2-146"><a href="#cb2-146" aria-label="146"></a><span class="pp">|</span> Nœud <span class="pp">|</span> Point Code <span class="pp">|</span> Formule <span class="pp">|</span></span>
+<span id="cb2-147"><a href="#cb2-147" aria-label="147"></a><span class="pp">|------|-----------|---------|</span></span>
+<span id="cb2-148"><a href="#cb2-148" aria-label="148"></a><span class="pp">|</span> Inter-STP <span class="pp">|</span> <span class="in">`0.23.0`</span> <span class="pp">|</span> fixe <span class="pp">|</span></span>
+<span id="cb2-149"><a href="#cb2-149" aria-label="149"></a><span class="pp">|</span> MSC OpN <span class="pp">|</span> <span class="in">`N.23.1`</span> <span class="pp">|</span> zone=N <span class="pp">|</span></span>
+<span id="cb2-150"><a href="#cb2-150" aria-label="150"></a><span class="pp">|</span> STP OpN <span class="pp">|</span> <span class="in">`N.23.2`</span> <span class="pp">|</span> zone=N <span class="pp">|</span></span>
+<span id="cb2-151"><a href="#cb2-151" aria-label="151"></a><span class="pp">|</span> BSC OpN <span class="pp">|</span> <span class="in">`N.23.3`</span> <span class="pp">|</span> zone=N <span class="pp">|</span></span>
+<span id="cb2-152"><a href="#cb2-152" aria-label="152"></a></span>
+<span id="cb2-153"><a href="#cb2-153" aria-label="153"></a><span class="fu">### 4.2 Routing Contexts (RCTX)</span></span>
+<span id="cb2-154"><a href="#cb2-154" aria-label="154"></a></span>
+<span id="cb2-155"><a href="#cb2-155" aria-label="155"></a><span class="pp">|</span> RCTX <span class="pp">|</span> Formule <span class="pp">|</span> Usage <span class="pp">|</span></span>
+<span id="cb2-156"><a href="#cb2-156" aria-label="156"></a><span class="pp">|------|---------|-------|</span></span>
+<span id="cb2-157"><a href="#cb2-157" aria-label="157"></a><span class="pp">|</span> <span class="in">`N×100+10`</span> <span class="pp">|</span> <span class="in">`rctx_msc`</span> <span class="pp">|</span> MSC OpN → STP OpN <span class="pp">|</span></span>
+<span id="cb2-158"><a href="#cb2-158" aria-label="158"></a><span class="pp">|</span> <span class="in">`N×100+20`</span> <span class="pp">|</span> <span class="in">`rctx_stp`</span> <span class="pp">|</span> STP OpN (registration) <span class="pp">|</span></span>
+<span id="cb2-159"><a href="#cb2-159" aria-label="159"></a><span class="pp">|</span> <span class="in">`N×100+30`</span> <span class="pp">|</span> <span class="in">`rctx_bsc`</span> <span class="pp">|</span> BSC OpN → STP OpN <span class="pp">|</span></span>
+<span id="cb2-160"><a href="#cb2-160" aria-label="160"></a><span class="pp">|</span> **`N×100+50`** | **`rctx_inter`** | **STP OpN → Inter-STP** <span class="pp">|</span></span>
+<span id="cb2-161"><a href="#cb2-161" aria-label="161"></a></span>
+<span id="cb2-162"><a href="#cb2-162" aria-label="162"></a>Le RCTX inter (<span class="in">`N×100+50`</span>) est le plus critique : il doit correspondre dans <span class="in">`osmo-stp.cfg`</span> (STP opérateur) et être cohérent avec la connexion vers l'inter-STP.</span>
+<span id="cb2-163"><a href="#cb2-163" aria-label="163"></a></span>
+<span id="cb2-164"><a href="#cb2-164" aria-label="164"></a><span class="fu">### 4.3 Configuration inter-STP (générée)</span></span>
+<span id="cb2-165"><a href="#cb2-165" aria-label="165"></a></span>
+<span id="cb2-166"><a href="#cb2-166" aria-label="166"></a>L'inter-STP utilise des **AS sans routing-key** (catch-all par opérateur). Le routage se fait uniquement sur le DPC :</span>
+<span id="cb2-167"><a href="#cb2-167" aria-label="167"></a></span>
+<span id="cb2-168"><a href="#cb2-168" aria-label="168"></a><span class="in">```</span></span>
+<span id="cb2-169"><a href="#cb2-169" aria-label="169"></a><span class="in">cs7 instance 0</span></span>
+<span id="cb2-170"><a href="#cb2-170" aria-label="170"></a><span class="in"> point-code 0.23.0</span></span>
+<span id="cb2-171"><a href="#cb2-171" aria-label="171"></a><span class="in"> listen m3ua 2908</span></span>
+<span id="cb2-172"><a href="#cb2-172" aria-label="172"></a><span class="in">  accept-asp-connections dynamic-permitted</span></span>
+<span id="cb2-173"><a href="#cb2-173" aria-label="173"></a></span>
+<span id="cb2-174"><a href="#cb2-174" aria-label="174"></a><span class="in"> as as-opN m3ua</span></span>
+<span id="cb2-175"><a href="#cb2-175" aria-label="175"></a><span class="in">  traffic-mode override     ← PAS de routing-key</span></span>
+<span id="cb2-176"><a href="#cb2-176" aria-label="176"></a></span>
+<span id="cb2-177"><a href="#cb2-177" aria-label="177"></a><span class="in"> route-table system</span></span>
+<span id="cb2-178"><a href="#cb2-178" aria-label="178"></a><span class="in">  update route N.23.1 7.255.7 linkset as-opN</span></span>
+<span id="cb2-179"><a href="#cb2-179" aria-label="179"></a><span class="in">  update route N.23.2 7.255.7 linkset as-opN</span></span>
+<span id="cb2-180"><a href="#cb2-180" aria-label="180"></a><span class="in">  update route N.23.3 7.255.7 linkset as-opN</span></span>
+<span id="cb2-181"><a href="#cb2-181" aria-label="181"></a><span class="in">```</span></span>
+<span id="cb2-182"><a href="#cb2-182" aria-label="182"></a></span>
+<span id="cb2-183"><a href="#cb2-183" aria-label="183"></a><span class="fu">### 4.4 Chemin complet d'un message SS7</span></span>
+<span id="cb2-184"><a href="#cb2-184" aria-label="184"></a></span>
+<span id="cb2-185"><a href="#cb2-185" aria-label="185"></a><span class="in">```mermaid</span></span>
+<span id="cb2-186"><a href="#cb2-186" aria-label="186"></a>flowchart LR</span>
+<span id="cb2-187"><a href="#cb2-187" aria-label="187"></a>    MSC_A[<span class="ot">"</span><span class="st">MSC Op1</span><span class="ch">\n</span><span class="st">1.23.1</span><span class="ot">"</span>] --&gt;|<span class="ot">"</span><span class="st">SCTP 127.0.0.1:2905</span><span class="ot">"</span>| STP_A[<span class="ot">"</span><span class="st">STP Op1</span><span class="ch">\n</span><span class="st">1.23.2</span><span class="ot">"</span>]</span>
+<span id="cb2-188"><a href="#cb2-188" aria-label="188"></a>    STP_A --&gt;|<span class="ot">"</span><span class="st">catch-all → as-inter</span><span class="ch">\n</span><span class="st">172.20.0.10:2908</span><span class="ot">"</span>| INTER[<span class="ot">"</span><span class="st">Inter-STP</span><span class="ch">\n</span><span class="st">0.23.0</span><span class="ot">"</span>]</span>
+<span id="cb2-189"><a href="#cb2-189" aria-label="189"></a>    INTER --&gt;|<span class="ot">"</span><span class="st">DPC 2.23.x → as-op2</span><span class="ot">"</span>| STP_B[<span class="ot">"</span><span class="st">STP Op2</span><span class="ch">\n</span><span class="st">2.23.2</span><span class="ot">"</span>]</span>
+<span id="cb2-190"><a href="#cb2-190" aria-label="190"></a>    STP_B --&gt;|<span class="ot">"</span><span class="st">DPC 2.23.1 → dyn</span><span class="ch">\n</span><span class="st">127.0.0.1</span><span class="ot">"</span>| MSC_B[<span class="ot">"</span><span class="st">MSC Op2</span><span class="ch">\n</span><span class="st">2.23.1</span><span class="ot">"</span>]</span>
+<span id="cb2-191"><a href="#cb2-191" aria-label="191"></a><span class="in">```</span></span>
+<span id="cb2-192"><a href="#cb2-192" aria-label="192"></a></span>
+<span id="cb2-193"><a href="#cb2-193" aria-label="193"></a>---</span>
+<span id="cb2-194"><a href="#cb2-194" aria-label="194"></a></span>
+<span id="cb2-195"><a href="#cb2-195" aria-label="195"></a><span class="fu">## 5. Génération dynamique — N opérateurs</span></span>
+<span id="cb2-196"><a href="#cb2-196" aria-label="196"></a></span>
+<span id="cb2-197"><a href="#cb2-197" aria-label="197"></a>Toutes les configurations dépendant de N sont **générées au démarrage**. Aucun fichier template ne contient de valeur hardcodée pour un nombre spécifique d'opérateurs.</span>
+<span id="cb2-198"><a href="#cb2-198" aria-label="198"></a></span>
+<span id="cb2-199"><a href="#cb2-199" aria-label="199"></a><span class="fu">### 5.1 Template engine (placeholders)</span></span>
+<span id="cb2-200"><a href="#cb2-200" aria-label="200"></a></span>
+<span id="cb2-201"><a href="#cb2-201" aria-label="201"></a><span class="in">`apply_config_templates()`</span> dans <span class="in">`start.sh`</span> résout en **1 seul passage `sed`** :</span>
+<span id="cb2-202"><a href="#cb2-202" aria-label="202"></a></span>
+<span id="cb2-203"><a href="#cb2-203" aria-label="203"></a><span class="pp">|</span> Placeholder <span class="pp">|</span> Formule <span class="pp">|</span> Exemple N=2 <span class="pp">|</span></span>
+<span id="cb2-204"><a href="#cb2-204" aria-label="204"></a><span class="pp">|------------|---------|-------------|</span></span>
+<span id="cb2-205"><a href="#cb2-205" aria-label="205"></a><span class="pp">|</span> <span class="in">`__PC_MSC__`</span> <span class="pp">|</span> <span class="in">`N.23.1`</span> <span class="pp">|</span> <span class="in">`2.23.1`</span> <span class="pp">|</span></span>
+<span id="cb2-206"><a href="#cb2-206" aria-label="206"></a><span class="pp">|</span> <span class="in">`__PC_STP__`</span> <span class="pp">|</span> <span class="in">`N.23.2`</span> <span class="pp">|</span> <span class="in">`2.23.2`</span> <span class="pp">|</span></span>
+<span id="cb2-207"><a href="#cb2-207" aria-label="207"></a><span class="pp">|</span> <span class="in">`__PC_BSC__`</span> <span class="pp">|</span> <span class="in">`N.23.3`</span> <span class="pp">|</span> <span class="in">`2.23.3`</span> <span class="pp">|</span></span>
+<span id="cb2-208"><a href="#cb2-208" aria-label="208"></a><span class="pp">|</span> <span class="in">`__RCTX_MSC__`</span> <span class="pp">|</span> <span class="in">`N×100+10`</span> <span class="pp">|</span> <span class="in">`210`</span> <span class="pp">|</span></span>
+<span id="cb2-209"><a href="#cb2-209" aria-label="209"></a><span class="pp">|</span> <span class="in">`__RCTX_BSC__`</span> <span class="pp">|</span> <span class="in">`N×100+30`</span> <span class="pp">|</span> <span class="in">`230`</span> <span class="pp">|</span></span>
+<span id="cb2-210"><a href="#cb2-210" aria-label="210"></a><span class="pp">|</span> <span class="in">`__RCTX_INTER__`</span> <span class="pp">|</span> <span class="in">`N×100+50`</span> <span class="pp">|</span> <span class="in">`250`</span> <span class="pp">|</span></span>
+<span id="cb2-211"><a href="#cb2-211" aria-label="211"></a><span class="pp">|</span> <span class="in">`__ARFCN__`</span> <span class="pp">|</span> <span class="in">`512+N×2`</span> <span class="pp">|</span> <span class="in">`516`</span> <span class="pp">|</span></span>
+<span id="cb2-212"><a href="#cb2-212" aria-label="212"></a><span class="pp">|</span> <span class="in">`__INTER_LOCAL_IP__`</span> <span class="pp">|</span> <span class="in">`172.20.0.(10+N)`</span> <span class="pp">|</span> <span class="in">`172.20.0.12`</span> <span class="pp">|</span></span>
+<span id="cb2-213"><a href="#cb2-213" aria-label="213"></a><span class="pp">|</span> <span class="in">`__CONTAINER_IP__`</span> <span class="pp">|</span> <span class="in">`172.20.N.10`</span> <span class="pp">|</span> <span class="in">`172.20.2.10`</span> <span class="pp">|</span></span>
+<span id="cb2-214"><a href="#cb2-214" aria-label="214"></a></span>
+<span id="cb2-215"><a href="#cb2-215" aria-label="215"></a><span class="fu">### 5.2 Sections générées (dépendent de N total)</span></span>
+<span id="cb2-216"><a href="#cb2-216" aria-label="216"></a></span>
+<span id="cb2-217"><a href="#cb2-217" aria-label="217"></a>Après la substitution sed, <span class="in">`start.sh`</span> **appende** à chaque opérateur :</span>
+<span id="cb2-218"><a href="#cb2-218" aria-label="218"></a></span>
+<span id="cb2-219"><a href="#cb2-219" aria-label="219"></a><span class="pp">|</span> Section <span class="pp">|</span> Fichier <span class="pp">|</span> Contenu <span class="pp">|</span></span>
+<span id="cb2-220"><a href="#cb2-220" aria-label="220"></a><span class="pp">|---------|---------|---------|</span></span>
+<span id="cb2-221"><a href="#cb2-221" aria-label="221"></a><span class="pp">|</span> Trunks PJSIP <span class="pp">|</span> <span class="in">`pjsip.conf`</span> <span class="pp">|</span> N-1 blocs <span class="in">`[interop_trunk_opX]`</span> <span class="pp">|</span></span>
+<span id="cb2-222"><a href="#cb2-222" aria-label="222"></a><span class="pp">|</span> Dialplan sortant <span class="pp">|</span> <span class="in">`extensions.conf`</span> <span class="pp">|</span> Contexte <span class="in">`[interop_out]`</span> avec N-1 extensions <span class="pp">|</span></span>
+<span id="cb2-223"><a href="#cb2-223" aria-label="223"></a><span class="pp">|</span> Routage SMS <span class="pp">|</span> <span class="in">`sms-routing.conf`</span> <span class="pp">|</span> Table complète pour N opérateurs <span class="pp">|</span></span>
+<span id="cb2-224"><a href="#cb2-224" aria-label="224"></a><span class="pp">|</span> Config inter-STP <span class="pp">|</span> <span class="in">`osmo-stp-interop.cfg`</span> <span class="pp">|</span> N AS + N×3 routes SS7 <span class="pp">|</span></span>
+<span id="cb2-225"><a href="#cb2-225" aria-label="225"></a></span>
+<span id="cb2-226"><a href="#cb2-226" aria-label="226"></a><span class="fu">### 5.3 Séquence de démarrage</span></span>
+<span id="cb2-227"><a href="#cb2-227" aria-label="227"></a></span>
+<span id="cb2-228"><a href="#cb2-228" aria-label="228"></a><span class="in">```</span></span>
+<span id="cb2-229"><a href="#cb2-229" aria-label="229"></a><span class="in">./start.sh  [bridge mode]</span></span>
+<span id="cb2-230"><a href="#cb2-230" aria-label="230"></a><span class="in"> ├── Saisie N opérateurs + MCC/MNC/nom par opérateur</span></span>
+<span id="cb2-231"><a href="#cb2-231" aria-label="231"></a><span class="in"> ├── Création réseau gsm-inter (172.20.0.0/24)</span></span>
+<span id="cb2-232"><a href="#cb2-232" aria-label="232"></a><span class="in"> ├── create_interop.sh N → osmo-stp-interop.cfg</span></span>
+<span id="cb2-233"><a href="#cb2-233" aria-label="233"></a><span class="in"> ├── Lancement osmo-inter-stp (doit écouter :2908 AVANT les opérateurs)</span></span>
+<span id="cb2-234"><a href="#cb2-234" aria-label="234"></a><span class="in"> └── Pour chaque opérateur N :</span></span>
+<span id="cb2-235"><a href="#cb2-235" aria-label="235"></a><span class="in">      ├── apply_config_templates (sed + génération sections dynamiques)</span></span>
+<span id="cb2-236"><a href="#cb2-236" aria-label="236"></a><span class="in">      ├── docker run sur gsm-inter @ 172.20.0.(10+N)</span></span>
+<span id="cb2-237"><a href="#cb2-237" aria-label="237"></a><span class="in">      ├── docker network connect gsm-net-opN @ 172.20.N.10</span></span>
+<span id="cb2-238"><a href="#cb2-238" aria-label="238"></a><span class="in">      └── Services via run.sh + tmux</span></span>
+<span id="cb2-239"><a href="#cb2-239" aria-label="239"></a><span class="in">```</span></span>
+<span id="cb2-240"><a href="#cb2-240" aria-label="240"></a></span>
+<span id="cb2-241"><a href="#cb2-241" aria-label="241"></a>L'ordre est critique : l'Inter-STP doit écouter avant que les STPs opérateurs tentent de s'y connecter.</span>
+<span id="cb2-242"><a href="#cb2-242" aria-label="242"></a></span>
+<span id="cb2-243"><a href="#cb2-243" aria-label="243"></a>---</span>
+<span id="cb2-244"><a href="#cb2-244" aria-label="244"></a></span>
+<span id="cb2-245"><a href="#cb2-245" aria-label="245"></a><span class="fu">## 6. SMS</span></span>
+<span id="cb2-246"><a href="#cb2-246" aria-label="246"></a></span>
+<span id="cb2-247"><a href="#cb2-247" aria-label="247"></a><span class="fu">### 6.1 SMS intra-opérateur</span></span>
+<span id="cb2-248"><a href="#cb2-248" aria-label="248"></a></span>
+<span id="cb2-249"><a href="#cb2-249" aria-label="249"></a><span class="in">```mermaid</span></span>
+<span id="cb2-250"><a href="#cb2-250" aria-label="250"></a>sequenceDiagram</span>
+<span id="cb2-251"><a href="#cb2-251" aria-label="251"></a>    participant MS_A as MS (expéditeur)</span>
+<span id="cb2-252"><a href="#cb2-252" aria-label="252"></a>    participant MSC as MSC (sms-over-gsup)</span>
+<span id="cb2-253"><a href="#cb2-253" aria-label="253"></a>    participant HLR as HLR</span>
+<span id="cb2-254"><a href="#cb2-254" aria-label="254"></a>    participant SMSC as proto-smsc-daemon</span>
+<span id="cb2-255"><a href="#cb2-255" aria-label="255"></a>    participant MS_B as MS (destinataire)</span>
+<span id="cb2-256"><a href="#cb2-256" aria-label="256"></a></span>
+<span id="cb2-257"><a href="#cb2-257" aria-label="257"></a>    MS_A-&gt;&gt;MSC: SMS MO</span>
+<span id="cb2-258"><a href="#cb2-258" aria-label="258"></a>    MSC-&gt;&gt;HLR: GSUP MO-forwardSM</span>
+<span id="cb2-259"><a href="#cb2-259" aria-label="259"></a>    HLR-&gt;&gt;SMSC: GSUP MO-forwardSM</span>
+<span id="cb2-260"><a href="#cb2-260" aria-label="260"></a>    SMSC-&gt;&gt;HLR: GSUP MT-forwardSM</span>
+<span id="cb2-261"><a href="#cb2-261" aria-label="261"></a>    HLR-&gt;&gt;MSC: GSUP MT-forwardSM</span>
+<span id="cb2-262"><a href="#cb2-262" aria-label="262"></a>    MSC-&gt;&gt;MS_B: SMS MT</span>
+<span id="cb2-263"><a href="#cb2-263" aria-label="263"></a><span class="in">```</span></span>
+<span id="cb2-264"><a href="#cb2-264" aria-label="264"></a></span>
+<span id="cb2-265"><a href="#cb2-265" aria-label="265"></a><span class="fu">### 6.2 SMS inter-opérateur</span></span>
+<span id="cb2-266"><a href="#cb2-266" aria-label="266"></a></span>
+<span id="cb2-267"><a href="#cb2-267" aria-label="267"></a><span class="in">`sms-interop-relay.py`</span> surveille le log MO de <span class="in">`proto-smsc-daemon`</span>, parse le TPDU GSM 03.40, consulte <span class="in">`sms-routing.conf`</span> (longest-prefix match), et transfère via TCP port 7890 au relay de l'opérateur cible.</span>
+<span id="cb2-268"><a href="#cb2-268" aria-label="268"></a></span>
+<span id="cb2-269"><a href="#cb2-269" aria-label="269"></a><span class="in">```mermaid</span></span>
+<span id="cb2-270"><a href="#cb2-270" aria-label="270"></a>sequenceDiagram</span>
+<span id="cb2-271"><a href="#cb2-271" aria-label="271"></a>    participant SMSC_A as proto-smsc Op1</span>
+<span id="cb2-272"><a href="#cb2-272" aria-label="272"></a>    participant RELAY_A as relay Op1</span>
+<span id="cb2-273"><a href="#cb2-273" aria-label="273"></a>    participant RELAY_B as relay Op2</span>
+<span id="cb2-274"><a href="#cb2-274" aria-label="274"></a>    participant SMSC_B as proto-smsc Op2</span>
+<span id="cb2-275"><a href="#cb2-275" aria-label="275"></a></span>
+<span id="cb2-276"><a href="#cb2-276" aria-label="276"></a>    SMSC_A-&gt;&gt;RELAY_A: MO <span class="fu">log</span> file</span>
+<span id="cb2-277"><a href="#cb2-277" aria-label="277"></a>    RELAY_A-&gt;&gt;RELAY_A: Parse TPDU, lookup sms-routing.conf</span>
+<span id="cb2-278"><a href="#cb2-278" aria-label="278"></a>    RELAY_A-&gt;&gt;RELAY_B: TCP:<span class="dv">7890</span> JSON {dest, text, from}</span>
+<span id="cb2-279"><a href="#cb2-279" aria-label="279"></a>    RELAY_B-&gt;&gt;RELAY_B: HLR VTY MSISDN→IMSI</span>
+<span id="cb2-280"><a href="#cb2-280" aria-label="280"></a>    RELAY_B-&gt;&gt;SMSC_B: proto-smsc-sendmt</span>
+<span id="cb2-281"><a href="#cb2-281" aria-label="281"></a><span class="in">```</span></span>
+<span id="cb2-282"><a href="#cb2-282" aria-label="282"></a></span>
+<span id="cb2-283"><a href="#cb2-283" aria-label="283"></a>---</span>
+<span id="cb2-284"><a href="#cb2-284" aria-label="284"></a></span>
+<span id="cb2-285"><a href="#cb2-285" aria-label="285"></a><span class="fu">## 7. Voix</span></span>
+<span id="cb2-286"><a href="#cb2-286" aria-label="286"></a></span>
+<span id="cb2-287"><a href="#cb2-287" aria-label="287"></a><span class="fu">### 7.1 Intra-opérateur</span></span>
+<span id="cb2-288"><a href="#cb2-288" aria-label="288"></a></span>
+<span id="cb2-289"><a href="#cb2-289" aria-label="289"></a><span class="in">```</span></span>
+<span id="cb2-290"><a href="#cb2-290" aria-label="290"></a><span class="in">MS → BTS → BSC → MSC → MNCC → Asterisk → MNCC → MSC → BSC → BTS → MS</span></span>
+<span id="cb2-291"><a href="#cb2-291" aria-label="291"></a><span class="in">                              ↕ MGCP</span></span>
+<span id="cb2-292"><a href="#cb2-292" aria-label="292"></a><span class="in">                            OsmoMGW (RTP)</span></span>
+<span id="cb2-293"><a href="#cb2-293" aria-label="293"></a><span class="in">```</span></span>
+<span id="cb2-294"><a href="#cb2-294" aria-label="294"></a></span>
+<span id="cb2-295"><a href="#cb2-295" aria-label="295"></a><span class="fu">### 7.2 Inter-opérateur</span></span>
+<span id="cb2-296"><a href="#cb2-296" aria-label="296"></a></span>
+<span id="cb2-297"><a href="#cb2-297" aria-label="297"></a><span class="in">```</span></span>
+<span id="cb2-298"><a href="#cb2-298" aria-label="298"></a><span class="in">MS(OpX) → MSC(OpX) → MNCC → Asterisk(OpX)</span></span>
+<span id="cb2-299"><a href="#cb2-299" aria-label="299"></a><span class="in">              ─── SIP trunk 172.20.0.(10+X) ↔ 172.20.0.(10+Y) ───</span></span>
+<span id="cb2-300"><a href="#cb2-300" aria-label="300"></a><span class="in">                               Asterisk(OpY) → MNCC → MSC(OpY) → MS(OpY)</span></span>
+<span id="cb2-301"><a href="#cb2-301" aria-label="301"></a><span class="in">```</span></span>
+<span id="cb2-302"><a href="#cb2-302" aria-label="302"></a></span>
+<span id="cb2-303"><a href="#cb2-303" aria-label="303"></a>Le dialplan <span class="in">`[interop_out]`</span> route automatiquement sur le premier chiffre du numéro composé (convention : chiffre N = opérateur N). Pour 3 opérateurs, Op1 a des trunks vers Op2 et Op3, etc.</span>
+<span id="cb2-304"><a href="#cb2-304" aria-label="304"></a></span>
+<span id="cb2-305"><a href="#cb2-305" aria-label="305"></a>---</span>
+<span id="cb2-306"><a href="#cb2-306" aria-label="306"></a></span>
+<span id="cb2-307"><a href="#cb2-307" aria-label="307"></a><span class="fu">## 8. Utilisation du lab</span></span>
+<span id="cb2-308"><a href="#cb2-308" aria-label="308"></a></span>
+<span id="cb2-309"><a href="#cb2-309" aria-label="309"></a><span class="fu">### 8.0 Installation native (sans Docker)</span></span>
+<span id="cb2-310"><a href="#cb2-310" aria-label="310"></a></span>
+<span id="cb2-311"><a href="#cb2-311" aria-label="311"></a>Le dépôt s'installe aussi directement sur une machine Ubuntu 22.04, sans conteneur :</span>
+<span id="cb2-312"><a href="#cb2-312" aria-label="312"></a></span>
+<span id="cb2-313"><a href="#cb2-313" aria-label="313"></a><span class="in">```bash</span></span>
+<span id="cb2-314"><a href="#cb2-314" aria-label="314"></a><span class="fu">sudo</span> ./install.sh                  <span class="co"># toutes les étapes (deps, sources, build, binaires, configs, bureau)</span></span>
+<span id="cb2-315"><a href="#cb2-315" aria-label="315"></a><span class="ex">./install.sh</span> <span class="at">--list</span>                <span class="co"># les étapes, sans rien faire</span></span>
+<span id="cb2-316"><a href="#cb2-316" aria-label="316"></a><span class="ex">./install.sh</span> <span class="at">--check</span>               <span class="co"># ce qui est déjà en place</span></span>
+<span id="cb2-317"><a href="#cb2-317" aria-label="317"></a><span class="fu">sudo</span> ./install.sh <span class="at">--reinstall</span>      <span class="co"># rejoue tout : sources mises à jour, configs et raccourcis réécrits</span></span>
+<span id="cb2-318"><a href="#cb2-318" aria-label="318"></a><span class="fu">sudo</span> ./install.sh <span class="at">--only</span> bureau    <span class="co"># seulement les icônes et raccourcis du bureau</span></span>
+<span id="cb2-319"><a href="#cb2-319" aria-label="319"></a><span class="in">```</span></span>
+<span id="cb2-320"><a href="#cb2-320" aria-label="320"></a></span>
+<span id="cb2-321"><a href="#cb2-321" aria-label="321"></a>L'étape <span class="in">`bureau`</span> pose les mêmes fichiers que l'ISO (<span class="in">`data/desktop/*.desktop`</span>, <span class="in">`data/*.svg`</span>) :</span>
+<span id="cb2-322"><a href="#cb2-322" aria-label="322"></a>« Lancer le banc GSM » (<span class="in">`launch.sh`</span>) et « multi-operator » (<span class="in">`start-multi.sh`</span>), dans le menu</span>
+<span id="cb2-323"><a href="#cb2-323" aria-label="323"></a>et sur le bureau de root et de l'utilisateur <span class="in">`sudo`</span>. Le lancement natif reste <span class="in">`./start-direct.sh`</span>,</span>
+<span id="cb2-324"><a href="#cb2-324" aria-label="324"></a>qui délègue à <span class="in">`/opt/GSM/qosmo-grgsm/run.sh`</span>.</span>
+<span id="cb2-325"><a href="#cb2-325" aria-label="325"></a></span>
+<span id="cb2-326"><a href="#cb2-326" aria-label="326"></a>Un paquet <span class="in">`.deb`</span> par composant, pour installer sans git :</span>
+<span id="cb2-327"><a href="#cb2-327" aria-label="327"></a></span>
+<span id="cb2-328"><a href="#cb2-328" aria-label="328"></a><span class="in">```bash</span></span>
+<span id="cb2-329"><a href="#cb2-329" aria-label="329"></a><span class="ex">./packaging/build-debs.sh</span>          <span class="co"># osmo-operator, pont, qemu-calypso, calypso-firmware -&gt; packaging/dist/</span></span>
+<span id="cb2-330"><a href="#cb2-330" aria-label="330"></a><span class="fu">sudo</span> dpkg <span class="at">-i</span> packaging/dist/<span class="pp">*</span>.deb  <span class="co"># refuse de s'installer par-dessus un clone git au même chemin</span></span>
+<span id="cb2-331"><a href="#cb2-331" aria-label="331"></a><span class="in">```</span></span>
+<span id="cb2-332"><a href="#cb2-332" aria-label="332"></a></span>
+<span id="cb2-333"><a href="#cb2-333" aria-label="333"></a>Les ISO construites par <span class="in">`build-iso.sh`</span> embarquent ces paquets dans <span class="in">`/var/cache/osmo-debs`</span>.</span>
+<span id="cb2-334"><a href="#cb2-334" aria-label="334"></a></span>
+<span id="cb2-335"><a href="#cb2-335" aria-label="335"></a><span class="fu">### 8.1 Démarrage et arrêt</span></span>
+<span id="cb2-336"><a href="#cb2-336" aria-label="336"></a></span>
+<span id="cb2-337"><a href="#cb2-337" aria-label="337"></a><span class="in">```bash</span></span>
+<span id="cb2-338"><a href="#cb2-338" aria-label="338"></a><span class="fu">sudo</span> ./tools/make-docker-image.sh          <span class="co"># Build l'image Docker (1 fois)</span></span>
+<span id="cb2-339"><a href="#cb2-339" aria-label="339"></a><span class="fu">sudo</span> ./start.sh          <span class="co"># Lance tout (choisir bridge, saisir N opérateurs)</span></span>
+<span id="cb2-340"><a href="#cb2-340" aria-label="340"></a><span class="fu">sudo</span> ./start.sh stop     <span class="co"># Arrête tous les containers</span></span>
+<span id="cb2-341"><a href="#cb2-341" aria-label="341"></a></span>
+<span id="cb2-342"><a href="#cb2-342" aria-label="342"></a><span class="fu">sudo</span> ./provision_hlr.sh  <span class="co"># Provisionne les abonnés de test dans les HLR</span></span>
+<span id="cb2-343"><a href="#cb2-343" aria-label="343"></a><span class="in">```</span></span>
+<span id="cb2-344"><a href="#cb2-344" aria-label="344"></a></span>
+<span id="cb2-345"><a href="#cb2-345" aria-label="345"></a>Trois modes PHY pour le côté MS, sélectionnés via <span class="in">`PHY_MODE`</span> à l'intérieur du</span>
+<span id="cb2-346"><a href="#cb2-346" aria-label="346"></a>container avant d'invoquer <span class="in">`run.sh`</span> :</span>
+<span id="cb2-347"><a href="#cb2-347" aria-label="347"></a></span>
+<span id="cb2-348"><a href="#cb2-348" aria-label="348"></a><span class="pp">|</span> <span class="in">`PHY_MODE`</span> <span class="pp">|</span> Pile <span class="pp">|</span> Usage <span class="pp">|</span></span>
+<span id="cb2-349"><a href="#cb2-349" aria-label="349"></a><span class="pp">|------------|------|-------|</span></span>
+<span id="cb2-350"><a href="#cb2-350" aria-label="350"></a><span class="pp">|</span> <span class="in">`faketrx`</span> (défaut) <span class="pp">|</span> <span class="in">`fake_trx`</span> → <span class="in">`trxcon`</span> → <span class="in">`mobile`</span> <span class="pp">|</span> Multi-MS, rapide, pas de DSP <span class="pp">|</span></span>
+<span id="cb2-351"><a href="#cb2-351" aria-label="351"></a><span class="pp">|</span> <span class="in">`virtphy`</span> <span class="pp">|</span> <span class="in">`osmo-bts-virtual`</span> ↔ <span class="in">`virtphy`</span> ↔ <span class="in">`mobile`</span> <span class="pp">|</span> Multi-MS via multicast UDP <span class="pp">|</span></span>
+<span id="cb2-352"><a href="#cb2-352" aria-label="352"></a><span class="pp">|</span> <span class="in">`qemu`</span> <span class="pp">|</span> <span class="in">`osmo-bts-trx`</span> ↔ <span class="in">`bridge.py`</span> ↔ QEMU Calypso ↔ <span class="in">`mobile`</span> <span class="pp">|</span> Baseband émulé (ARM7+DSP), 1 MS <span class="pp">|</span></span>
+<span id="cb2-353"><a href="#cb2-353" aria-label="353"></a></span>
+<span id="cb2-354"><a href="#cb2-354" aria-label="354"></a>Voir §11 pour le mode QEMU.</span>
+<span id="cb2-355"><a href="#cb2-355" aria-label="355"></a></span>
+<span id="cb2-356"><a href="#cb2-356" aria-label="356"></a><span class="fu">### 8.2 Accès aux containers</span></span>
+<span id="cb2-357"><a href="#cb2-357" aria-label="357"></a></span>
+<span id="cb2-358"><a href="#cb2-358" aria-label="358"></a><span class="in">```bash</span></span>
+<span id="cb2-359"><a href="#cb2-359" aria-label="359"></a><span class="co"># Opérateur N — tmux avec STP/MSC/HLR/BSC/BTS/SMSC</span></span>
+<span id="cb2-360"><a href="#cb2-360" aria-label="360"></a><span class="fu">sudo</span> docker exec <span class="at">-ti</span> osmo-operator-1 tmux attach</span>
+<span id="cb2-361"><a href="#cb2-361" aria-label="361"></a><span class="fu">sudo</span> docker exec <span class="at">-ti</span> osmo-operator-2 tmux attach</span>
+<span id="cb2-362"><a href="#cb2-362" aria-label="362"></a><span class="fu">sudo</span> docker exec <span class="at">-ti</span> osmo-operator-N tmux attach</span>
+<span id="cb2-363"><a href="#cb2-363" aria-label="363"></a></span>
+<span id="cb2-364"><a href="#cb2-364" aria-label="364"></a><span class="co"># Inter-STP</span></span>
+<span id="cb2-365"><a href="#cb2-365" aria-label="365"></a><span class="fu">sudo</span> docker exec <span class="at">-ti</span> osmo-inter-stp tmux attach <span class="at">-t</span> stp</span>
+<span id="cb2-366"><a href="#cb2-366" aria-label="366"></a><span class="in">```</span></span>
+<span id="cb2-367"><a href="#cb2-367" aria-label="367"></a></span>
+<span id="cb2-368"><a href="#cb2-368" aria-label="368"></a><span class="fu">### 8.3 Navigation tmux</span></span>
+<span id="cb2-369"><a href="#cb2-369" aria-label="369"></a></span>
+<span id="cb2-370"><a href="#cb2-370" aria-label="370"></a><span class="pp">|</span> Raccourci <span class="pp">|</span> Fenêtre <span class="pp">|</span></span>
+<span id="cb2-371"><a href="#cb2-371" aria-label="371"></a><span class="pp">|-----------|---------|</span></span>
+<span id="cb2-372"><a href="#cb2-372" aria-label="372"></a><span class="pp">|</span> <span class="in">`Ctrl-b 0`</span> <span class="pp">|</span> faketrx <span class="pp">|</span></span>
+<span id="cb2-373"><a href="#cb2-373" aria-label="373"></a><span class="pp">|</span> <span class="in">`Ctrl-b 1`</span> <span class="pp">|</span> MS1 (trxcon + mobile) <span class="pp">|</span></span>
+<span id="cb2-374"><a href="#cb2-374" aria-label="374"></a><span class="pp">|</span> <span class="in">`Ctrl-b 2`</span> <span class="pp">|</span> Asterisk <span class="pp">|</span></span>
+<span id="cb2-375"><a href="#cb2-375" aria-label="375"></a><span class="pp">|</span> <span class="in">`Ctrl-b 3`</span> <span class="pp">|</span> SMSC (proto-smsc-daemon + relay) <span class="pp">|</span></span>
+<span id="cb2-376"><a href="#cb2-376" aria-label="376"></a><span class="pp">|</span> <span class="in">`Ctrl-b w`</span> <span class="pp">|</span> Liste toutes les fenêtres <span class="pp">|</span></span>
+<span id="cb2-377"><a href="#cb2-377" aria-label="377"></a><span class="pp">|</span> <span class="in">`Ctrl-b d`</span> <span class="pp">|</span> Détacher <span class="pp">|</span></span>
+<span id="cb2-378"><a href="#cb2-378" aria-label="378"></a></span>
+<span id="cb2-379"><a href="#cb2-379" aria-label="379"></a><span class="fu">### 8.4 Interfaces VTY (telnet depuis le container)</span></span>
+<span id="cb2-380"><a href="#cb2-380" aria-label="380"></a></span>
+<span id="cb2-381"><a href="#cb2-381" aria-label="381"></a><span class="pp">|</span> Port <span class="pp">|</span> Composant <span class="pp">|</span></span>
+<span id="cb2-382"><a href="#cb2-382" aria-label="382"></a><span class="pp">|------|-----------|</span></span>
+<span id="cb2-383"><a href="#cb2-383" aria-label="383"></a><span class="pp">|</span> <span class="in">`4239`</span> <span class="pp">|</span> OsmoSTP <span class="pp">|</span></span>
+<span id="cb2-384"><a href="#cb2-384" aria-label="384"></a><span class="pp">|</span> <span class="in">`4242`</span> <span class="pp">|</span> OsmoBSC <span class="pp">|</span></span>
+<span id="cb2-385"><a href="#cb2-385" aria-label="385"></a><span class="pp">|</span> <span class="in">`4243`</span> <span class="pp">|</span> OsmoMGW <span class="pp">|</span></span>
+<span id="cb2-386"><a href="#cb2-386" aria-label="386"></a><span class="pp">|</span> <span class="in">`4254`</span> <span class="pp">|</span> OsmoMSC <span class="pp">|</span></span>
+<span id="cb2-387"><a href="#cb2-387" aria-label="387"></a><span class="pp">|</span> <span class="in">`4258`</span> <span class="pp">|</span> OsmoHLR <span class="pp">|</span></span>
+<span id="cb2-388"><a href="#cb2-388" aria-label="388"></a></span>
+<span id="cb2-389"><a href="#cb2-389" aria-label="389"></a><span class="fu">### 8.5 Commandes VTY essentielles</span></span>
+<span id="cb2-390"><a href="#cb2-390" aria-label="390"></a></span>
+<span id="cb2-391"><a href="#cb2-391" aria-label="391"></a><span class="in">```</span></span>
+<span id="cb2-392"><a href="#cb2-392" aria-label="392"></a><span class="in"># Sur STP (4239) — diagnostic SS7</span></span>
+<span id="cb2-393"><a href="#cb2-393" aria-label="393"></a><span class="in">OsmoSTP&gt; show cs7 instance 0 asp          # État ASP (ACTIVE/DOWN)</span></span>
+<span id="cb2-394"><a href="#cb2-394" aria-label="394"></a><span class="in">OsmoSTP&gt; show cs7 instance 0 as all       # État AS</span></span>
+<span id="cb2-395"><a href="#cb2-395" aria-label="395"></a><span class="in">OsmoSTP&gt; show cs7 instance 0 route        # Table de routage — PROHIB ?</span></span>
+<span id="cb2-396"><a href="#cb2-396" aria-label="396"></a></span>
+<span id="cb2-397"><a href="#cb2-397" aria-label="397"></a><span class="in"># Sortie saine STP OpN :</span></span>
+<span id="cb2-398"><a href="#cb2-398" aria-label="398"></a><span class="in"># N.23.1/14   as-dyn-…  avail  avail  dyn   ← MSC (dynamique)</span></span>
+<span id="cb2-399"><a href="#cb2-399" aria-label="399"></a><span class="in"># N.23.3/14   as-dyn-…  avail  avail  dyn   ← BSC (dynamique)</span></span>
+<span id="cb2-400"><a href="#cb2-400" aria-label="400"></a><span class="in"># 0.0.0/0     as-inter  avail  avail        ← catch-all inter-STP</span></span>
+<span id="cb2-401"><a href="#cb2-401" aria-label="401"></a></span>
+<span id="cb2-402"><a href="#cb2-402" aria-label="402"></a><span class="in"># Sur MSC (4254)</span></span>
+<span id="cb2-403"><a href="#cb2-403" aria-label="403"></a><span class="in">OsmoMSC# subscriber msisdn 10001 sms sender msisdn 10002 send Bonjour</span></span>
+<span id="cb2-404"><a href="#cb2-404" aria-label="404"></a><span class="in">OsmoMSC# show subscriber all</span></span>
+<span id="cb2-405"><a href="#cb2-405" aria-label="405"></a></span>
+<span id="cb2-406"><a href="#cb2-406" aria-label="406"></a><span class="in"># Sur HLR (4258)</span></span>
+<span id="cb2-407"><a href="#cb2-407" aria-label="407"></a><span class="in">OsmoHLR# subscriber imsi 001010000000001 show</span></span>
+<span id="cb2-408"><a href="#cb2-408" aria-label="408"></a><span class="in">OsmoHLR# show gsup-clients</span></span>
+<span id="cb2-409"><a href="#cb2-409" aria-label="409"></a><span class="in">```</span></span>
+<span id="cb2-410"><a href="#cb2-410" aria-label="410"></a></span>
+<span id="cb2-411"><a href="#cb2-411" aria-label="411"></a><span class="fu">### 8.6 Wireshark</span></span>
+<span id="cb2-412"><a href="#cb2-412" aria-label="412"></a></span>
+<span id="cb2-413"><a href="#cb2-413" aria-label="413"></a>Lancé automatiquement sur le bridge Docker avec filtre <span class="in">`sctp or udp port 4729`</span>.</span>
+<span id="cb2-414"><a href="#cb2-414" aria-label="414"></a></span>
+<span id="cb2-415"><a href="#cb2-415" aria-label="415"></a><span class="in">```</span></span>
+<span id="cb2-416"><a href="#cb2-416" aria-label="416"></a><span class="in">m3ua                      # Trafic M3UA uniquement</span></span>
+<span id="cb2-417"><a href="#cb2-417" aria-label="417"></a><span class="in">sccp                      # Messages SCCP</span></span>
+<span id="cb2-418"><a href="#cb2-418" aria-label="418"></a><span class="in">gsm_map                   # Messages MAP</span></span>
+<span id="cb2-419"><a href="#cb2-419" aria-label="419"></a><span class="in">gsmtap                    # Trafic radio (Um)</span></span>
+<span id="cb2-420"><a href="#cb2-420" aria-label="420"></a><span class="in">sctp.srcport == 2908      # Trafic vers/depuis l'inter-STP</span></span>
+<span id="cb2-421"><a href="#cb2-421" aria-label="421"></a><span class="in">```</span></span>
+<span id="cb2-422"><a href="#cb2-422" aria-label="422"></a></span>
+<span id="cb2-423"><a href="#cb2-423" aria-label="423"></a>---</span>
+<span id="cb2-424"><a href="#cb2-424" aria-label="424"></a></span>
+<span id="cb2-425"><a href="#cb2-425" aria-label="425"></a><span class="fu">## 9. Diagnostic — Résoudre les PROHIB</span></span>
+<span id="cb2-426"><a href="#cb2-426" aria-label="426"></a></span>
+<span id="cb2-427"><a href="#cb2-427" aria-label="427"></a><span class="in">```bash</span></span>
+<span id="cb2-428"><a href="#cb2-428" aria-label="428"></a><span class="co"># 1. L'inter-STP tourne-t-il ?</span></span>
+<span id="cb2-429"><a href="#cb2-429" aria-label="429"></a><span class="fu">sudo</span> docker ps <span class="kw">|</span> <span class="fu">grep</span> inter-stp</span>
+<span id="cb2-430"><a href="#cb2-430" aria-label="430"></a></span>
+<span id="cb2-431"><a href="#cb2-431" aria-label="431"></a><span class="co"># 2. L'ASP vers l'inter-STP est-il ACTIVE ?</span></span>
+<span id="cb2-432"><a href="#cb2-432" aria-label="432"></a><span class="fu">sudo</span> docker exec osmo-operator-1 sh <span class="at">-c</span> <span class="dt">\</span></span>
+<span id="cb2-433"><a href="#cb2-433" aria-label="433"></a>  <span class="st">'echo "show cs7 instance 0 asp" | telnet 127.0.0.1 4239 2&gt;/dev/null'</span></span>
+<span id="cb2-434"><a href="#cb2-434" aria-label="434"></a></span>
+<span id="cb2-435"><a href="#cb2-435" aria-label="435"></a><span class="co"># 3. L'inter-STP voit-il les opérateurs ?</span></span>
+<span id="cb2-436"><a href="#cb2-436" aria-label="436"></a><span class="fu">sudo</span> docker exec osmo-inter-stp sh <span class="at">-c</span> <span class="dt">\</span></span>
+<span id="cb2-437"><a href="#cb2-437" aria-label="437"></a>  <span class="st">'echo "show cs7 instance 0 asp" | telnet 127.0.0.1 4239 2&gt;/dev/null'</span></span>
+<span id="cb2-438"><a href="#cb2-438" aria-label="438"></a></span>
+<span id="cb2-439"><a href="#cb2-439" aria-label="439"></a><span class="co"># 4. Les routes locales (BSC/MSC) existent-elles ?</span></span>
+<span id="cb2-440"><a href="#cb2-440" aria-label="440"></a><span class="fu">sudo</span> docker exec osmo-operator-1 sh <span class="at">-c</span> <span class="dt">\</span></span>
+<span id="cb2-441"><a href="#cb2-441" aria-label="441"></a>  <span class="st">'echo "show cs7 instance 0 route" | telnet 127.0.0.1 4239 2&gt;/dev/null'</span></span>
+<span id="cb2-442"><a href="#cb2-442" aria-label="442"></a></span>
+<span id="cb2-443"><a href="#cb2-443" aria-label="443"></a><span class="co"># 5. Connectivité backbone</span></span>
+<span id="cb2-444"><a href="#cb2-444" aria-label="444"></a><span class="fu">sudo</span> docker exec osmo-operator-1 ping <span class="at">-c1</span> 172.20.0.10</span>
+<span id="cb2-445"><a href="#cb2-445" aria-label="445"></a></span>
+<span id="cb2-446"><a href="#cb2-446" aria-label="446"></a><span class="co"># 6. Race condition → redémarrer l'opérateur</span></span>
+<span id="cb2-447"><a href="#cb2-447" aria-label="447"></a><span class="fu">sudo</span> docker restart osmo-operator-1</span>
+<span id="cb2-448"><a href="#cb2-448" aria-label="448"></a><span class="in">```</span></span>
+<span id="cb2-449"><a href="#cb2-449" aria-label="449"></a></span>
+<span id="cb2-450"><a href="#cb2-450" aria-label="450"></a><span class="pp">|</span> Symptôme <span class="pp">|</span> Cause probable <span class="pp">|</span> Fix <span class="pp">|</span></span>
+<span id="cb2-451"><a href="#cb2-451" aria-label="451"></a><span class="pp">|----------|---------------|-----|</span></span>
+<span id="cb2-452"><a href="#cb2-452" aria-label="452"></a><span class="pp">|</span> Route 0.0.0/0 PROHIB <span class="pp">|</span> Inter-STP pas démarré ou IP incorrecte <span class="pp">|</span> Vérifier <span class="in">`INTER_STP_IP`</span> et backbone IP <span class="pp">|</span></span>
+<span id="cb2-453"><a href="#cb2-453" aria-label="453"></a><span class="pp">|</span> Pas de routes dynamiques <span class="pp">|</span> MSC/BSC ne se connectent pas au STP <span class="pp">|</span> Vérifier que les ASP pointent sur <span class="in">`127.0.0.1`</span> <span class="pp">|</span></span>
+<span id="cb2-454"><a href="#cb2-454" aria-label="454"></a><span class="pp">|</span> ASP DOWN sur inter-STP <span class="pp">|</span> Race condition Docker <span class="pp">|</span> <span class="in">`docker restart`</span> de l'opérateur <span class="pp">|</span></span>
+<span id="cb2-455"><a href="#cb2-455" aria-label="455"></a></span>
+<span id="cb2-456"><a href="#cb2-456" aria-label="456"></a>---</span>
+<span id="cb2-457"><a href="#cb2-457" aria-label="457"></a></span>
+<span id="cb2-458"><a href="#cb2-458" aria-label="458"></a><span class="fu">## 10. Plan de numérotation</span></span>
+<span id="cb2-459"><a href="#cb2-459" aria-label="459"></a></span>
+<span id="cb2-460"><a href="#cb2-460" aria-label="460"></a>Convention par défaut (modifiable) :</span>
+<span id="cb2-461"><a href="#cb2-461" aria-label="461"></a></span>
+<span id="cb2-462"><a href="#cb2-462" aria-label="462"></a><span class="pp">|</span> Numéro <span class="pp">|</span> Usage <span class="pp">|</span></span>
+<span id="cb2-463"><a href="#cb2-463" aria-label="463"></a><span class="pp">|--------|-------|</span></span>
+<span id="cb2-464"><a href="#cb2-464" aria-label="464"></a><span class="pp">|</span> <span class="in">`N0001`</span>…<span class="in">`N9999`</span> <span class="pp">|</span> Abonnés GSM opérateur N <span class="pp">|</span></span>
+<span id="cb2-465"><a href="#cb2-465" aria-label="465"></a><span class="pp">|</span> <span class="in">`100`</span> <span class="pp">|</span> Linphone A (softphone local) <span class="pp">|</span></span>
+<span id="cb2-466"><a href="#cb2-466" aria-label="466"></a><span class="pp">|</span> <span class="in">`200`</span> <span class="pp">|</span> Linphone B (softphone local) <span class="pp">|</span></span>
+<span id="cb2-467"><a href="#cb2-467" aria-label="467"></a><span class="pp">|</span> <span class="in">`600`</span> <span class="pp">|</span> Echo test <span class="pp">|</span></span>
+<span id="cb2-468"><a href="#cb2-468" aria-label="468"></a><span class="pp">|</span> <span class="in">`9XXXXX`</span> <span class="pp">|</span> Sortie inter-op depuis softphone (9 + numéro complet) <span class="pp">|</span></span>
+<span id="cb2-469"><a href="#cb2-469" aria-label="469"></a></span>
+<span id="cb2-470"><a href="#cb2-470" aria-label="470"></a>Le premier chiffre d'un numéro NXXXX identifie l'opérateur. Le dialplan <span class="in">`[gsm_in]`</span> détecte automatiquement si la destination est locale ou inter-op.</span>
+<span id="cb2-471"><a href="#cb2-471" aria-label="471"></a></span>
+<span id="cb2-472"><a href="#cb2-472" aria-label="472"></a>---</span>
+<span id="cb2-473"><a href="#cb2-473" aria-label="473"></a></span>
+<span id="cb2-474"><a href="#cb2-474" aria-label="474"></a><span class="fu">## 11. RAN virtuel QEMU (PHY_MODE=qemu)</span></span>
+<span id="cb2-475"><a href="#cb2-475" aria-label="475"></a></span>
+<span id="cb2-476"><a href="#cb2-476" aria-label="476"></a>Le projet intègre <span class="co">[</span><span class="ot">bbaranoff/qosmo-grgsm</span><span class="co">](https://github.com/bbaranoff/qosmo-grgsm)</span> — un fork</span>
+<span id="cb2-477"><a href="#cb2-477" aria-label="477"></a>de QEMU avec une machine <span class="in">`calypso`</span> qui émule le SoC GSM TI Calypso (ARM7TDMI +</span>
+<span id="cb2-478"><a href="#cb2-478" aria-label="478"></a>DSP TMS320C54x). Cela permet d'exécuter le **vrai firmware** OsmocomBB</span>
+<span id="cb2-479"><a href="#cb2-479" aria-label="479"></a><span class="in">`layer1.highram.elf`</span> au-dessus d'un baseband virtualisé, sans aucun hardware.</span>
+<span id="cb2-480"><a href="#cb2-480" aria-label="480"></a></span>
+<span id="cb2-481"><a href="#cb2-481" aria-label="481"></a><span class="fu">### 11.1 Architecture</span></span>
+<span id="cb2-482"><a href="#cb2-482" aria-label="482"></a></span>
+<span id="cb2-483"><a href="#cb2-483" aria-label="483"></a><span class="in">```mermaid</span></span>
+<span id="cb2-484"><a href="#cb2-484" aria-label="484"></a>flowchart LR</span>
+<span id="cb2-485"><a href="#cb2-485" aria-label="485"></a>    mobile[<span class="ot">"</span><span class="st">mobile (layer23)</span><span class="ot">"</span>] --&gt;|<span class="ot">"</span><span class="st">L1CTL</span><span class="ch">\n</span><span class="st">/tmp/osmocom_l2</span><span class="ot">"</span>| QEMU</span>
+<span id="cb2-486"><a href="#cb2-486" aria-label="486"></a>    subgraph QEMU[<span class="ot">"</span><span class="st">QEMU calypso</span><span class="ot">"</span>]</span>
+<span id="cb2-487"><a href="#cb2-487" aria-label="487"></a>        ARM[<span class="ot">"</span><span class="st">ARM7</span><span class="ch">\n</span><span class="st">layer1.highram.elf</span><span class="ot">"</span>]</span>
+<span id="cb2-488"><a href="#cb2-488" aria-label="488"></a>        DSP[<span class="ot">"</span><span class="st">DSP C54x</span><span class="ch">\n</span><span class="st">calypso_dsp.txt</span><span class="ot">"</span>]</span>
+<span id="cb2-489"><a href="#cb2-489" aria-label="489"></a>        BSP[<span class="ot">"</span><span class="st">BSP DMA</span><span class="ch">\n</span><span class="st">UDP 6702</span><span class="ot">"</span>]</span>
+<span id="cb2-490"><a href="#cb2-490" aria-label="490"></a>        ARM &lt;--&gt;|<span class="ot">"</span><span class="st">API RAM</span><span class="ot">"</span>| DSP</span>
+<span id="cb2-491"><a href="#cb2-491" aria-label="491"></a>        DSP --&gt; BSP</span>
+<span id="cb2-492"><a href="#cb2-492" aria-label="492"></a>    end</span>
+<span id="cb2-493"><a href="#cb2-493" aria-label="493"></a>    QEMU --&gt;|<span class="ot">"</span><span class="st">CLK UDP 6700</span><span class="ot">"</span>| BRIDGE</span>
+<span id="cb2-494"><a href="#cb2-494" aria-label="494"></a>    BRIDGE[<span class="ot">"</span><span class="st">bridge.py</span><span class="ot">"</span>] &lt;--&gt;|<span class="ot">"</span><span class="st">TRX 5700-5702</span><span class="ot">"</span>| BTS</span>
+<span id="cb2-495"><a href="#cb2-495" aria-label="495"></a>    BTS[<span class="ot">"</span><span class="st">osmo-bts-trx</span><span class="ot">"</span>] --&gt;|<span class="ot">"</span><span class="st">Abis/IP</span><span class="ot">"</span>| BSC</span>
+<span id="cb2-496"><a href="#cb2-496" aria-label="496"></a>    BSC --&gt; CORE[Core PLMN]</span>
+<span id="cb2-497"><a href="#cb2-497" aria-label="497"></a><span class="in">```</span></span>
+<span id="cb2-498"><a href="#cb2-498" aria-label="498"></a></span>
+<span id="cb2-499"><a href="#cb2-499" aria-label="499"></a><span class="ss">- </span>**ARM7** exécute le firmware osmocom-bb compilé dans le conteneur.</span>
+<span id="cb2-500"><a href="#cb2-500" aria-label="500"></a><span class="ss">- </span>**DSP C54x** charge le ROM Calypso réel (<span class="in">`calypso_dsp.txt`</span>, dumpé d'un téléphone).</span>
+<span id="cb2-501"><a href="#cb2-501" aria-label="501"></a><span class="ss">- </span>**`bridge.py`** (Python) relaie les bursts entre <span class="in">`osmo-bts-trx`</span> (UDP 5700-5702)</span>
+<span id="cb2-502"><a href="#cb2-502" aria-label="502"></a>  et la BSP du DSP (UDP 6702). QEMU est maître d'horloge TDMA et envoie des</span>
+<span id="cb2-503"><a href="#cb2-503" aria-label="503"></a>  ticks sur UDP 6700 ; bridge synthétise des <span class="in">`IND CLOCK`</span> à cadence wall-clock</span>
+<span id="cb2-504"><a href="#cb2-504" aria-label="504"></a>  pour le BTS, en piochant le FN de QEMU.</span>
+<span id="cb2-505"><a href="#cb2-505" aria-label="505"></a><span class="ss">- </span>**`mobile`** se connecte au socket L1CTL <span class="in">`/tmp/osmocom_l2`</span> publié par QEMU</span>
+<span id="cb2-506"><a href="#cb2-506" aria-label="506"></a>  via la PTY série du firmware (sercomm DLCI 5).</span>
+<span id="cb2-507"><a href="#cb2-507" aria-label="507"></a></span>
+<span id="cb2-508"><a href="#cb2-508" aria-label="508"></a><span class="fu">### 11.2 Composants ajoutés au conteneur</span></span>
+<span id="cb2-509"><a href="#cb2-509" aria-label="509"></a></span>
+<span id="cb2-510"><a href="#cb2-510" aria-label="510"></a><span class="pp">|</span> Composant <span class="pp">|</span> Path container <span class="pp">|</span> Source <span class="pp">|</span></span>
+<span id="cb2-511"><a href="#cb2-511" aria-label="511"></a><span class="pp">|-----------|---------------|--------|</span></span>
+<span id="cb2-512"><a href="#cb2-512" aria-label="512"></a><span class="pp">|</span> <span class="in">`qemu-system-arm`</span> (machine <span class="in">`calypso`</span>) <span class="pp">|</span> <span class="in">`/usr/local/bin/qemu-system-arm`</span> <span class="pp">|</span> bbaranoff/qosmo-grgsm <span class="pp">|</span></span>
+<span id="cb2-513"><a href="#cb2-513" aria-label="513"></a><span class="pp">|</span> Firmware Calypso layer1 <span class="pp">|</span> <span class="in">`${GSM_ROOT}/firmware/board/compal_e88/layer1.highram.elf`</span> <span class="pp">|</span> osmocom-bb (build container) <span class="pp">|</span></span>
+<span id="cb2-514"><a href="#cb2-514" aria-label="514"></a><span class="pp">|</span> ROM DSP <span class="pp">|</span> <span class="in">`${GSM_ROOT}/calypso_dsp.txt`</span> <span class="pp">|</span> bbaranoff/qosmo-grgsm (symlink) <span class="pp">|</span></span>
+<span id="cb2-515"><a href="#cb2-515" aria-label="515"></a><span class="pp">|</span> Bridge BTS↔BSP <span class="pp">|</span> <span class="in">`${OQC_ROOT}/bridge.py`</span> <span class="pp">|</span> bbaranoff/qosmo-grgsm <span class="pp">|</span></span>
+<span id="cb2-516"><a href="#cb2-516" aria-label="516"></a><span class="pp">|</span> <span class="in">`transceiver`</span> (BTS soft-SDR Calypso) <span class="pp">|</span> <span class="in">`/usr/local/bin/transceiver`</span> <span class="pp">|</span> osmocom-bb branche jolly/testing <span class="pp">|</span></span>
+<span id="cb2-517"><a href="#cb2-517" aria-label="517"></a><span class="pp">|</span> <span class="in">`ccch_scan`</span>, <span class="in">`bcch_scan`</span>, <span class="in">`cell_log`</span> <span class="pp">|</span> <span class="in">`/usr/local/bin/`</span> <span class="pp">|</span> osmocom-bb branche fixeria/burst_ind <span class="pp">|</span></span>
+<span id="cb2-518"><a href="#cb2-518" aria-label="518"></a></span>
+<span id="cb2-519"><a href="#cb2-519" aria-label="519"></a>Le Dockerfile installe le toolchain ARM (<span class="in">`gcc-arm-none-eabi`</span>) avant la build</span>
+<span id="cb2-520"><a href="#cb2-520" aria-label="520"></a>osmocom-bb pour produire le <span class="in">`.elf`</span>. La build complète prend ~15-20 min selon</span>
+<span id="cb2-521"><a href="#cb2-521" aria-label="521"></a>la machine.</span>
+<span id="cb2-522"><a href="#cb2-522" aria-label="522"></a></span>
+<span id="cb2-523"><a href="#cb2-523" aria-label="523"></a><span class="fu">### 11.3 Lancement</span></span>
+<span id="cb2-524"><a href="#cb2-524" aria-label="524"></a></span>
+<span id="cb2-525"><a href="#cb2-525" aria-label="525"></a><span class="in">```bash</span></span>
+<span id="cb2-526"><a href="#cb2-526" aria-label="526"></a><span class="fu">sudo</span> ./tools/make-docker-image.sh</span>
+<span id="cb2-527"><a href="#cb2-527" aria-label="527"></a><span class="fu">sudo</span> ./start.sh        <span class="co"># mode opérateur unique (single)</span></span>
+<span id="cb2-528"><a href="#cb2-528" aria-label="528"></a><span class="ex">docker</span> exec <span class="at">-ti</span> osmo-operator-1 bash</span>
+<span id="cb2-529"><a href="#cb2-529" aria-label="529"></a><span class="co"># dans le container :</span></span>
+<span id="cb2-530"><a href="#cb2-530" aria-label="530"></a><span class="va">PHY_MODE</span><span class="op">=</span>qemu <span class="ex">/root/run.sh</span></span>
+<span id="cb2-531"><a href="#cb2-531" aria-label="531"></a><span class="in">```</span></span>
+<span id="cb2-532"><a href="#cb2-532" aria-label="532"></a></span>
+<span id="cb2-533"><a href="#cb2-533" aria-label="533"></a><span class="in">`run.sh`</span> orchestre la séquence : <span class="in">`osmo-bts-trx`</span> → QEMU (PTY+monitor) →</span>
+<span id="cb2-534"><a href="#cb2-534" aria-label="534"></a>attente du socket <span class="in">`/tmp/osmocom_l2`</span> → <span class="in">`bridge.py`</span> → attente des ticks QEMU</span>
+<span id="cb2-535"><a href="#cb2-535" aria-label="535"></a>sur UDP 6700 → <span class="in">`mobile`</span>. Tout est lancé dans des fenêtres tmux distinctes.</span>
+<span id="cb2-536"><a href="#cb2-536" aria-label="536"></a></span>
+<span id="cb2-537"><a href="#cb2-537" aria-label="537"></a><span class="pp">|</span> Variable <span class="pp">|</span> Défaut <span class="pp">|</span> Rôle <span class="pp">|</span></span>
+<span id="cb2-538"><a href="#cb2-538" aria-label="538"></a><span class="pp">|----------|--------|------|</span></span>
+<span id="cb2-539"><a href="#cb2-539" aria-label="539"></a><span class="pp">|</span> <span class="in">`QEMU_BIN`</span> <span class="pp">|</span> <span class="in">`${GSM_ROOT}/qemu/build/qemu-system-arm`</span> <span class="pp">|</span> Binaire QEMU <span class="pp">|</span></span>
+<span id="cb2-540"><a href="#cb2-540" aria-label="540"></a><span class="pp">|</span> <span class="in">`QEMU_FW`</span> <span class="pp">|</span> <span class="in">`${GSM_ROOT}/firmware/board/compal_e88/layer1.highram.elf`</span> <span class="pp">|</span> Firmware ARM <span class="pp">|</span></span>
+<span id="cb2-541"><a href="#cb2-541" aria-label="541"></a><span class="pp">|</span> <span class="in">`QEMU_DSP_ROM`</span> <span class="pp">|</span> <span class="in">`${GSM_ROOT}/calypso_dsp.txt`</span> <span class="pp">|</span> ROM DSP C54x <span class="pp">|</span></span>
+<span id="cb2-542"><a href="#cb2-542" aria-label="542"></a><span class="pp">|</span> <span class="in">`QEMU_BRIDGE`</span> <span class="pp">|</span> <span class="in">`${OQC_ROOT}/bridge.py`</span> <span class="pp">|</span> Script bridge BTS↔BSP <span class="pp">|</span></span>
+<span id="cb2-543"><a href="#cb2-543" aria-label="543"></a><span class="pp">|</span> <span class="in">`QEMU_L1CTL_SOCK`</span> <span class="pp">|</span> <span class="in">`/tmp/osmocom_l2`</span> <span class="pp">|</span> Socket L1CTL publié par QEMU <span class="pp">|</span></span>
+<span id="cb2-544"><a href="#cb2-544" aria-label="544"></a><span class="pp">|</span> <span class="in">`QEMU_MON_SOCK`</span> <span class="pp">|</span> <span class="in">`/tmp/qemu-calypso-mon.sock`</span> <span class="pp">|</span> Monitor QEMU (HMP) <span class="pp">|</span></span>
+<span id="cb2-545"><a href="#cb2-545" aria-label="545"></a></span>
+<span id="cb2-546"><a href="#cb2-546" aria-label="546"></a><span class="in">`PHY_MODE=qemu`</span> force <span class="in">`N_MS=1`</span> : le bridge utilise des ports UDP fixes (un seul</span>
+<span id="cb2-547"><a href="#cb2-547" aria-label="547"></a>Calypso émulé par conteneur). Pour faire tourner plusieurs MS virtuels, lancer</span>
+<span id="cb2-548"><a href="#cb2-548" aria-label="548"></a>plusieurs conteneurs (un par opérateur, chacun avec son bridge).</span>
+<span id="cb2-549"><a href="#cb2-549" aria-label="549"></a></span>
+<span id="cb2-550"><a href="#cb2-550" aria-label="550"></a><span class="fu">### 11.4 Diagnostic</span></span>
+<span id="cb2-551"><a href="#cb2-551" aria-label="551"></a></span>
+<span id="cb2-552"><a href="#cb2-552" aria-label="552"></a><span class="in">```bash</span></span>
+<span id="cb2-553"><a href="#cb2-553" aria-label="553"></a><span class="co"># tmux : fenêtres qemu / bridge / bts / ue_g1</span></span>
+<span id="cb2-554"><a href="#cb2-554" aria-label="554"></a><span class="ex">docker</span> exec <span class="at">-ti</span> osmo-operator-1 tmux <span class="at">-S</span> /tmp/osmocom_tmux attach <span class="at">-t</span> osmocom</span>
+<span id="cb2-555"><a href="#cb2-555" aria-label="555"></a></span>
+<span id="cb2-556"><a href="#cb2-556" aria-label="556"></a><span class="co"># Monitor QEMU (HMP)</span></span>
+<span id="cb2-557"><a href="#cb2-557" aria-label="557"></a><span class="ex">docker</span> exec <span class="at">-ti</span> osmo-operator-1 socat <span class="at">-</span> unix-connect:/tmp/qemu-calypso-mon.sock</span>
+<span id="cb2-558"><a href="#cb2-558" aria-label="558"></a></span>
+<span id="cb2-559"><a href="#cb2-559" aria-label="559"></a><span class="co"># Logs</span></span>
+<span id="cb2-560"><a href="#cb2-560" aria-label="560"></a><span class="ex">/var/log/osmocom/qemu.log</span>     <span class="co"># Émulation ARM/DSP, BSP, MVPD, IRQ</span></span>
+<span id="cb2-561"><a href="#cb2-561" aria-label="561"></a><span class="ex">/var/log/osmocom/bridge.log</span>   <span class="co"># Ticks QEMU, IND CLOCK, DL/UL bursts</span></span>
+<span id="cb2-562"><a href="#cb2-562" aria-label="562"></a><span class="ex">/var/log/osmocom/run.sh.log</span>   <span class="co"># Orchestration</span></span>
+<span id="cb2-563"><a href="#cb2-563" aria-label="563"></a><span class="in">```</span></span>
+<span id="cb2-564"><a href="#cb2-564" aria-label="564"></a></span>
+<span id="cb2-565"><a href="#cb2-565" aria-label="565"></a><span class="pp">|</span> Symptôme <span class="pp">|</span> Cause probable <span class="pp">|</span> Diagnostic <span class="pp">|</span></span>
+<span id="cb2-566"><a href="#cb2-566" aria-label="566"></a><span class="pp">|----------|---------------|------------|</span></span>
+<span id="cb2-567"><a href="#cb2-567" aria-label="567"></a><span class="pp">|</span> <span class="in">`bridge: timeout — vérifier que QEMU émet sur UDP 6700`</span> <span class="pp">|</span> QEMU n'a pas démarré le TPU/DSP <span class="pp">|</span> <span class="in">`grep TINT0 /var/log/osmocom/qemu.log`</span> <span class="pp">|</span></span>
+<span id="cb2-568"><a href="#cb2-568" aria-label="568"></a><span class="pp">|</span> Mobile <span class="in">`FBSB result=255`</span> (no cell) <span class="pp">|</span> DSP ne détecte pas le FB — voir <span class="in">`qemu/SESSION_STATUS.md`</span> (bug IMR=0x0000 connu) <span class="pp">|</span> <span class="in">`grep "IMR change" /var/log/osmocom/qemu.log \| wc -l`</span> <span class="pp">|</span></span>
+<span id="cb2-569"><a href="#cb2-569" aria-label="569"></a><span class="pp">|</span> <span class="in">`osmo-bts-trx: PC clock skew too high`</span> <span class="pp">|</span> bridge cesse d'envoyer <span class="in">`IND CLOCK`</span> <span class="pp">|</span> redémarrer bridge.py <span class="pp">|</span></span>
+<span id="cb2-570"><a href="#cb2-570" aria-label="570"></a><span class="pp">|</span> Socket <span class="in">`/tmp/osmocom_l2`</span> jamais créé <span class="pp">|</span> Firmware ne boote pas <span class="pp">|</span> <span class="in">`head -50 /var/log/osmocom/qemu.log`</span> (chercher MVPD/PROM0) <span class="pp">|</span></span>
+<span id="cb2-571"><a href="#cb2-571" aria-label="571"></a></span>
+<span id="cb2-572"><a href="#cb2-572" aria-label="572"></a>L'intégration QEMU est en développement actif côté DSP (voir</span>
+<span id="cb2-573"><a href="#cb2-573" aria-label="573"></a><span class="in">`bbaranoff/qosmo-grgsm/CLAUDE.md`</span> pour le statut courant des bugs C54x).</span>
+<span id="cb2-574"><a href="#cb2-574" aria-label="574"></a></span>
+<span id="cb2-575"><a href="#cb2-575" aria-label="575"></a>---</span>
+<span id="cb2-576"><a href="#cb2-576" aria-label="576"></a></span>
+<span id="cb2-577"><a href="#cb2-577" aria-label="577"></a><span class="fu">## 12. Autres extensions</span></span>
+<span id="cb2-578"><a href="#cb2-578" aria-label="578"></a></span>
+<span id="cb2-579"><a href="#cb2-579" aria-label="579"></a>**srsRAN (LTE)** — coexistence 2G/4G avec eNodeB virtuel, HLR/HSS partagé.</span>
+<span id="cb2-580"><a href="#cb2-580" aria-label="580"></a></span>
+<span id="cb2-581"><a href="#cb2-581" aria-label="581"></a>**VoWiFi / IMS** — passerelle SIP via Asterisk pour l'accès WiFi, pont vers le core GSM.</span>
+<span id="cb2-582"><a href="#cb2-582" aria-label="582"></a></span>
+<span id="cb2-583"><a href="#cb2-583" aria-label="583"></a>**Monitoring** — Prometheus/Grafana pour métriques M3UA, dashboards MAP, visualisation SCCP.</span>
+<span id="cb2-584"><a href="#cb2-584" aria-label="584"></a></span>
+<span id="cb2-585"><a href="#cb2-585" aria-label="585"></a>---</span>
+<span id="cb2-586"><a href="#cb2-586" aria-label="586"></a></span>
+<span id="cb2-587"><a href="#cb2-587" aria-label="587"></a>*Projet osmo-nitb-for-calypso — plateforme pédagogique télécom multi-PLMN, entièrement conteneurisée, support N opérateurs.*</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="f-services-readme-md" class="level2">
+<h2 class="anchored" data-anchor-id="f-services-readme-md"><code>services/README.md</code></h2>
+<div class="file-meta">
+<p><span class="tag">.md</span> 20 lignes - 687B</p>
+</div>
+<div class="code-with-filename">
+<div class="code-with-filename-file">
+<pre><strong>services/README.md</strong></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" data-filename="services/README.md"><pre class="sourceCode numberSource markdown numberLines code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-label="1"></a><span class="fu"># `services/` — unités systemd</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-label="2"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-label="3"></a>Les unités du projet, rassemblées ici plutôt que dispersées entre la racine et</span>
+<span id="cb3-4"><a href="#cb3-4" aria-label="4"></a><span class="in">`scripts/`</span>. Elles sont installées par le <span class="in">`Dockerfile`</span> (image) et par <span class="in">`build-iso.sh`</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-label="5"></a>(support bootable) ; l'installation native ne les active pas.</span>
+<span id="cb3-6"><a href="#cb3-6" aria-label="6"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-label="7"></a><span class="pp">|</span> Unité <span class="pp">|</span> Rôle <span class="pp">|</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-label="8"></a><span class="pp">|---|---|</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-label="9"></a><span class="pp">|</span> <span class="in">`osmo-bts-trx.service`</span> <span class="pp">|</span> station de base, transceiver TRX <span class="pp">|</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-label="10"></a><span class="pp">|</span> <span class="in">`osmo-egprs-web.service`</span> <span class="pp">|</span> console web d'exploitation <span class="pp">|</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-label="11"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-label="12"></a>Les unités sous <span class="in">`contrib/systemd/`</span> appartiennent à QEMU en amont et ne relèvent</span>
+<span id="cb3-13"><a href="#cb3-13" aria-label="13"></a>pas de ce dossier.</span>
+<span id="cb3-14"><a href="#cb3-14" aria-label="14"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-label="15"></a>Installer à la main :</span>
+<span id="cb3-16"><a href="#cb3-16" aria-label="16"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-label="17"></a><span class="in">```bash</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-label="18"></a><span class="fu">sudo</span> cp services/osmo-bts-trx.service /etc/systemd/system/</span>
+<span id="cb3-19"><a href="#cb3-19" aria-label="19"></a><span class="fu">sudo</span> systemctl daemon-reload <span class="kw">&amp;&amp;</span> <span class="fu">sudo</span> systemctl enable <span class="at">--now</span> osmo-bts-trx</span>
+<span id="cb3-20"><a href="#cb3-20" aria-label="20"></a><span class="in">```</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var box = document.getElementById('sk-filter');
+  if (!box) return;
+  var rows = Array.from(document.querySelectorAll('.bundle-index tbody tr'));
+  var toc  = Array.from(document.querySelectorAll('#TOC a, nav[role=doc-toc] a'));
+  box.addEventListener('input', function () {
+    var q = box.value.trim().toLowerCase();
+    rows.forEach(function (r) {
+      r.style.display = (!q || r.textContent.toLowerCase().includes(q)) ? '' : 'none';
+    });
+    toc.forEach(function (a) {
+      var li = a.closest('li') || a;
+      li.style.display = (!q || a.textContent.toLowerCase().includes(q)) ? '' : 'none';
+    });
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
