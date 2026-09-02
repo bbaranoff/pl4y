@@ -63,7 +63,7 @@ const cards = existsSync(CARDS)
   ? readFileSync(CARDS, "utf8").trimEnd()
   : `      <a class="hub-card" href="/docs/">
         <h2>Documentation</h2>
-        <p>Les corpus rendus et unifies (Calypso, osmo_egprs, tests, SDR, cours &amp; CTF).</p>
+        <p>Les corpus rendus et unifies (osmo-operator, qosmo-grgsm, tests, SDR, cours &amp; CTF).</p>
         <span class="meta">/docs/</span>
       </a>`;
 if (!existsSync(CARDS)) {

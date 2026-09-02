@@ -117,15 +117,25 @@ const isNoise = (rel) => NOISE.some((re) => re.test(rel));
 /* ------------------------------------------------------------------ sources */
 
 const SOURCES = {
-  calypso: {
-    title: "QEMU Calypso",
+  "osmo-operator": {
+    title: "osmo-operator",
     blurb:
-      "Bundle complet du depot <code>qemu-calypso</code> : documentation, tests, " +
-      "headers, sources C du DSP C54x, scripts Python et shell — chaque fichier " +
-      "dans son bloc de code, avec filtre et recherche plein-texte.",
-    src: sourceDir("calypso", "qemu-calypso"),
-    out: join(PUBLIC, "calypso"),
-    build: buildCalypso,
+      "Bundle complet du depot <code>osmo-operator</code> : le coeur de reseau " +
+      "GSM/EGPRS multi-PLMN (Docker, configs Osmocom, reseau, helpers, scripts de " +
+      "lancement, tests) — chaque fichier dans son bloc de code, filtre et recherche.",
+    src: sourceDir("osmo-operator", "osmo-operator"),
+    out: join(PUBLIC, "osmo-operator"),
+    build: buildOsmoOperator,
+  },
+  "qosmo-grgsm": {
+    title: "qosmo-grgsm",
+    blurb:
+      "Bundle complet du fork <code>qosmo-grgsm</code> (gr-gsm re-outille pour " +
+      "qemu-calypso) : baseband TI Calypso emule (DSP C54x / osmocom-bb), sources, " +
+      "scripts et documentation — chaque fichier dans son bloc de code.",
+    src: sourceDir("qosmo-grgsm", "qosmo-grgsm"),
+    out: join(PUBLIC, "qosmo-grgsm"),
+    build: buildQosmo,
   },
   sdr: {
     title: "Software Defined Radio",
@@ -144,16 +154,6 @@ const SOURCES = {
     src: sourceDir("bbaranoff", "bbaranoff.github.io"),
     out: join(PUBLIC, "bbaranoff"),
     build: buildBbaranoff,
-  },
-  osmo_egprs: {
-    title: "osmo_egprs",
-    blurb:
-      "Bundle complet du depot <code>osmo_egprs</code> : la plateforme multi-PLMN " +
-      "(Docker, configs Osmocom, reseau, helpers, scripts de lancement) — meme " +
-      "rendu que le bundle Calypso, chaque fichier dans son bloc de code.",
-    src: sourceDir("osmo_egprs", "osmo_egprs"),
-    out: join(PUBLIC, "osmo_egprs"),
-    build: buildEgprs,
   },
   tests: {
     title: "Instantane des tests",
@@ -213,22 +213,28 @@ function buildQmdBundle(s, { work, title, subtitle, exclude }) {
   return true;
 }
 
-function buildCalypso(s) {
-  return buildQmdBundle(s, { work: join(DOCS, "calypso-site") });
-}
-
-// Meme chaine que Calypso. Deux exclusions en plus : le bundle deja rendu qui
-// traine dans le depot (`calypso-full.qmd` et son dossier de ressources) se
-// re-inclurait lui-meme — 800 ko de doublon dans une page — et `rsconnect/`
-// n'est que la machinerie de publication Posit.
-function buildEgprs(s) {
+function buildOsmoOperator(s) {
   return buildQmdBundle(s, {
-    work: join(DOCS, "egprs-site"),
-    title: "osmo_egprs",
-    subtitle: "Bundle du depot - plateforme multi-PLMN Osmocom / Docker",
+    work: join(DOCS, "osmo-operator-site"),
+    title: "osmo-operator",
+    subtitle: "Bundle du depot - coeur de reseau GSM/EGPRS multi-PLMN",
     exclude:
       "subprojects|build|pc-bios|node_modules|\\.git|\\.pytest_cache" +
-      "|calypso-full|rsconnect|\\.iso$",
+      "|osmo-operator-full|rsconnect|\\.iso$",
+  });
+}
+
+// Le fork gr-gsm/qemu-calypso a un arbre volumineux : sans exclusions le
+// bundler balaie des milliers de fichiers. On exclut le bundle deja rendu
+// (`qosmo-grgsm-full`) pour eviter l'auto-inclusion, et la machinerie Posit.
+function buildQosmo(s) {
+  return buildQmdBundle(s, {
+    work: join(DOCS, "qosmo-site"),
+    title: "qosmo-grgsm",
+    subtitle: "Bundle du fork gr-gsm / qemu-calypso - baseband Calypso emule",
+    exclude:
+      "subprojects|build|pc-bios|node_modules|\\.git|\\.pytest_cache" +
+      "|qosmo-grgsm-full|rsconnect|\\.iso$",
   });
 }
 

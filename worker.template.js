@@ -198,7 +198,7 @@ __THEME_TOKENS__
            border-top:1px solid var(--border); padding:1.1rem 0 2rem; }
   /* --- barre de navigation commune a TOUT le site ---------------------------
      Meme markup et memes regles que docs/theme/pl4y-doc.css : l'accueil et les
-     cinq sections documentaires (/calypso, /osmo_egprs, /tests, /sdr,
+     cinq sections documentaires (/osmo-operator, /qosmo-grgsm, /tests, /sdr,
      /bbaranoff) partagent une seule barre. Sans elle, revenir sur "/" faisait
      disparaitre la navigation et les corpus avaient l'air d'un site a part. */
   .pl4y-bar {
@@ -449,8 +449,8 @@ __THEME_TOKENS__
        verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> fournit les images en un seul fichier :
        <code>interstp.iso</code> et <code>osmo-operator-desktop.iso</code>.</p>
     <span class="dl-label">&#128218; Documentation &mdash; servie ici, sur pl4y.store</span>
-    <a class="dl-btn alt" href="/calypso/">&#128196; QEMU Calypso (bundle du depot)</a>
-    <a class="dl-btn alt" href="/osmo_egprs/">&#128230; osmo_egprs (bundle du depot)</a>
+    <a class="dl-btn alt" href="/osmo-operator/">&#128230; osmo-operator (bundle du depot)</a>
+    <a class="dl-btn alt" href="/qosmo-grgsm/">&#128196; qosmo-grgsm (bundle du depot)</a>
     <a class="dl-btn alt" href="/tests/">&#129514; Instantane des tests (QEMU)</a>
     <a class="dl-btn alt" href="/sdr/">&#128225; Software Defined Radio (2G&rarr;5G)</a>
     <a class="dl-btn alt" href="/bbaranoff/">&#127891; Cours, projets &amp; CTF</a>
