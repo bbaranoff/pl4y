@@ -8,94 +8,119 @@
  * Modifier la palette ici la change partout, d'un coup. Ne pas redefinir ces
  * variables ailleurs.
  *
- * THEME "SKETCHY" — papier quadrille, encre, ombres portees dures (sans flou),
- * bordures epaisses, coins irreguliers, titres manuscrits. C'est le theme des
- * bundles Quarto (sketchy.css de full_qmd.sh), etendu a l'ensemble du site.
+ * THEME "NOCTURNE" — celui de la page de garde (osmo-operator-desktop.iso,
+ * claude.ai/design). Fond bleu-nuit, accent lavande, police Inter, coins nets,
+ * ombres douces (fines bagues + halos discrets). TOUT le site partage cette
+ * grammaire : accueil, wiki, et les cinq arbres documentaires.
  *
- * Le clair est du PAPIER, le sombre un TABLEAU NOIR : meme grammaire, encre et
- * fond echanges. Les deux partagent la meme cle localStorage (pl4y-theme).
+ * SOMBRE PAR DEFAUT — la page de garde est sombre par construction, donc le
+ * reste du site l'est aussi. La bascule (cle localStorage `pl4y-theme`) offre
+ * une variante claire pour les pages documentaires ; l'accueil, lui, reste
+ * Nocturne quel que soit le choix (son corps utilise les --color-* fixes).
+ *
+ * Les anciens noms de variables du theme sketchy (--sk-*, --sk-rough*,
+ * --sk-grid) sont conserves mais remappes sur la grammaire Nocturne : plusieurs
+ * feuilles y font encore reference (fond quadrille, coins traces a la main), on
+ * les neutralise ici plutot que de toucher a chaque regle.
  * ------------------------------------------------------------------------- */
 
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Architects+Daughter&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
+/* =============================== SOMBRE (defaut) ========================= */
 :root {
-  /* --- encre & papier --- */
-  --sk-ink:#20242e;
-  --sk-paper:#fffdf6;
-  --sk-red:#e4572e;
-  --sk-teal:#17968a;
-  --sk-yellow:#ffd469;
-  /* Coins "traces a la main" : deux rayons asymetriques, alternes selon les
-     elements pour qu'aucun bord ne soit exactement parallele au voisin. */
-  --sk-rough:255px 12px 225px 15px / 15px 225px 15px 255px;
-  --sk-rough2:15px 225px 15px 255px / 255px 15px 225px 15px;
-  --sk-grid:rgba(32,36,46,.05);
+  /* --- palette Nocturne (identique au :root --color-* de la page de garde) --- */
+  --nc-bg:#161826;
+  --nc-surface:#232532;
+  --nc-text:#e9e9ed;
+  --nc-accent:#9184d9;
+  --nc-accent-2:#a7a1db;
+  --nc-accent-400:#b5abfc;
+  --nc-neutral-700:#595d6c;
+  --nc-neutral-800:#3f424d;
+  --nc-neutral-900:#1b1d2a;
 
-  /* --- tokens du site, remappes sur la palette sketchy --- */
-  --bg:var(--sk-paper); --bg-2:#fffef9; --panel:#fffef9;
-  --border:var(--sk-ink);
-  --fg:var(--sk-ink); --muted:#5a6070;
-  --accent:var(--sk-red); --accent-2:var(--sk-teal);
-  --green:#12786e; --yellow:#a16207; --red:var(--sk-red);
-  --code-bg:#fffef9; --code-fg:var(--sk-ink);
-  --btn-bg:var(--sk-yellow); --btn-hover:#ffdf8f;
-  /* Les halos radiaux de l'ancien theme sont remplaces par le quadrillage :
-     on les neutralise plutot que de retirer les regles qui les utilisent. */
-  --glow-1:transparent; --glow-2:transparent;
-  /* Ombres DURES, decalees, sans flou : le trait du theme. */
-  --shadow:3px 3px 0 rgba(32,36,46,.85);
-  --shadow-lg:5px 5px 0 rgba(32,36,46,.9), 10px 10px 0 rgba(228,87,46,.18);
-  --on-accent:#fffdf6; --on-green:#fffdf6;
+  /* Coins nets et reguliers (fini les rayons asymetriques "traces main"). */
+  --sk-rough:12px;
+  --sk-rough2:999px;      /* pilules de la barre de navigation */
+  --sk-grid:transparent;  /* plus de papier quadrille : fond Nocturne uni */
+
+  /* --- tokens du site, remappes sur la palette Nocturne --- */
+  --bg:var(--nc-bg); --bg-2:#1c1e2b; --panel:var(--nc-surface);
+  --border:color-mix(in srgb, var(--nc-text) 14%, transparent);
+  --fg:var(--nc-text); --muted:#a7abbd;
+  --accent:var(--nc-accent); --accent-2:var(--nc-accent-2);
+  --green:#4fd6c4; --yellow:#e0b64a; --red:#ff8a5c;
+  --code-bg:var(--nc-neutral-900); --code-fg:var(--nc-text);
+  --btn-bg:#2b2d3c; --btn-hover:#343650;
+  /* Halos radiaux Nocturne : discrets, derriere le contenu. */
+  --glow-1:color-mix(in srgb, #2b2741 75%, transparent);
+  --glow-2:color-mix(in srgb, black 30%, transparent);
+  /* Ombres DOUCES : une fine bague + une ombre portee floue. */
+  --shadow:0 0 0 1px color-mix(in srgb, var(--nc-text) 10%, transparent);
+  --shadow-lg:0 10px 34px rgba(0,0,0,.45),
+              0 0 0 1px color-mix(in srgb, var(--nc-text) 14%, transparent);
+  --on-accent:#ffffff; --on-green:#161826;
 
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --sans:'Architects Daughter','Neucha',ui-rounded,system-ui,sans-serif;
-  --display:'Caveat','Architects Daughter',cursive;
+  --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --display:'Inter',system-ui,sans-serif;
 }
 
-:root[data-theme="dark"] {
-  --sk-ink:#f2ede0;          /* la craie */
-  --sk-paper:#161a20;        /* l'ardoise */
-  --sk-red:#ff8a5c;
-  --sk-teal:#4fd6c4;
-  --sk-yellow:#ffd469;
-  --sk-grid:rgba(242,237,224,.06);
-
-  --bg:var(--sk-paper); --bg-2:#1b2027; --panel:#1b2027;
-  --border:var(--sk-ink);
-  --fg:var(--sk-ink); --muted:#a9a294;
-  --accent:var(--sk-red); --accent-2:var(--sk-teal);
-  --green:#4fd6c4; --yellow:#e0b64a; --red:var(--sk-red);
-  --code-bg:#11151a; --code-fg:var(--sk-ink);
-  --btn-bg:#2a2f38; --btn-hover:#39404b;
+/* =============================== CLAIR (bascule) ======================== */
+/* Variante claire des memes tokens, teintee lavande pour rester dans la
+ * famille Nocturne. Ne s'applique qu'aux pages documentaires : le corps de
+ * l'accueil est fige en sombre. */
+:root[data-theme="light"] {
+  --bg:#f6f6fb; --bg-2:#ffffff; --panel:#ffffff;
+  --border:#e4e4f0;
+  --fg:#1c1e2b; --muted:#5a6070;
+  --accent:#6f63c9; --accent-2:#7d76c6;
+  --green:#12786e; --yellow:#a16207; --red:#d1492b;
+  --code-bg:#f1f1f8; --code-fg:#1c1e2b;
+  --btn-bg:#ecebf7; --btn-hover:#e0def3;
+  --sk-grid:transparent;
   --glow-1:transparent; --glow-2:transparent;
-  --shadow:3px 3px 0 rgba(242,237,224,.45);
-  --shadow-lg:5px 5px 0 rgba(242,237,224,.5), 10px 10px 0 rgba(255,138,92,.22);
-  --on-accent:#161a20; --on-green:#161a20;
+  --shadow:0 0 0 1px #e4e4f0;
+  --shadow-lg:0 10px 30px rgba(31,30,54,.12), 0 0 0 1px #e4e4f0;
+  --on-accent:#ffffff; --on-green:#ffffff;
 }
 
 /* --------------------------------------------------- traits structurels ---
- * Le papier quadrille, les titres manuscrits et les bordures a l'encre. Pose
- * ici (et pas dans chaque feuille) pour que l'accueil et les sections aient
- * exactement le meme grain.
+ * L'accueil et les sections partagent exactement le meme fond et la meme
+ * famille de titres. Pose ici (et pas dans chaque feuille) pour un grain
+ * identique partout.
  * ------------------------------------------------------------------------ */
 
+/* Fond Nocturne : deux halos radiaux tres doux sur le bleu-nuit, comme la page
+   de garde. Remplace l'ancien papier quadrille. */
 .pl4y-paper {
   background-color:var(--bg);
   background-image:
-    linear-gradient(var(--sk-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--sk-grid) 1px, transparent 1px);
-  background-size:28px 28px;
+    radial-gradient(1200px 720px at 82% -160px, var(--glow-1), transparent 60%),
+    radial-gradient(1100px 800px at -10% 100%, var(--glow-2), transparent 55%);
   background-attachment:fixed;
 }
 
-/* Titres a la main. `font-synthesis:none` evite que le navigateur fabrique un
-   faux gras baveux quand Caveat 700 n'a pas encore ete telecharge. */
+/* Titres Inter (le theme manuscrit Caveat est retire). `font-synthesis:none`
+   garde un rendu net avant que la fonte soit chargee. */
 .pl4y-display {
   font-family:var(--display);
-  font-weight:700;
+  font-weight:600;
   font-synthesis:none;
-  letter-spacing:0;
+  letter-spacing:-.015em;
 }
+
+/* Bouton "Quick start" du bandeau : meme forme que les autres onglets mais
+   accentue (lavande) pour ressortir. Defini ici pour couvrir les trois copies
+   de la barre (accueil, wiki, pages documentaires) d'un seul endroit. */
+.pl4y-bar nav a.pl4y-quick,
+.pl4y-bar nav a.pl4y-quick:hover {
+  color:var(--on-accent);
+  background:var(--accent);
+  border-color:var(--accent);
+  font-weight:600;
+}
+.pl4y-bar nav a.pl4y-quick:hover { filter:brightness(1.08); }
 
 /* ---------------------------------------------------------------------------
  * pl4y-doc.css — skin commun des docs servies sur pl4y.store
@@ -109,7 +134,7 @@
  * Charge APRES le theme natif : tout est en surcharge.
  * ------------------------------------------------------------------------- */
 
-/* Les tokens (:root, palette sketchy, polices) vivent dans pl4y-tokens.css,
+/* Les tokens (:root, palette Nocturne, polices) vivent dans pl4y-tokens.css,
  * que docs/skin.mjs prefixe a ce fichier au moment d'ecrire pl4y-doc.css dans
  * chaque arbre. Ne pas les redefinir ici : la page d'accueil consomme la meme
  * source et les deux divergeraient. */
@@ -118,10 +143,10 @@
 html { scroll-behavior:smooth; }
 body {
   background-color:var(--bg) !important;
+  /* Fond Nocturne : les memes halos radiaux que la page de garde. */
   background-image:
-    linear-gradient(var(--sk-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--sk-grid) 1px, transparent 1px) !important;
-  background-size:28px 28px !important;
+    radial-gradient(1200px 720px at 82% -160px, var(--glow-1), transparent 60%),
+    radial-gradient(1100px 800px at -10% 100%, var(--glow-2), transparent 55%) !important;
   background-attachment:fixed !important;
   color:var(--fg) !important;
   font-family:var(--sans) !important;
@@ -129,10 +154,10 @@ body {
   -webkit-font-smoothing:antialiased;
 }
 h1, h2, h3, h4, h5, h6 { color:var(--fg); font-family:var(--sans); }
-/* Titres manuscrits (Caveat) : le trait le plus reconnaissable du theme. */
+/* Titres Inter (theme Nocturne), sans police manuscrite. */
 h1, h2 { font-family:var(--display) !important; font-synthesis:none;
          letter-spacing:0 !important; }
-h1 { font-size:clamp(1.7rem,4vw,2.3rem); font-weight:800; letter-spacing:-.025em;
+h1 { font-size:clamp(1.7rem,4vw,2.3rem); font-weight:700; letter-spacing:-.025em;
      line-height:1.15; margin:0 0 .8rem; }
 h2 { font-size:1.32rem; font-weight:700; letter-spacing:-.015em;
      margin:2.6rem 0 .7rem; padding-top:1.1rem; border-top:1px solid var(--border);
@@ -482,199 +507,49 @@ footer, .rst-footer-buttons, .rst-content div[role="contentinfo"] { color:var(--
 #pl4y-sources ul { padding-left:1.2rem; }
 
 /* ===========================================================================
-   COUCHE SKETCHY — LA FORME
+   FINITION NOCTURNE
    ---------------------------------------------------------------------------
-   Ce qui precede posait la COULEUR du theme (papier quadrille, encre, Caveat
-   sur les titres) mais gardait les formes de l'ancien skin : bordures 1 px,
-   coins arrondis reguliers, titres a plat. Resultat : /tests/, /sdr/ et
-   /bbaranoff/ etaient « aux couleurs de » sketchy sans en avoir le trait.
-
-   Ce bloc pose la grammaire manquante, celle de sketchy.css du bundle Quarto :
-     - des coins TRACES A LA MAIN (--sk-rough / --sk-rough2, alternes pour
-       qu'aucun bord ne soit parallele a son voisin) ;
-     - des bordures a l'encre de 2 px ;
-     - des ombres DURES et decalees, jamais floues ;
-     - de legeres rotations, sous le demi-degre : de travers, pas penche.
-
-   Il est en fin de fichier pour l'emporter sur les regles de forme ci-dessus,
-   a specificite egale. Les tokens viennent de pl4y-tokens.css, donc le sombre
-   (le tableau noir) suit sans une seule regle en double.
+   L'ancienne "couche sketchy" (surligneur, rotations, ombres decalees,
+   soulignes ondules) est retiree : les regles de base ci-dessus suffisent et
+   sont deja aux tokens Nocturne. Ce bloc ne fait qu'ajouter les etats "actif"
+   et le survol des cartes, dans la meme grammaire que la page de garde.
    ========================================================================= */
 
-/* --- titre de page : la pancarte surlignee ------------------------------- */
-/* Le skin neutralisait h1.title (font-family:var(--sans), border:0,
-   box-shadow:none, transform:none) et effacait donc le trait le plus visible
-   du theme sur les bundles Quarto, qui l'avaient deja. On le remet, et on
-   l'etend a pandoc (/bbaranoff/) et Sphinx (/sdr/) qui ne l'ont jamais eu. */
-h1.title,
-.pl4y-doc header.title-block > h1,
-.rst-content section > h1, .rst-content .section > h1,
-.document section > h1, .document .section > h1 {
-  font-family:var(--display) !important; font-synthesis:none;
-  font-size:clamp(2.2rem,6vw,3.4rem) !important; line-height:1.05 !important;
-  font-weight:700 !important; letter-spacing:0 !important;
-  display:inline-block !important; padding:.08em .42em !important;
-  background:var(--sk-yellow) !important; color:var(--sk-ink) !important;
-  border:3px solid var(--sk-ink) !important;
-  border-radius:var(--sk-rough) !important;
-  box-shadow:6px 6px 0 var(--sk-ink) !important;
-  transform:rotate(-1.1deg) !important;
-  margin:0 0 1.4rem !important;
-}
-/* Le surligneur jaune reste jaune sur le tableau noir : c'est un marqueur, pas
-   un fond de page. On garde donc --sk-ink en dur pour le texte et le trait,
-   sinon la craie ecrirait en clair sur du jaune. */
-:root[data-theme="dark"] h1.title,
-:root[data-theme="dark"] .pl4y-doc header.title-block > h1,
-:root[data-theme="dark"] .rst-content section > h1,
-:root[data-theme="dark"] .rst-content .section > h1,
-:root[data-theme="dark"] .document section > h1,
-:root[data-theme="dark"] .document .section > h1 {
-  background:var(--sk-yellow) !important; color:#20242e !important;
-  border-color:#20242e !important; box-shadow:6px 6px 0 rgba(32,36,46,.9) !important;
-}
-.subtitle, .pl4y-doc .subtitle {
-  display:inline-block; transform:rotate(.4deg); opacity:.78;
-}
-
-/* --- titres de section : le trait tire a la regle qui derape -------------- */
-h1:not(.title), h2 {
-  border-radius:var(--sk-rough2);
-}
-h2 {
-  border-top:0 !important;
-  border-bottom:3px solid var(--border) !important;
-  padding-top:0 !important; padding-bottom:.12em;
-  transform:rotate(-.28deg);
-  margin-top:2.8rem !important;
-}
-h3 { transform:rotate(.18deg); }
-/* Ces h2-la ne sont pas des titres de section mais des ETIQUETTES de colonne
-   (« Sur cette page », l'en-tete d'un encart) : le trait de separation et la
-   rotation les rendraient illisibles. */
-nav[role="doc-toc"] > h2, #toc-title, .sidebar-title,
-.callout h2, .admonition h2, .pl4y-index h2, .hub-card h2, .card h2 {
-  border-bottom:0 !important; transform:none !important;
-  margin-top:0 !important; padding-bottom:0 !important;
-}
-
-/* --- code : la boite encadree, et RIEN dedans ---------------------------- */
-/* Le cadre va sur le conteneur (div.sourceCode / div.highlight) ; le <pre>
-   qu'il contient redevient plat. Sans cette separation, Quarto, Sphinx et
-   pandoc affichaient tous les trois un double cadre imbrique. */
-div.sourceCode, div.highlight, pre:not(.sourceCode):not(.literal-block),
-.rst-content .highlight, .rst-content pre.literal-block {
-  border:2px solid var(--border) !important;
-  border-radius:var(--sk-rough) !important;
-  box-shadow:var(--shadow-lg) !important;
-  background:var(--code-bg) !important;
-  transform:rotate(-.12deg);
-  margin:1.2rem 0 !important;
-}
-div.sourceCode > pre, div.highlight > pre, .rst-content .highlight > pre {
-  border:0 !important; border-radius:0 !important; box-shadow:none !important;
-  background:transparent !important; margin:0 !important;
-}
-/* Le code en ligne : une etiquette, pas un cadre. */
-code, kbd, samp, tt, .rst-content code.literal, .rst-content tt.literal {
-  border-radius:var(--sk-rough2) !important;
-  border-width:1.5px !important;
-}
-pre code, pre > code, div.sourceCode code, div.highlight code {
-  border-radius:0 !important; border-width:0 !important;
-}
-
-/* --- les boites : tableaux, encarts, sommaires, cartes ------------------- */
-table, table.table, .rst-content table.docutils, .dataframe,
-.callout, .admonition, .rst-content .admonition, div.note, div.warning, div.tip,
-.pl4y-doc #TOC, .pl4y-doc nav#TOC, .pl4y-sect, .bundle-index {
-  border:2px solid var(--border) !important;
-  box-shadow:var(--shadow) !important;
-}
-table, table.table, .rst-content table.docutils, .dataframe,
-.pl4y-doc #TOC, .pl4y-doc nav#TOC {
-  border-radius:var(--sk-rough) !important;
-}
-.callout, .admonition, .rst-content .admonition, div.note, div.warning, div.tip,
-.pl4y-sect, .bundle-index {
-  border-radius:var(--sk-rough2) !important;
-}
-/* Le liseré de gauche des encarts : le coup de feutre qui dit la couleur. */
-.callout, .admonition, .rst-content .admonition, div.note, div.warning, div.tip {
-  border-left:5px solid var(--accent) !important;
-}
-.callout-warning, div.warning, .admonition.warning { border-left-color:var(--yellow) !important; }
-.callout-important, .callout-caution, div.danger, .admonition.danger { border-left-color:var(--red) !important; }
-.callout-tip, div.tip, .admonition.tip, .admonition.hint { border-left-color:var(--green) !important; }
-blockquote { border-left:5px solid var(--accent-2) !important; border-radius:var(--sk-rough2) !important; }
-
-/* Cartes de l'index de repertoire : une pile de fiches posees de travers. */
+/* Cartes d'index : bordure nette, elevation douce au survol (pas de rotation). */
 .pl4y-index a {
-  border:2px solid var(--border); border-radius:var(--sk-rough);
-  transform:rotate(-.3deg);
+  border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow); transition:box-shadow .18s ease, transform .18s ease, border-color .18s ease;
 }
-.pl4y-index li:nth-child(2n) a { border-radius:var(--sk-rough2); transform:rotate(.35deg); }
-.pl4y-index a:hover { transform:rotate(0deg) translateY(-2px); }
-
-/* --- champs et boutons --------------------------------------------------- */
-.pl4y-toggle, .btn, .btn-neutral, .rst-versions,
-.wy-side-nav-search input[type="text"], #sk-filter, .sk-filter input {
-  border-radius:var(--sk-rough2) !important;
-  border-width:2px !important; border-style:solid !important;
-}
-.pl4y-bar nav a { border-radius:var(--sk-rough2); }
-.pl4y-bar nav a:hover, .pl4y-bar nav a[aria-current="page"] { border-width:1.5px; }
-#sk-filter, .sk-filter input {
-  font-family:var(--display) !important; font-size:1.35rem !important;
-}
-.pl4y-bar { border-bottom:2px solid var(--border); }
-
-/* --- etiquettes et pastilles --------------------------------------------- */
-.file-meta .tag, .section-count, .quarto-category, .pl4y-sect-grp .n {
-  border-radius:var(--sk-rough2) !important;
-  border-width:2px !important;
-}
-.section-count { display:inline-block; transform:rotate(.7deg); }
-.code-with-filename .code-with-filename-file {
-  font-family:var(--display) !important; font-size:1.15rem !important;
-  background:var(--sk-yellow) !important; color:var(--sk-ink) !important;
-  border:2px solid var(--border) !important; border-bottom:0 !important;
-  border-radius:12px 110px 6px 6px / 40px 8px 6px 6px !important;
-  transform:rotate(-.5deg) !important; display:inline-block !important;
+.pl4y-index a:hover {
+  box-shadow:var(--shadow-lg); transform:translateY(-2px);
+  border-color:color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 
-/* --- liens du corps : le trait ondule ------------------------------------ */
-/* Sur le CORPS seulement. Une barre de navigation ondulee se lit mal, et les
-   sommaires (TOC, sidebar) sont deja sans soulignement. */
-.pl4y-doc a:not(.pl4y-index a), main a, .rst-content a, #quarto-content a {
-  text-decoration-style:wavy; text-decoration-thickness:1px;
-  text-underline-offset:.22em;
-}
-.pl4y-doc #TOC a, nav[role="doc-toc"] a, #quarto-sidebar a,
-.wy-menu-vertical a, .pl4y-index a, .pl4y-sect a, .headerlink {
-  text-decoration:none !important;
-}
-
-/* --- Sphinx : la colonne de gauche, elle aussi a l'encre ----------------- */
-.wy-nav-side { border-right:2px solid var(--border) !important; }
-.wy-side-nav-search { border-bottom:2px solid var(--border) !important; }
+/* Sommaire / sidebar : l'entree courante en accent lavande, texte sur accent. */
+nav[role="doc-toc"] a.active, #TOC a.active,
 .wy-menu-vertical li.current > a, .wy-menu-vertical li.on a {
-  border-radius:var(--sk-rough2) !important;
+  background:var(--accent) !important; color:var(--on-accent) !important;
+  border-radius:8px !important; border-left:0 !important; padding-inline:.5em !important;
 }
 
-/* --- Quarto : la colonne de gauche, le meme trait ------------------------ */
+/* Onglet "nom de fichier" au-dessus d'un bloc de code (Quarto) : accent discret. */
+.code-with-filename .code-with-filename-file {
+  background:color-mix(in srgb, var(--accent) 16%, var(--panel)) !important;
+  color:var(--fg) !important; border:1px solid var(--border) !important;
+  border-bottom:0 !important; border-radius:10px 10px 0 0 !important;
+  font-family:var(--mono) !important; font-size:.76rem !important; font-weight:600 !important;
+}
+
+/* Titre de page Quarto/pandoc : Inter propre, sans pancarte ni rotation. */
+h1.title {
+  font-family:var(--display) !important; font-weight:700 !important;
+  letter-spacing:-.02em !important; background:none !important; color:var(--fg) !important;
+  border:0 !important; box-shadow:none !important; transform:none !important;
+  padding:0 !important; display:block !important;
+}
+
+/* Colonnes laterales Sphinx / Quarto : filet fin. */
+.wy-nav-side, .wy-side-nav-search,
 #quarto-sidebar, .sidebar.sidebar-navigation {
-  border-right:2px solid var(--border) !important;
-}
-nav[role="doc-toc"] a.active, #TOC a.active {
-  background:var(--sk-yellow) !important; color:var(--sk-ink) !important;
-  border-radius:var(--sk-rough2) !important; border-left:0 !important;
-  padding:0 .35em;
-}
-
-/* Les rotations sont decoratives : on les retire des qu'on demande du calme. */
-@media (prefers-reduced-motion:reduce) {
-  h1.title, h1:not(.title), h2, h3, .subtitle, .section-count,
-  div.sourceCode, div.highlight, .pl4y-index a,
-  .code-with-filename .code-with-filename-file { transform:none !important; }
+  border-right:1px solid var(--border) !important;
 }

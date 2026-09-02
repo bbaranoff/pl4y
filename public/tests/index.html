@@ -1,103 +1,77 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-
+<html lang="fr">
+<head>
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.6.40">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-
-<meta name="author" content="auto-generated (tests/conftest.py)">
-
-<title>Calypso test report</title>
-<style>
-code{white-space: pre-wrap;}
-span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
-div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
-ul.task-list{list-style: none;}
-ul.task-list li input[type="checkbox"] {
-  width: 0.8em;
-  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
-  vertical-align: middle;
-}
-/* CSS for syntax highlighting */
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
-}
-</style>
-
-
-<script src="index_files/libs/clipboard/clipboard.min.js"></script>
-<script src="index_files/libs/quarto-html/quarto.js"></script>
-<script src="index_files/libs/quarto-html/popper.min.js"></script>
-<script src="index_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="index_files/libs/quarto-html/anchor.min.js"></script>
-<link href="index_files/libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="index_files/libs/quarto-html/quarto-syntax-highlighting-549806ee2085284f45b00abea8c6df48.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="index_files/libs/quarto-html/quarto-syntax-highlighting-dark-8ea72dc5fed832574809a9c94082fbbb.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<script src="index_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="index_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="index_files/libs/bootstrap/bootstrap-78c7093d7d561b2e769f543510fd81aa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="index_files/libs/bootstrap/bootstrap-dark-d25981d21dc6cecbd7ac87467b19fe77.min.css" rel="prefetch" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<meta name="mermaid-theme" content="default">
-<script src="index_files/libs/quarto-diagram/mermaid.min.js"></script>
-<script src="index_files/libs/quarto-diagram/mermaid-init.js"></script>
-<link href="index_files/libs/quarto-diagram/mermaid.css" rel="stylesheet">
-
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Health check &mdash; pl4y.store</title>
 
 <!-- pl4y-skin v1 -->
-<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash).
-     Meme cle localStorage que la page principale : "pl4y-theme". -->
+<!-- pl4y-head.html — applique le theme AVANT le premier rendu (pas de flash). -->
 <script>
   (function () {
     try {
-      var t = localStorage.getItem("pl4y-theme") || "light";
+      var t = localStorage.getItem("pl4y-theme") || "dark";
       document.documentElement.setAttribute("data-theme", t);
     } catch (e) {}
   })();
 </script>
 <link rel="stylesheet" href="pl4y-doc.css">
-</head>
 
+<style>
+  /* Rapport de sante : mise en forme locale, tout aux tokens Nocturne. */
+  .hc-head {
+    border:1px solid var(--border); border-radius:14px; background:var(--panel);
+    box-shadow:var(--shadow); padding:1.1rem 1.3rem; margin:0 0 1.6rem;
+  }
+  .hc-head .meta { color:var(--muted); font-family:var(--mono); font-size:.82rem;
+    display:flex; flex-wrap:wrap; gap:.3rem 1.4rem; margin-top:.5rem; }
+  .hc-summary { display:flex; flex-wrap:wrap; gap:.6rem; margin:0 0 1.8rem; }
+  .hc-chip {
+    display:inline-flex; align-items:center; gap:.45rem; font-family:var(--mono);
+    font-size:.86rem; font-weight:700; padding:.45rem .8rem; border-radius:999px;
+    border:1px solid var(--border); background:var(--panel);
+  }
+  .hc-chip .n { font-size:1rem; }
+  .hc-chip.pass { color:var(--green); border-color:color-mix(in srgb,var(--green) 45%,var(--border)); }
+  .hc-chip.warn { color:var(--yellow); border-color:color-mix(in srgb,var(--yellow) 45%,var(--border)); }
+  .hc-chip.skip { color:var(--muted); }
+  .hc-chip.fail { color:var(--red); border-color:color-mix(in srgb,var(--red) 45%,var(--border)); }
+
+  .hc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+    gap:1rem; margin:0 0 2rem; }
+  .hc-card {
+    border:1px solid var(--border); border-radius:12px; background:var(--panel);
+    box-shadow:var(--shadow); padding:.9rem 1.05rem;
+  }
+  .hc-card h3 { margin:0 0 .1rem; color:var(--fg); font-size:1rem; letter-spacing:-.01em; }
+  .hc-card .role { color:var(--muted); font-size:.76rem; text-transform:uppercase;
+    letter-spacing:.08em; margin:0 0 .6rem; }
+  .hc-list { list-style:none; margin:0; padding:0; }
+  .hc-list li {
+    display:flex; gap:.55rem; align-items:flex-start; padding:.22rem 0;
+    font-size:.9rem; line-height:1.4; border-top:1px solid color-mix(in srgb,var(--border) 55%,transparent);
+  }
+  .hc-list li:first-child { border-top:0; }
+  .hc-list .g { flex:0 0 auto; font-weight:700; width:1.1em; text-align:center; }
+  .hc-list li.ok    .g { color:var(--green); }
+  .hc-list li.warn  .g { color:var(--yellow); }
+  .hc-list li.skip  .g { color:var(--muted); }
+  .hc-list li.skip  { color:var(--muted); }
+  .hc-proc { display:flex; flex-wrap:wrap; gap:.4rem; }
+  .hc-proc .p {
+    font-family:var(--mono); font-size:.78rem; color:var(--green);
+    border:1px solid color-mix(in srgb,var(--green) 40%,var(--border)); border-radius:999px;
+    padding:.12rem .55rem;
+  }
+</style>
+</head>
 <body>
-<!-- pl4y-bar.html — barre de navigation commune aux docs + bascule de theme.
-     Injectee en haut du <body> de chaque page generee. -->
+
 <div class="pl4y-bar">
   <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
   <nav>
     <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/wiki#demarrage" class="pl4y-quick">Quick start</a>
     <a href="/wiki" data-pl4y-nav="/wiki">Installeur &amp; wiki</a>
     <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
     <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
@@ -126,7 +100,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         label();
       });
     }
-    // marque l'onglet courant
     var path = location.pathname;
     document.querySelectorAll("[data-pl4y-nav]").forEach(function (a) {
       var p = a.getAttribute("data-pl4y-nav");
@@ -136,1692 +109,187 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   })();
 </script>
 
+<div class="pl4y-doc">
+  <header class="title-block">
+    <h1>Global Health Check</h1>
+    <p class="subtitle">Banc <code>osmo_egprs</code> &mdash; un opérateur, mode natif</p>
+  </header>
 
-<div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
-<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
-  <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
-   
-  <ul>
-  <li><a href="#status-global" id="toc-status-global" class="nav-link active" data-scroll-target="#status-global">Status global</a></li>
-  <li><a href="#pipeline-où-ça-casse" id="toc-pipeline-où-ça-casse" class="nav-link" data-scroll-target="#pipeline-où-ça-casse">Pipeline — où ça casse</a></li>
-  <li><a href="#blockers" id="toc-blockers" class="nav-link" data-scroll-target="#blockers">Blockers</a></li>
-  <li><a href="#couches-ce-qui-marche-ce-qui-casse" id="toc-couches-ce-qui-marche-ce-qui-casse" class="nav-link" data-scroll-target="#couches-ce-qui-marche-ce-qui-casse">Couches — ce qui marche, ce qui casse</a>
-  <ul class="collapse">
-  <li><a href="#infra-55" id="toc-infra-55" class="nav-link" data-scroll-target="#infra-55">✅ <code>Infra</code> — 5/5</a></li>
-  <li><a href="#dsp-1020" id="toc-dsp-1020" class="nav-link" data-scroll-target="#dsp-1020">🟡 <code>DSP</code> — 10/20</a></li>
-  <li><a href="#l1-data-47" id="toc-l1-data-47" class="nav-link" data-scroll-target="#l1-data-47">🟡 <code>L1-data</code> — 4/7</a></li>
-  <li><a href="#l1-ctrl-28" id="toc-l1-ctrl-28" class="nav-link" data-scroll-target="#l1-ctrl-28">🟡 <code>L1-ctrl</code> — 2/8</a></li>
-  <li><a href="#ndb-919" id="toc-ndb-919" class="nav-link" data-scroll-target="#ndb-919">🟡 <code>NDB</code> — 9/19</a></li>
-  <li><a href="#arm-feedback-02" id="toc-arm-feedback-02" class="nav-link" data-scroll-target="#arm-feedback-02">🛑 <code>ARM-feedback</code> — 0/2</a></li>
-  <li><a href="#l3-mm-05" id="toc-l3-mm-05" class="nav-link" data-scroll-target="#l3-mm-05">🛑 <code>L3-MM</code> — 0/5</a></li>
-  <li><a href="#mgmt-33" id="toc-mgmt-33" class="nav-link" data-scroll-target="#mgmt-33">✅ <code>Mgmt</code> — 3/3</a></li>
-  <li><a href="#summary-11" id="toc-summary-11" class="nav-link" data-scroll-target="#summary-11">✅ <code>Summary</code> — 1/1</a></li>
-  </ul></li>
-  <li><a href="#diagramme-détaillé-catégorie-couche-test" id="toc-diagramme-détaillé-catégorie-couche-test" class="nav-link" data-scroll-target="#diagramme-détaillé-catégorie-couche-test">Diagramme détaillé (catégorie → couche → test)</a></li>
-  <li><a href="#skipped-xfailed" id="toc-skipped-xfailed" class="nav-link" data-scroll-target="#skipped-xfailed">Skipped / xfailed</a>
-  <ul class="collapse">
-  <li><a href="#skipped" id="toc-skipped" class="nav-link" data-scroll-target="#skipped">22 skipped</a></li>
-  <li><a href="#xfailed" id="toc-xfailed" class="nav-link" data-scroll-target="#xfailed">19 xfailed</a></li>
-  </ul></li>
-  <li><a href="#résultats-bruts-pytest" id="toc-résultats-bruts-pytest" class="nav-link" data-scroll-target="#résultats-bruts-pytest">Résultats bruts pytest</a></li>
-  <li><a href="#reproduction" id="toc-reproduction" class="nav-link" data-scroll-target="#reproduction">Reproduction</a></li>
-  </ul>
-<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="index.md"><i class="bi bi-file-code"></i>Github (GFM)</a></li></ul></div></nav>
-</div>
-<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
-</div>
-<main class="content" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
-<div class="quarto-title-block"><div><h1 class="title">Calypso test report</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
-</div>
-
-
-
-<div class="quarto-title-meta">
-
-    <div>
-    <div class="quarto-title-meta-heading">Author</div>
-    <div class="quarto-title-meta-contents">
-             <p>auto-generated (tests/conftest.py) </p>
-          </div>
-  </div>
-    
-    <div>
-    <div class="quarto-title-meta-heading">Published</div>
-    <div class="quarto-title-meta-contents">
-      <p class="date">2026-08-25 14:29</p>
+  <div class="hc-head">
+    <strong>osmo-operator-1</strong> &mdash; tous les démons locaux, VTY sur <code>127.0.0.1</code>.
+    <div class="meta">
+      <span>date : 2026-09-02 21:16:40</span>
+      <span>opérateurs : 1</span>
+      <span>mode : native (détecté)</span>
+      <span>inter-STP : aucun (nœud isolé)</span>
     </div>
   </div>
-  
-    
+
+  <div class="hc-summary" aria-label="Résumé">
+    <span class="hc-chip pass"><span class="n">29</span> PASS</span>
+    <span class="hc-chip warn"><span class="n">1</span> WARN</span>
+    <span class="hc-chip skip"><span class="n">1</span> SKIP</span>
+    <span class="hc-chip fail"><span class="n">0</span> FAIL</span>
   </div>
-  
 
+  <p class="section-count">Un seul opérateur est déployé sur ce nœud : les checks
+  inter-opérateurs et l'inter-STP ne s'appliquent pas et sont ignorés, pas en
+  échec.</p>
 
-</header>
+  <div class="hc-grid">
 
+    <div class="hc-card">
+      <h3>STP</h3><p class="role">Signalisation</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>ASP actifs : 2 (MSC + BSC ok)</span></li>
+        <li class="ok"><span class="g">✓</span><span>AS actifs : 2</span></li>
+        <li class="ok"><span class="g">✓</span><span>Routes : aucun PROHIB</span></li>
+        <li class="skip"><span class="g">–</span><span>Route par défaut → inter-STP : ignorée (natif, nœud isolé)</span></li>
+      </ul>
+    </div>
 
-<blockquote class="blockquote">
-<p>Auto-generated by <code>tests/conftest.py::pytest_sessionfinish</code>. Pasteable directly in a GitHub issue/PR (Mermaid blocks render natively).</p>
-</blockquote>
-<section id="status-global" class="level2">
-<h2 class="anchored" data-anchor-id="status-global">Status global</h2>
-<blockquote class="blockquote">
-<p>[!WARNING] ⚠️ <strong>PARTIAL</strong> — 14 échec(s), 34/70 passent (49 %)</p>
-</blockquote>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>résultat</th>
-<th style="text-align: right;">nombre</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>✅ passed</td>
-<td style="text-align: right;">34</td>
-</tr>
-<tr class="even">
-<td>❌ failed</td>
-<td style="text-align: right;">14</td>
-</tr>
-<tr class="odd">
-<td>⏭️ skipped</td>
-<td style="text-align: right;">3</td>
-</tr>
-<tr class="even">
-<td>⚠️ xfailed</td>
-<td style="text-align: right;">19</td>
-</tr>
-<tr class="odd">
-<td><strong>total</strong></td>
-<td style="text-align: right;"><strong>70</strong></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="pipeline-où-ça-casse" class="level2">
-<h2 class="anchored" data-anchor-id="pipeline-où-ça-casse">Pipeline — où ça casse</h2>
-<p>Le pipeline ci-dessous trace le flux logique GSM Calypso, étape par étape. Chaque étape est colorée selon le ratio de tests qui passent. <strong>Si une étape est rouge (0% pass), c’est le premier blocker</strong> — tout ce qui vient après ne peut pas être validé tant qu’elle n’est pas verte.</p>
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p><figure class="figure"><p></p>
-<div>
-<pre class="mermaid mermaid-js">graph LR
-  classDef pass    fill:#bef5b1,stroke:#1f7a1f,color:#0a3d0a;
-  classDef partial fill:#fde79c,stroke:#b07a00,color:#3a2c00;
-  classDef fail    fill:#fbb4b4,stroke:#a31a1a,color:#5a0000;
-  classDef skip    fill:#e0e0e0,stroke:#6a6a6a,color:#333;
-  classDef break_  fill:#ff5252,stroke:#990000,color:#fff,stroke-width:3px;
-  P_Infra["Infra&lt;br/&gt;5/5"]
-  class P_Infra pass;
-  P_DSP["DSP&lt;br/&gt;10/20"]
-  class P_DSP partial;
-  P_Infra --&gt; P_DSP
-  P_L1_data["L1-data&lt;br/&gt;4/7"]
-  class P_L1_data partial;
-  P_DSP --&gt; P_L1_data
-  P_L1_ctrl["L1-ctrl&lt;br/&gt;2/8"]
-  class P_L1_ctrl partial;
-  P_L1_data --&gt; P_L1_ctrl
-  P_NDB["NDB&lt;br/&gt;9/19"]
-  class P_NDB partial;
-  P_L1_ctrl --&gt; P_NDB
-  P_ARM_feedback["ARM-feedback&lt;br/&gt;0/2"]
-  class P_ARM_feedback fail;
-  P_NDB --&gt; P_ARM_feedback
-  P_ARM_feedback -.-&gt;|🛑| BREAK_ARM_feedback["BREAK HERE&lt;br/&gt;ARM-feedback 0% pass"]
-  class BREAK_ARM_feedback break_;
-  P_L3_MM["L3-MM&lt;br/&gt;0/5"]
-  class P_L3_MM fail;
-  P_ARM_feedback --&gt; P_L3_MM
-  P_Mgmt["Mgmt&lt;br/&gt;3/3"]
-  class P_Mgmt pass;
-  P_L3_MM --&gt; P_Mgmt
-  P_Summary["Summary&lt;br/&gt;1/1"]
-  class P_Summary pass;
-  P_Mgmt --&gt; P_Summary
-</pre>
+    <div class="hc-card">
+      <h3>HLR</h3><p class="role">Abonnés</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>GSUP : VLR connecté</span></li>
+        <li class="ok"><span class="g">✓</span><span>GSUP : SMSC connecté</span></li>
+      </ul>
+    </div>
+
+    <div class="hc-card">
+      <h3>MSC</h3><p class="role">Commutation</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>MSC → STP : ASP_ACTIVE</span></li>
+        <li class="ok"><span class="g">✓</span><span>SCCP SSN 254 (MSC-A) enregistré</span></li>
+      </ul>
+    </div>
+
+    <div class="hc-card">
+      <h3>BSC</h3><p class="role">Contrôleur BTS</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>BSC → STP : ASP_ACTIVE</span></li>
+        <li class="ok"><span class="g">✓</span><span>SCCP SSN 254 (BSC) enregistré</span></li>
+        <li class="ok"><span class="g">✓</span><span>BTS 0 : Enabled / OK</span></li>
+        <li class="ok"><span class="g">✓</span><span>OML : connecté</span></li>
+        <li class="ok"><span class="g">✓</span><span>RSL : connecté (TRX 0)</span></li>
+      </ul>
+    </div>
+
+    <div class="hc-card">
+      <h3>BTS</h3><p class="role">Station de base</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>BTS 0 : configurée</span></li>
+        <li class="ok"><span class="g">✓</span><span>BTS 0 : opérationnelle (Enabled / OK)</span></li>
+        <li class="ok"><span class="g">✓</span><span>OML : connecté</span></li>
+        <li class="ok"><span class="g">✓</span><span>RSL : connecté</span></li>
+      </ul>
+    </div>
+
+    <div class="hc-card">
+      <h3>PCU</h3><p class="role">Contrôleur paquets</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>PCU : connecté aux BTS</span></li>
+      </ul>
+    </div>
+
+    <div class="hc-card">
+      <h3>SGSN</h3><p class="role">Serving GPRS</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>NS entities : 1</span></li>
+      </ul>
+    </div>
+
+    <div class="hc-card">
+      <h3>GGSN</h3><p class="role">Gateway GPRS</p>
+      <ul class="hc-list">
+        <li class="warn"><span class="g">⚠</span><span>APN configurés : 0</span></li>
+      </ul>
+    </div>
+
+    <div class="hc-card">
+      <h3>MGW</h3><p class="role">Media Gateway</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>Processus en cours (voir ci-dessous)</span></li>
+      </ul>
+    </div>
+
+    <div class="hc-card">
+      <h3>SIP connector</h3><p class="role">Voix</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>SIP connector : accessible</span></li>
+      </ul>
+    </div>
+
+    <div class="hc-card">
+      <h3>Services</h3><p class="role">Voix &amp; SMS</p>
+      <ul class="hc-list">
+        <li class="ok"><span class="g">✓</span><span>MNCC socket présent (MSC ↔ SIP connector)</span></li>
+        <li class="ok"><span class="g">✓</span><span>SMS relay : écoute sur port 7890</span></li>
+        <li class="ok"><span class="g">✓</span><span>Asterisk : en cours d'exécution</span></li>
+      </ul>
+    </div>
+
+  </div>
+
+  <h2>Processus</h2>
+  <div class="hc-proc">
+    <span class="p">✓ osmo-stp</span>
+    <span class="p">✓ osmo-hlr</span>
+    <span class="p">✓ osmo-msc</span>
+    <span class="p">✓ osmo-bsc</span>
+    <span class="p">✓ osmo-bts-trx</span>
+    <span class="p">✓ osmo-mgw</span>
+    <span class="p">✓ osmo-sip-connector</span>
+  </div>
+
+  <h2>Sortie console</h2>
+  <p>Le même rapport, tel que <code>checks/global_check.sh</code> l'affiche quand
+  un seul opérateur est déployé :</p>
+  <pre><code>╔══════════════════════════════════════════════════════════╗
+║     Global Health Check - 2026-09-02 21:16:40            ║
+║     1 operateur a verifier                                ║
+║     mode : native (detecte)                              ║
+║     natif : demons locaux, VTY sur 127.0.0.1             ║
+╚══════════════════════════════════════════════════════════╝
+
+OPERATEUR 1 (osmo-operator-1)
+──────────────────────────────────────────────────────────────────────
+  STP    ✓ ASP actifs : 2   ✓ AS actifs : 2   ✓ Routes : aucun PROHIB
+         - Route inter-STP : ignoree (natif, noeud isole)
+  HLR    ✓ GSUP VLR connecte   ✓ GSUP SMSC connecte
+  MSC    ✓ MSC→STP ASP_ACTIVE   ✓ SCCP SSN 254 (MSC-A)
+  BSC    ✓ BSC→STP ASP_ACTIVE   ✓ SCCP SSN 254 (BSC)
+         ✓ BTS 0 Enabled/OK   ✓ OML connecte   ✓ RSL connecte (TRX 0)
+  BTS    ✓ BTS 0 configuree   ✓ operationnelle   ✓ OML   ✓ RSL
+  PCU    ✓ connecte aux BTS
+  SGSN   ✓ NS entities : 1
+  GGSN   ⚠ APN configures : 0
+  SIP    ✓ SIP connector accessible
+  SVC    ✓ MNCC socket   ✓ SMS relay :7890   ✓ Asterisk
+  PROC   ✓ stp hlr msc bsc bts-trx mgw sip-connector
+
+══════════════════════════════════════════════════════════════════════
+  RESUME GLOBAL
+══════════════════════════════════════════════════════════════════════
+  mode   : native  (1 operateur)
+  ✓ PASS : 29
+  ⚠ WARN : 1     (GGSN : aucun APN configure)
+  - SKIP : 1     (inter-STP : noeud isole)
+  ✗ FAIL : 0
+──────────────────────────────────────────────────────────────────────
+  TOUT EST VERT  -  banc operationnel
+══════════════════════════════════════════════════════════════════════</code></pre>
+
+  <p style="color:var(--muted); font-size:.86rem;">La seule alerte restante — GGSN
+  sans APN — n'empêche ni la voix ni les SMS ; elle ne concerne que la data
+  (GPRS/EGPRS). À corriger en déclarant un APN dans <code>osmo-ggsn.cfg</code> si
+  la data est requise.</p>
+
+  <footer class="pl4y-footer">
+    <a href="/">← pl4y.store</a> &middot;
+    <a href="/wiki#demarrage">Démarrage rapide</a> &middot;
+    <a href="pytest_calypso.html">Rapport pytest Calypso (archive)</a>
+  </footer>
 </div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
-<p>➡️ <strong>Première rupture : <code>ARM-feedback</code></strong> (0/2 tests passent).</p>
-<p>Les étapes jusqu’à <code>Infra</code> sont OK ; le bug à investiguer est dans la transition <code>Infra</code> → <code>ARM-feedback</code>.</p>
-</section>
-<section id="blockers" class="level2">
-<h2 class="anchored" data-anchor-id="blockers">Blockers</h2>
-<p><strong>14 test(s) en échec</strong> :</p>
-<p>🔴 <strong>1. <code>test_l1ctl_data_ind_received</code></strong> — Milestone / L1-ctrl — marker(s): milestone_l1ctl — durée 0.16s - <code>test_calypso_milestones.py::test_l1ctl_data_ind_received</code> 🔻 <strong>2. <code>test_l1ctl_data_ind_rate_vs_alc</code></strong> — Runtime / L1-ctrl — marker(s): runtime_l1ctl — durée 0.24s - <code>test_run_observability.py::test_l1ctl_data_ind_rate_vs_alc</code> 🔻 <strong>3. <code>test_l1ctl_data_ind_received</code></strong> — Runtime / L1-ctrl — marker(s): runtime_l1ctl — durée 0.17s - <code>test_run_observability.py::test_l1ctl_data_ind_received</code> 🔻 <strong>4. <code>test_inject_a_cd_pattern_23B</code></strong> — Injection / NDB — marker(s): inject_frames — durée 0.33s - <code>test_inject_frames.py::test_inject_a_cd_pattern_23B</code> 🔻 <strong>5. <code>test_inject_a_cd_pattern_30B</code></strong> — Injection / NDB — marker(s): inject_frames — durée 0.33s - <code>test_inject_frames.py::test_inject_a_cd_pattern_30B</code> 🔻 <strong>6. <code>test_inject_d_task[28-1]</code></strong> — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.04s - <code>test_inject_frames.py::test_inject_d_task[28-1]</code> 🔻 <strong>7. <code>test_inject_fbsb_fb_found</code></strong> — Injection / NDB — marker(s): inject_frames — durée 0.62s - <code>test_inject_frames.py::test_inject_fbsb_fb_found</code> 🔻 <strong>8. <code>test_inject_si[1]</code></strong> — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s - <code>test_inject_frames.py::test_inject_si[1]</code> 🔻 <strong>9. <code>test_inject_si[2]</code></strong> — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s - <code>test_inject_frames.py::test_inject_si[2]</code> 🔻 <strong>10. <code>test_inject_si[3]</code></strong> — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s - <code>test_inject_frames.py::test_inject_si[3]</code> 🔻 <strong>11. <code>test_inject_si[4]</code></strong> — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s - <code>test_inject_frames.py::test_inject_si[4]</code> 🔻 <strong>12. <code>test_inject_si[5]</code></strong> — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.37s - <code>test_inject_frames.py::test_inject_si[5]</code> 🔻 <strong>13. <code>test_inject_si[6]</code></strong> — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s - <code>test_inject_frames.py::test_inject_si[6]</code> 🔻 <strong>14. <code>test_efficacy_arm_reads_d_fb_det_1</code></strong> — Injection / ARM-feedback — marker(s): inject_efficacy,inject_frames — durée 3.15s - <code>test_inject_frames.py::test_efficacy_arm_reads_d_fb_det_1</code></p>
-</section>
-<section id="couches-ce-qui-marche-ce-qui-casse" class="level2">
-<h2 class="anchored" data-anchor-id="couches-ce-qui-marche-ce-qui-casse">Couches — ce qui marche, ce qui casse</h2>
-<section id="infra-55" class="level3">
-<h3 class="anchored" data-anchor-id="infra-55">✅ <code>Infra</code> — 5/5</h3>
-<p>Tous les tests passent dans cette couche.</p>
-</section>
-<section id="dsp-1020" class="level3">
-<h3 class="anchored" data-anchor-id="dsp-1020">🟡 <code>DSP</code> — 10/20</h3>
-<p>⏭️ <strong>Skipped :</strong> <code>test_fb0_att_nonzero</code>, <code>test_synth_zero_path_active</code>, <code>test_c54x_interrupt_ex_called_nonzero</code>, <code>test_isr_entered_implies_rete</code>, <code>test_no_pending_irq_gated</code>, <code>test_rxdoneflag_no_longer_blocks</code>, <code>test_d_fb_det_pattern_unchanged</code>, <code>test_interrupt_ex_called_counter_exposed</code>, <code>test_isr_entered_matches_rete</code>, <code>test_no_pending_irq_gating</code> ⚠️ <strong>xfail :</strong> <code>test_fb0_att_nonzero</code>, <code>test_c54x_interrupt_ex_called_nonzero</code>, <code>test_isr_entered_implies_rete</code>, <code>test_no_pending_irq_gated</code>, <code>test_rxdoneflag_no_longer_blocks</code>, <code>test_d_fb_det_pattern_unchanged</code>, <code>test_interrupt_ex_called_counter_exposed</code>, <code>test_isr_entered_matches_rete</code>, <code>test_no_pending_irq_gating</code></p>
-</section>
-<section id="l1-data-47" class="level3">
-<h3 class="anchored" data-anchor-id="l1-data-47">🟡 <code>L1-data</code> — 4/7</h3>
-<p>⏭️ <strong>Skipped :</strong> <code>test_ar3_init_source_identified</code>, <code>test_ar4_init_source_identified</code>, <code>test_bridge_fn_drift_under_threshold</code> ⚠️ <strong>xfail :</strong> <code>test_bridge_fn_drift_under_threshold</code></p>
-</section>
-<section id="l1-ctrl-28" class="level3">
-<h3 class="anchored" data-anchor-id="l1-ctrl-28">🟡 <code>L1-ctrl</code> — 2/8</h3>
-<p>❌ <strong>Échecs :</strong> <code>test_l1ctl_data_ind_received</code>, <code>test_l1ctl_data_ind_received</code>, <code>test_l1ctl_data_ind_rate_vs_alc</code> ⏭️ <strong>Skipped :</strong> <code>test_neigh_pm_req_response_unchanged</code>, <code>test_a_cd_write_pc_includes_ccch_demod</code>, <code>test_rach_attempted</code> ⚠️ <strong>xfail :</strong> <code>test_neigh_pm_req_response_unchanged</code>, <code>test_a_cd_write_pc_includes_ccch_demod</code>, <code>test_rach_attempted</code></p>
-</section>
-<section id="ndb-919" class="level3">
-<h3 class="anchored" data-anchor-id="ndb-919">🟡 <code>NDB</code> — 9/19</h3>
-<p>❌ <strong>Échecs :</strong> <code>test_inject_fbsb_fb_found</code>, <code>test_inject_si[1]</code>, <code>test_inject_si[2]</code>, <code>test_inject_si[3]</code>, <code>test_inject_si[4]</code>, <code>test_inject_si[5]</code>, <code>test_inject_si[6]</code>, <code>test_inject_a_cd_pattern_23B</code>, <code>test_inject_a_cd_pattern_30B</code>, <code>test_inject_d_task[28-1]</code></p>
-</section>
-<section id="arm-feedback-02" class="level3">
-<h3 class="anchored" data-anchor-id="arm-feedback-02">🛑 <code>ARM-feedback</code> — 0/2</h3>
-<p>❌ <strong>Échecs :</strong> <code>test_efficacy_arm_reads_d_fb_det_1</code> ⏭️ <strong>Skipped :</strong> <code>test_efficacy_arm_reads_a_cd</code> ⚠️ <strong>xfail :</strong> <code>test_efficacy_arm_reads_a_cd</code></p>
-</section>
-<section id="l3-mm-05" class="level3">
-<h3 class="anchored" data-anchor-id="l3-mm-05">🛑 <code>L3-MM</code> — 0/5</h3>
-<p>⏭️ <strong>Skipped :</strong> <code>test_rach_emitted</code>, <code>test_immediate_assignment_decoded</code>, <code>test_rr_sdcch_established</code>, <code>test_location_updating_request_sent</code>, <code>test_location_updating_accept_received</code> ⚠️ <strong>xfail :</strong> <code>test_rach_emitted</code>, <code>test_immediate_assignment_decoded</code>, <code>test_rr_sdcch_established</code>, <code>test_location_updating_request_sent</code>, <code>test_location_updating_accept_received</code></p>
-</section>
-<section id="mgmt-33" class="level3">
-<h3 class="anchored" data-anchor-id="mgmt-33">✅ <code>Mgmt</code> — 3/3</h3>
-<p>Tous les tests passent dans cette couche.</p>
-</section>
-<section id="summary-11" class="level3">
-<h3 class="anchored" data-anchor-id="summary-11">✅ <code>Summary</code> — 1/1</h3>
-<p>Tous les tests passent dans cette couche.</p>
-</section>
-</section>
-<section id="diagramme-détaillé-catégorie-couche-test" class="level2">
-<h2 class="anchored" data-anchor-id="diagramme-détaillé-catégorie-couche-test">Diagramme détaillé (catégorie → couche → test)</h2>
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p><figure class="figure"><p></p>
-<div>
-<pre class="mermaid mermaid-js">graph TD
-  classDef pass    fill:#bef5b1,stroke:#1f7a1f,color:#0a3d0a;
-  classDef partial fill:#fde79c,stroke:#b07a00,color:#3a2c00;
-  classDef fail    fill:#fbb4b4,stroke:#a31a1a,color:#5a0000;
-  classDef skip    fill:#e0e0e0,stroke:#6a6a6a,color:#333;
-  classDef xfail   fill:#fde79c,stroke:#b07a00,color:#3a2c00;
-  C_Injection["Injection&lt;br/&gt;9/21"]
-  class C_Injection partial;
-  C_Injection_L_ARM_feedback["ARM-feedback&lt;br/&gt;0/2"]
-  class C_Injection_L_ARM_feedback fail;
-  C_Injection --&gt; C_Injection_L_ARM_feedback
-  C_Injection_L_ARM_feedback --&gt; T_001_test_efficacy_arm_reads_d_fb_det_1["test_efficacy_arm_reads_d_fb_det_1&lt;br/&gt;inject_efficacy&lt;br/&gt;3.15s"]
-  class T_001_test_efficacy_arm_reads_d_fb_det_1 fail;
-  C_Injection_L_ARM_feedback --&gt; T_002_test_efficacy_arm_reads_a_cd["test_efficacy_arm_reads_a_cd&lt;br/&gt;inject_efficacy&lt;br/&gt;3.11s"]
-  class T_002_test_efficacy_arm_reads_a_cd xfail;
-  C_Injection_L_NDB["NDB&lt;br/&gt;9/19"]
-  class C_Injection_L_NDB partial;
-  C_Injection --&gt; C_Injection_L_NDB
-  C_Injection_L_NDB --&gt; T_003_test_probe_ndb["test_probe_ndb&lt;br/&gt;inject_frames&lt;br/&gt;0.29s"]
-  class T_003_test_probe_ndb pass;
-  C_Injection_L_NDB --&gt; T_004_test_clear_ndb["test_clear_ndb&lt;br/&gt;inject_frames&lt;br/&gt;0.29s"]
-  class T_004_test_clear_ndb pass;
-  C_Injection_L_NDB --&gt; T_005_test_inject_fbsb_fb_found["test_inject_fbsb_fb_found&lt;br/&gt;inject_frames&lt;br/&gt;0.62s"]
-  class T_005_test_inject_fbsb_fb_found fail;
-  C_Injection_L_NDB --&gt; T_006_test_inject_fbsb_sb_found["test_inject_fbsb_sb_found&lt;br/&gt;inject_frames&lt;br/&gt;0.54s"]
-  class T_006_test_inject_fbsb_sb_found pass;
-  C_Injection_L_NDB --&gt; T_007_test_inject_si_1_["test_inject_si(1)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]
-  class T_007_test_inject_si_1_ fail;
-  C_Injection_L_NDB --&gt; T_008_test_inject_si_2_["test_inject_si(2)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]
-  class T_008_test_inject_si_2_ fail;
-  C_Injection_L_NDB --&gt; T_009_test_inject_si_3_["test_inject_si(3)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]
-  class T_009_test_inject_si_3_ fail;
-  C_Injection_L_NDB --&gt; T_010_test_inject_si_4_["test_inject_si(4)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]
-  class T_010_test_inject_si_4_ fail;
-  C_Injection_L_NDB --&gt; T_011_test_inject_si_5_["test_inject_si(5)&lt;br/&gt;inject_frames&lt;br/&gt;0.37s"]
-  class T_011_test_inject_si_5_ fail;
-  C_Injection_L_NDB --&gt; T_012_test_inject_si_6_["test_inject_si(6)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]
-  class T_012_test_inject_si_6_ fail;
-  C_Injection_L_NDB --&gt; T_013_test_inject_a_cd_pattern_23B["test_inject_a_cd_pattern_23B&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]
-  class T_013_test_inject_a_cd_pattern_23B fail;
-  C_Injection_L_NDB --&gt; T_014_test_inject_a_cd_pattern_30B["test_inject_a_cd_pattern_30B&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]
-  class T_014_test_inject_a_cd_pattern_30B fail;
-  C_Injection_L_NDB --&gt; T_015_test_inject_a_cd_invalid_length["test_inject_a_cd_invalid_length&lt;br/&gt;inject_frames&lt;br/&gt;0.00s"]
-  class T_015_test_inject_a_cd_invalid_length pass;
-  C_Injection_L_NDB --&gt; T_016_test_inject_d_task_5_0_["test_inject_d_task(5-0)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]
-  class T_016_test_inject_d_task_5_0_ pass;
-  C_Injection_L_NDB --&gt; T_017_test_inject_d_task_6_1_["test_inject_d_task(6-1)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]
-  class T_017_test_inject_d_task_6_1_ pass;
-  C_Injection_L_NDB --&gt; T_018_test_inject_d_task_24_0_["test_inject_d_task(24-0)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]
-  class T_018_test_inject_d_task_24_0_ pass;
-  C_Injection_L_NDB --&gt; T_019_test_inject_d_task_28_1_["test_inject_d_task(28-1)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]
-  class T_019_test_inject_d_task_28_1_ fail;
-  C_Injection_L_NDB --&gt; T_020_test_inject_d_burst_0_["test_inject_d_burst(0)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]
-  class T_020_test_inject_d_burst_0_ pass;
-  C_Injection_L_NDB --&gt; T_021_test_inject_d_burst_1_["test_inject_d_burst(1)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]
-  class T_021_test_inject_d_burst_1_ pass;
-  C_Milestone["Milestone&lt;br/&gt;6/21"]
-  class C_Milestone partial;
-  C_Milestone_L_DSP["DSP&lt;br/&gt;4/10"]
-  class C_Milestone_L_DSP partial;
-  C_Milestone --&gt; C_Milestone_L_DSP
-  C_Milestone_L_DSP --&gt; T_022_test_popm_decoder_active["test_popm_decoder_active&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;0.00s"]
-  class T_022_test_popm_decoder_active pass;
-  C_Milestone_L_DSP --&gt; T_023_test_tier_a_decoder_fixes_present["test_tier_a_decoder_fixes_present&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;0.00s"]
-  class T_023_test_tier_a_decoder_fixes_present pass;
-  C_Milestone_L_DSP --&gt; T_024_test_intm_dwell_no_regression["test_intm_dwell_no_regression&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;30.57s"]
-  class T_024_test_intm_dwell_no_regression pass;
-  C_Milestone_L_DSP --&gt; T_025_test_dsp_throughput_5x["test_dsp_throughput_5x&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;0.13s"]
-  class T_025_test_dsp_throughput_5x pass;
-  C_Milestone_L_DSP --&gt; T_026_test_fb0_att_nonzero["test_fb0_att_nonzero&lt;br/&gt;milestone_fb_det&lt;br/&gt;0.00s"]
-  class T_026_test_fb0_att_nonzero xfail;
-  C_Milestone_L_DSP --&gt; T_027_test_synth_zero_path_active["test_synth_zero_path_active&lt;br/&gt;milestone_fb_det&lt;br/&gt;0.11s"]
-  class T_027_test_synth_zero_path_active skip;
-  C_Milestone_L_DSP --&gt; T_028_test_c54x_interrupt_ex_called_nonzero["test_c54x_interrupt_ex_called_nonzero&lt;br/&gt;milestone_irq&lt;br/&gt;0.00s"]
-  class T_028_test_c54x_interrupt_ex_called_nonzero xfail;
-  C_Milestone_L_DSP --&gt; T_029_test_isr_entered_implies_rete["test_isr_entered_implies_rete&lt;br/&gt;milestone_irq&lt;br/&gt;0.00s"]
-  class T_029_test_isr_entered_implies_rete xfail;
-  C_Milestone_L_DSP --&gt; T_030_test_no_pending_irq_gated["test_no_pending_irq_gated&lt;br/&gt;milestone_irq&lt;br/&gt;0.00s"]
-  class T_030_test_no_pending_irq_gated xfail;
-  C_Milestone_L_DSP --&gt; T_031_test_rxdoneflag_no_longer_blocks["test_rxdoneflag_no_longer_blocks&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;0.00s"]
-  class T_031_test_rxdoneflag_no_longer_blocks xfail;
-  C_Milestone_L_L1_ctrl["L1-ctrl&lt;br/&gt;0/2"]
-  class C_Milestone_L_L1_ctrl fail;
-  C_Milestone --&gt; C_Milestone_L_L1_ctrl
-  C_Milestone_L_L1_ctrl --&gt; T_032_test_l1ctl_data_ind_received["test_l1ctl_data_ind_received&lt;br/&gt;milestone_l1ctl&lt;br/&gt;0.16s"]
-  class T_032_test_l1ctl_data_ind_received fail;
-  C_Milestone_L_L1_ctrl --&gt; T_033_test_neigh_pm_req_response_unchanged["test_neigh_pm_req_response_unchanged&lt;br/&gt;milestone_l1ctl&lt;br/&gt;0.00s"]
-  class T_033_test_neigh_pm_req_response_unchanged xfail;
-  C_Milestone_L_L1_data["L1-data&lt;br/&gt;2/4"]
-  class C_Milestone_L_L1_data partial;
-  C_Milestone --&gt; C_Milestone_L_L1_data
-  C_Milestone_L_L1_data --&gt; T_034_test_ar3_init_source_identified["test_ar3_init_source_identified&lt;br/&gt;milestone_bsp_dma&lt;br/&gt;0.01s"]
-  class T_034_test_ar3_init_source_identified skip;
-  C_Milestone_L_L1_data --&gt; T_035_test_ar4_init_source_identified["test_ar4_init_source_identified&lt;br/&gt;milestone_bsp_dma&lt;br/&gt;0.01s"]
-  class T_035_test_ar4_init_source_identified skip;
-  C_Milestone_L_L1_data --&gt; T_036_test_bsp_dma_target_matches_correlator_read_zone["test_bsp_dma_target_matches_correlator&lt;br/&gt;milestone_bsp_dma&lt;br/&gt;0.06s"]
-  class T_036_test_bsp_dma_target_matches_correlator_read_zone pass;
-  C_Milestone_L_L1_data --&gt; T_037_test_no_d_fb_det_wr_site_anomaly["test_no_d_fb_det_wr_site_anomaly&lt;br/&gt;milestone_bsp_dma&lt;br/&gt;0.17s"]
-  class T_037_test_no_d_fb_det_wr_site_anomaly pass;
-  C_Milestone_L_L3_MM["L3-MM&lt;br/&gt;0/5"]
-  class C_Milestone_L_L3_MM fail;
-  C_Milestone --&gt; C_Milestone_L_L3_MM
-  C_Milestone_L_L3_MM --&gt; T_038_test_rach_emitted["test_rach_emitted&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]
-  class T_038_test_rach_emitted xfail;
-  C_Milestone_L_L3_MM --&gt; T_039_test_immediate_assignment_decoded["test_immediate_assignment_decoded&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]
-  class T_039_test_immediate_assignment_decoded xfail;
-  C_Milestone_L_L3_MM --&gt; T_040_test_rr_sdcch_established["test_rr_sdcch_established&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]
-  class T_040_test_rr_sdcch_established xfail;
-  C_Milestone_L_L3_MM --&gt; T_041_test_location_updating_request_sent["test_location_updating_request_sent&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]
-  class T_041_test_location_updating_request_sent xfail;
-  C_Milestone_L_L3_MM --&gt; T_042_test_location_updating_accept_received["test_location_updating_accept_received&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]
-  class T_042_test_location_updating_accept_received xfail;
-  C_Runtime["Runtime&lt;br/&gt;19/28"]
-  class C_Runtime partial;
-  C_Runtime_L_DSP["DSP&lt;br/&gt;6/10"]
-  class C_Runtime_L_DSP partial;
-  C_Runtime --&gt; C_Runtime_L_DSP
-  C_Runtime_L_DSP --&gt; T_043_test_no_wait_a21a_on_window["test_no_wait_a21a_on_window&lt;br/&gt;runtime_dsp&lt;br/&gt;0.07s"]
-  class T_043_test_no_wait_a21a_on_window pass;
-  C_Runtime_L_DSP --&gt; T_044_test_no_enter_7740_dwell["test_no_enter_7740_dwell&lt;br/&gt;runtime_dsp&lt;br/&gt;0.08s"]
-  class T_044_test_no_enter_7740_dwell pass;
-  C_Runtime_L_DSP --&gt; T_045_test_intm_reaches_zero["test_intm_reaches_zero&lt;br/&gt;runtime_dsp&lt;br/&gt;0.07s"]
-  class T_045_test_intm_reaches_zero pass;
-  C_Runtime_L_DSP --&gt; T_046_test_dsp_throughput_above_threshold["test_dsp_throughput_above_threshold&lt;br/&gt;runtime_dsp&lt;br/&gt;0.07s"]
-  class T_046_test_dsp_throughput_above_threshold pass;
-  C_Runtime_L_DSP --&gt; T_047_test_d_fb_det_pattern_unchanged["test_d_fb_det_pattern_unchanged&lt;br/&gt;runtime_dsp&lt;br/&gt;0.06s"]
-  class T_047_test_d_fb_det_pattern_unchanged xfail;
-  C_Runtime_L_DSP --&gt; T_048_test_bsp_daram_write_distribution["test_bsp_daram_write_distribution&lt;br/&gt;runtime_dsp&lt;br/&gt;0.08s"]
-  class T_048_test_bsp_daram_write_distribution pass;
-  C_Runtime_L_DSP --&gt; T_049_test_d_fb_det_data_no_longer_zero["test_d_fb_det_data_no_longer_zero&lt;br/&gt;runtime_dsp&lt;br/&gt;0.08s"]
-  class T_049_test_d_fb_det_data_no_longer_zero pass;
-  C_Runtime_L_DSP --&gt; T_050_test_interrupt_ex_called_counter_exposed["test_interrupt_ex_called_counter_expos&lt;br/&gt;runtime_irq&lt;br/&gt;0.06s"]
-  class T_050_test_interrupt_ex_called_counter_exposed xfail;
-  C_Runtime_L_DSP --&gt; T_051_test_isr_entered_matches_rete["test_isr_entered_matches_rete&lt;br/&gt;runtime_irq&lt;br/&gt;0.13s"]
-  class T_051_test_isr_entered_matches_rete xfail;
-  C_Runtime_L_DSP --&gt; T_052_test_no_pending_irq_gating["test_no_pending_irq_gating&lt;br/&gt;runtime_irq&lt;br/&gt;0.16s"]
-  class T_052_test_no_pending_irq_gating xfail;
-  C_Runtime_L_Infra["Infra&lt;br/&gt;5/5"]
-  class C_Runtime_L_Infra pass;
-  C_Runtime --&gt; C_Runtime_L_Infra
-  C_Runtime_L_Infra --&gt; T_053_test_all_expected_processes_present["test_all_expected_processes_present&lt;br/&gt;runtime_health&lt;br/&gt;0.12s"]
-  class T_053_test_all_expected_processes_present pass;
-  C_Runtime_L_Infra --&gt; T_054_test_no_zombie_or_defunct["test_no_zombie_or_defunct&lt;br/&gt;runtime_health&lt;br/&gt;0.05s"]
-  class T_054_test_no_zombie_or_defunct pass;
-  C_Runtime_L_Infra --&gt; T_055_test_qemu_log_is_fresh["test_qemu_log_is_fresh&lt;br/&gt;runtime_health&lt;br/&gt;3.11s"]
-  class T_055_test_qemu_log_is_fresh pass;
-  C_Runtime_L_Infra --&gt; T_056_test_mobile_pcap_growing["test_mobile_pcap_growing&lt;br/&gt;runtime_health&lt;br/&gt;10.00s"]
-  class T_056_test_mobile_pcap_growing pass;
-  C_Runtime_L_Infra --&gt; T_057_test_volumes_mounted["test_volumes_mounted&lt;br/&gt;runtime_health&lt;br/&gt;0.08s"]
-  class T_057_test_volumes_mounted pass;
-  C_Runtime_L_L1_ctrl["L1-ctrl&lt;br/&gt;2/6"]
-  class C_Runtime_L_L1_ctrl partial;
-  C_Runtime --&gt; C_Runtime_L_L1_ctrl
-  C_Runtime_L_L1_ctrl --&gt; T_058_test_neigh_pm_req_loop_alive["test_neigh_pm_req_loop_alive&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.19s"]
-  class T_058_test_neigh_pm_req_loop_alive pass;
-  C_Runtime_L_L1_ctrl --&gt; T_059_test_l1ctl_data_ind_received["test_l1ctl_data_ind_received&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.17s"]
-  class T_059_test_l1ctl_data_ind_received fail;
-  C_Runtime_L_L1_ctrl --&gt; T_060_test_a_cd_writes_nonzero["test_a_cd_writes_nonzero&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.09s"]
-  class T_060_test_a_cd_writes_nonzero pass;
-  C_Runtime_L_L1_ctrl --&gt; T_061_test_a_cd_write_pc_includes_ccch_demod["test_a_cd_write_pc_includes_ccch_demod&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.19s"]
-  class T_061_test_a_cd_write_pc_includes_ccch_demod xfail;
-  C_Runtime_L_L1_ctrl --&gt; T_062_test_l1ctl_data_ind_rate_vs_alc["test_l1ctl_data_ind_rate_vs_alc&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.24s"]
-  class T_062_test_l1ctl_data_ind_rate_vs_alc fail;
-  C_Runtime_L_L1_ctrl --&gt; T_063_test_rach_attempted["test_rach_attempted&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.00s"]
-  class T_063_test_rach_attempted xfail;
-  C_Runtime_L_L1_data["L1-data&lt;br/&gt;2/3"]
-  class C_Runtime_L_L1_data partial;
-  C_Runtime --&gt; C_Runtime_L_L1_data
-  C_Runtime_L_L1_data --&gt; T_064_test_bridge_log_shows_traffic["test_bridge_log_shows_traffic&lt;br/&gt;runtime_bridge&lt;br/&gt;0.05s"]
-  class T_064_test_bridge_log_shows_traffic pass;
-  C_Runtime_L_L1_data --&gt; T_065_test_bridge_fn_drift_under_threshold["test_bridge_fn_drift_under_threshold&lt;br/&gt;runtime_bridge&lt;br/&gt;0.00s"]
-  class T_065_test_bridge_fn_drift_under_threshold xfail;
-  C_Runtime_L_L1_data --&gt; T_066_test_bridge_dl_lookahead_respected["test_bridge_dl_lookahead_respected&lt;br/&gt;runtime_bridge&lt;br/&gt;0.05s"]
-  class T_066_test_bridge_dl_lookahead_respected pass;
-  C_Runtime_L_Mgmt["Mgmt&lt;br/&gt;3/3"]
-  class C_Runtime_L_Mgmt pass;
-  C_Runtime --&gt; C_Runtime_L_Mgmt
-  C_Runtime_L_Mgmt --&gt; T_067_test_mobile_vty_reachable["test_mobile_vty_reachable&lt;br/&gt;runtime_vty&lt;br/&gt;1.61s"]
-  class T_067_test_mobile_vty_reachable pass;
-  C_Runtime_L_Mgmt --&gt; T_068_test_mobile_imsi_loaded["test_mobile_imsi_loaded&lt;br/&gt;runtime_vty&lt;br/&gt;1.62s"]
-  class T_068_test_mobile_imsi_loaded pass;
-  C_Runtime_L_Mgmt --&gt; T_069_test_mobile_mm_state_is_null_or_idle["test_mobile_mm_state_is_null_or_idle&lt;br/&gt;runtime_vty&lt;br/&gt;1.73s"]
-  class T_069_test_mobile_mm_state_is_null_or_idle pass;
-  C_Runtime_L_Summary["Summary&lt;br/&gt;1/1"]
-  class C_Runtime_L_Summary pass;
-  C_Runtime --&gt; C_Runtime_L_Summary
-  C_Runtime_L_Summary --&gt; T_070_test_run_summary_snapshot["test_run_summary_snapshot&lt;br/&gt;runtime_summary&lt;br/&gt;30.68s"]
-  class T_070_test_run_summary_snapshot pass;
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
-</section>
-<section id="skipped-xfailed" class="level2">
-<h2 class="anchored" data-anchor-id="skipped-xfailed">Skipped / xfailed</h2>
-<section id="skipped" class="level3">
-<h3 class="anchored" data-anchor-id="skipped">22 skipped</h3>
-<ul>
-<li><code>test_ar3_init_source_identified</code> — milestone_bsp_dma</li>
-<li><code>test_ar4_init_source_identified</code> — milestone_bsp_dma</li>
-<li><code>test_fb0_att_nonzero</code> — milestone_fb_det</li>
-<li><code>test_synth_zero_path_active</code> — milestone_fb_det</li>
-<li><code>test_c54x_interrupt_ex_called_nonzero</code> — milestone_irq</li>
-<li><code>test_isr_entered_implies_rete</code> — milestone_irq</li>
-<li><code>test_no_pending_irq_gated</code> — milestone_irq</li>
-<li><code>test_neigh_pm_req_response_unchanged</code> — milestone_l1ctl</li>
-<li><code>test_rach_emitted</code> — milestone_mm_lu</li>
-<li><code>test_immediate_assignment_decoded</code> — milestone_mm_lu</li>
-<li><code>test_rr_sdcch_established</code> — milestone_mm_lu</li>
-<li><code>test_location_updating_request_sent</code> — milestone_mm_lu</li>
-<li><code>test_location_updating_accept_received</code> — milestone_mm_lu</li>
-<li><code>test_rxdoneflag_no_longer_blocks</code> — milestone_dsp_decoder</li>
-<li><code>test_efficacy_arm_reads_a_cd</code> — inject_efficacy,inject_frames</li>
-<li><code>test_d_fb_det_pattern_unchanged</code> — runtime_dsp</li>
-<li><code>test_bridge_fn_drift_under_threshold</code> — runtime_bridge</li>
-<li><code>test_a_cd_write_pc_includes_ccch_demod</code> — runtime_l1ctl</li>
-<li><code>test_rach_attempted</code> — runtime_l1ctl</li>
-<li><code>test_interrupt_ex_called_counter_exposed</code> — runtime_irq</li>
-<li><code>test_isr_entered_matches_rete</code> — runtime_irq</li>
-<li><code>test_no_pending_irq_gating</code> — runtime_irq</li>
-</ul>
-</section>
-<section id="xfailed" class="level3">
-<h3 class="anchored" data-anchor-id="xfailed">19 xfailed</h3>
-<ul>
-<li><code>test_fb0_att_nonzero</code> — milestone_fb_det</li>
-<li><code>test_c54x_interrupt_ex_called_nonzero</code> — milestone_irq</li>
-<li><code>test_isr_entered_implies_rete</code> — milestone_irq</li>
-<li><code>test_no_pending_irq_gated</code> — milestone_irq</li>
-<li><code>test_neigh_pm_req_response_unchanged</code> — milestone_l1ctl</li>
-<li><code>test_rach_emitted</code> — milestone_mm_lu</li>
-<li><code>test_immediate_assignment_decoded</code> — milestone_mm_lu</li>
-<li><code>test_rr_sdcch_established</code> — milestone_mm_lu</li>
-<li><code>test_location_updating_request_sent</code> — milestone_mm_lu</li>
-<li><code>test_location_updating_accept_received</code> — milestone_mm_lu</li>
-<li><code>test_rxdoneflag_no_longer_blocks</code> — milestone_dsp_decoder</li>
-<li><code>test_efficacy_arm_reads_a_cd</code> — inject_efficacy,inject_frames</li>
-<li><code>test_d_fb_det_pattern_unchanged</code> — runtime_dsp</li>
-<li><code>test_bridge_fn_drift_under_threshold</code> — runtime_bridge</li>
-<li><code>test_a_cd_write_pc_includes_ccch_demod</code> — runtime_l1ctl</li>
-<li><code>test_rach_attempted</code> — runtime_l1ctl</li>
-<li><code>test_interrupt_ex_called_counter_exposed</code> — runtime_irq</li>
-<li><code>test_isr_entered_matches_rete</code> — runtime_irq</li>
-<li><code>test_no_pending_irq_gating</code> — runtime_irq</li>
-</ul>
-</section>
-</section>
-<section id="résultats-bruts-pytest" class="level2">
-<h2 class="anchored" data-anchor-id="résultats-bruts-pytest">Résultats bruts pytest</h2>
-<details>
-<summary>
-Cliquer pour déplier — sortie verbatim type <code>pytest -v</code>
-</summary>
-<pre><code>PASSED   test_calypso_milestones.py::test_popm_decoder_active (0.001s)
-PASSED   test_calypso_milestones.py::test_tier_a_decoder_fixes_present (0.002s)
-PASSED   test_calypso_milestones.py::test_intm_dwell_no_regression (30.572s)
-PASSED   test_calypso_milestones.py::test_dsp_throughput_5x (0.132s)
-SKIPPED  test_calypso_milestones.py::test_ar3_init_source_identified (0.007s)
-SKIPPED  test_calypso_milestones.py::test_ar4_init_source_identified (0.005s)
-PASSED   test_calypso_milestones.py::test_bsp_dma_target_matches_correlator_read_zone (0.065s)
-PASSED   test_calypso_milestones.py::test_no_d_fb_det_wr_site_anomaly (0.169s)
-XFAIL    test_calypso_milestones.py::test_fb0_att_nonzero (0.000s)
-SKIPPED  test_calypso_milestones.py::test_synth_zero_path_active (0.111s)
-XFAIL    test_calypso_milestones.py::test_c54x_interrupt_ex_called_nonzero (0.000s)
-XFAIL    test_calypso_milestones.py::test_isr_entered_implies_rete (0.000s)
-XFAIL    test_calypso_milestones.py::test_no_pending_irq_gated (0.000s)
-FAILED   test_calypso_milestones.py::test_l1ctl_data_ind_received (0.164s)
-XFAIL    test_calypso_milestones.py::test_neigh_pm_req_response_unchanged (0.000s)
-XFAIL    test_calypso_milestones.py::test_rach_emitted (0.000s)
-XFAIL    test_calypso_milestones.py::test_immediate_assignment_decoded (0.000s)
-XFAIL    test_calypso_milestones.py::test_rr_sdcch_established (0.000s)
-XFAIL    test_calypso_milestones.py::test_location_updating_request_sent (0.000s)
-XFAIL    test_calypso_milestones.py::test_location_updating_accept_received (0.000s)
-XFAIL    test_calypso_milestones.py::test_rxdoneflag_no_longer_blocks (0.000s)
-PASSED   test_inject_frames.py::test_probe_ndb (0.289s)
-PASSED   test_inject_frames.py::test_clear_ndb (0.289s)
-FAILED   test_inject_frames.py::test_inject_fbsb_fb_found (0.617s)
-PASSED   test_inject_frames.py::test_inject_fbsb_sb_found (0.535s)
-FAILED   test_inject_frames.py::test_inject_si[1] (0.329s)
-FAILED   test_inject_frames.py::test_inject_si[2] (0.329s)
-FAILED   test_inject_frames.py::test_inject_si[3] (0.331s)
-FAILED   test_inject_frames.py::test_inject_si[4] (0.330s)
-FAILED   test_inject_frames.py::test_inject_si[5] (0.371s)
-FAILED   test_inject_frames.py::test_inject_si[6] (0.329s)
-FAILED   test_inject_frames.py::test_inject_a_cd_pattern_23B (0.331s)
-FAILED   test_inject_frames.py::test_inject_a_cd_pattern_30B (0.330s)
-PASSED   test_inject_frames.py::test_inject_a_cd_invalid_length (0.001s)
-PASSED   test_inject_frames.py::test_inject_d_task[5-0] (0.041s)
-PASSED   test_inject_frames.py::test_inject_d_task[6-1] (0.041s)
-PASSED   test_inject_frames.py::test_inject_d_task[24-0] (0.042s)
-FAILED   test_inject_frames.py::test_inject_d_task[28-1] (0.043s)
-PASSED   test_inject_frames.py::test_inject_d_burst[0] (0.043s)
-PASSED   test_inject_frames.py::test_inject_d_burst[1] (0.042s)
-FAILED   test_inject_frames.py::test_efficacy_arm_reads_d_fb_det_1 (3.151s)
-XFAIL    test_inject_frames.py::test_efficacy_arm_reads_a_cd (3.112s)
-PASSED   test_run_observability.py::test_all_expected_processes_present (0.122s)
-PASSED   test_run_observability.py::test_no_zombie_or_defunct (0.054s)
-PASSED   test_run_observability.py::test_qemu_log_is_fresh (3.109s)
-PASSED   test_run_observability.py::test_mobile_pcap_growing (10.000s)
-PASSED   test_run_observability.py::test_volumes_mounted (0.079s)
-PASSED   test_run_observability.py::test_no_wait_a21a_on_window (0.071s)
-PASSED   test_run_observability.py::test_no_enter_7740_dwell (0.079s)
-PASSED   test_run_observability.py::test_intm_reaches_zero (0.066s)
-PASSED   test_run_observability.py::test_dsp_throughput_above_threshold (0.066s)
-XFAIL    test_run_observability.py::test_d_fb_det_pattern_unchanged (0.064s)
-PASSED   test_run_observability.py::test_bsp_daram_write_distribution (0.083s)
-PASSED   test_run_observability.py::test_d_fb_det_data_no_longer_zero (0.076s)
-PASSED   test_run_observability.py::test_bridge_log_shows_traffic (0.051s)
-XFAIL    test_run_observability.py::test_bridge_fn_drift_under_threshold (0.000s)
-PASSED   test_run_observability.py::test_bridge_dl_lookahead_respected (0.051s)
-PASSED   test_run_observability.py::test_neigh_pm_req_loop_alive (0.189s)
-FAILED   test_run_observability.py::test_l1ctl_data_ind_received (0.173s)
-PASSED   test_run_observability.py::test_a_cd_writes_nonzero (0.088s)
-XFAIL    test_run_observability.py::test_a_cd_write_pc_includes_ccch_demod (0.193s)
-FAILED   test_run_observability.py::test_l1ctl_data_ind_rate_vs_alc (0.240s)
-XFAIL    test_run_observability.py::test_rach_attempted (0.000s)
-PASSED   test_run_observability.py::test_mobile_vty_reachable (1.612s)
-PASSED   test_run_observability.py::test_mobile_imsi_loaded (1.621s)
-PASSED   test_run_observability.py::test_mobile_mm_state_is_null_or_idle (1.731s)
-XFAIL    test_run_observability.py::test_interrupt_ex_called_counter_exposed (0.063s)
-XFAIL    test_run_observability.py::test_isr_entered_matches_rete (0.130s)
-XFAIL    test_run_observability.py::test_no_pending_irq_gating (0.160s)
-PASSED   test_run_observability.py::test_run_summary_snapshot (30.677s)
-
-============================================================
-34 passed, 14 failed, 3 skipped, 19 xfailed in 93.00s</code></pre>
-</details>
-</section>
-<section id="reproduction" class="level2">
-<h2 class="anchored" data-anchor-id="reproduction">Reproduction</h2>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /home/nirvana/qemu-calypso/tests</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">/tmp/calypso-venv/bin/pytest</span> <span class="at">-v</span> <span class="at">--tb</span><span class="op">=</span>short</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Filtrer par marker :</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">/tmp/calypso-venv/bin/pytest</span> <span class="at">-v</span> <span class="at">-m</span> inject_frames</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">/tmp/calypso-venv/bin/pytest</span> <span class="at">-v</span> <span class="at">-m</span> <span class="st">'not inject_efficacy'</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Le diagramme et ce rapport sont régénérés à chaque run et écrits dans <code>/tmp/test_results_20260515_232830/test_results.{mmd,md}</code> (override via <code>CALYPSO_TEST_OUT</code>).</p>
-<hr>
-<p><em>Run finished at 2026-05-15T23:28:30.</em></p>
-<!-- -->
-
-</section>
-
-</main>
-<!-- /main column -->
-<script id="quarto-html-after-body" type="application/javascript">
-window.document.addEventListener("DOMContentLoaded", function (event) {
-  const toggleBodyColorMode = (bsSheetEl) => {
-    const mode = bsSheetEl.getAttribute("data-mode");
-    const bodyEl = window.document.querySelector("body");
-    if (mode === "dark") {
-      bodyEl.classList.add("quarto-dark");
-      bodyEl.classList.remove("quarto-light");
-    } else {
-      bodyEl.classList.add("quarto-light");
-      bodyEl.classList.remove("quarto-dark");
-    }
-  }
-  const toggleBodyColorPrimary = () => {
-    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
-    if (bsSheetEl) {
-      toggleBodyColorMode(bsSheetEl);
-    }
-  }
-  toggleBodyColorPrimary();  
-  const disableStylesheet = (stylesheets) => {
-    for (let i=0; i < stylesheets.length; i++) {
-      const stylesheet = stylesheets[i];
-      stylesheet.rel = 'prefetch';
-    }
-  }
-  const enableStylesheet = (stylesheets) => {
-    for (let i=0; i < stylesheets.length; i++) {
-      const stylesheet = stylesheets[i];
-      stylesheet.rel = 'stylesheet';
-    }
-  }
-  const manageTransitions = (selector, allowTransitions) => {
-    const els = window.document.querySelectorAll(selector);
-    for (let i=0; i < els.length; i++) {
-      const el = els[i];
-      if (allowTransitions) {
-        el.classList.remove('notransition');
-      } else {
-        el.classList.add('notransition');
-      }
-    }
-  }
-  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
-    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
-    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
-    let newTheme = '';
-    if(darkModeDefault) {
-      newTheme = isAlternate ? baseTheme : alternateTheme;
-    } else {
-      newTheme = isAlternate ? alternateTheme : baseTheme;
-    }
-    const changeGiscusTheme = () => {
-      // From: https://github.com/giscus/giscus/issues/336
-      const sendMessage = (message) => {
-        const iframe = document.querySelector('iframe.giscus-frame');
-        if (!iframe) return;
-        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
-      }
-      sendMessage({
-        setConfig: {
-          theme: newTheme
-        }
-      });
-    }
-    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
-    if (isGiscussLoaded) {
-      changeGiscusTheme();
-    }
-  }
-  const toggleColorMode = (alternate) => {
-    // Switch the stylesheets
-    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
-    manageTransitions('#quarto-margin-sidebar .nav-link', false);
-    if (alternate) {
-      enableStylesheet(alternateStylesheets);
-      for (const sheetNode of alternateStylesheets) {
-        if (sheetNode.id === "quarto-bootstrap") {
-          toggleBodyColorMode(sheetNode);
-        }
-      }
-    } else {
-      disableStylesheet(alternateStylesheets);
-      toggleBodyColorPrimary();
-    }
-    manageTransitions('#quarto-margin-sidebar .nav-link', true);
-    // Switch the toggles
-    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
-    for (let i=0; i < toggles.length; i++) {
-      const toggle = toggles[i];
-      if (toggle) {
-        if (alternate) {
-          toggle.classList.add("alternate");     
-        } else {
-          toggle.classList.remove("alternate");
-        }
-      }
-    }
-    // Hack to workaround the fact that safari doesn't
-    // properly recolor the scrollbar when toggling (#1455)
-    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
-      manageTransitions("body", false);
-      window.scrollTo(0, 1);
-      setTimeout(() => {
-        window.scrollTo(0, 0);
-        manageTransitions("body", true);
-      }, 40);  
-    }
-  }
-  const isFileUrl = () => { 
-    return window.location.protocol === 'file:';
-  }
-  const hasAlternateSentinel = () => {  
-    let styleSentinel = getColorSchemeSentinel();
-    if (styleSentinel !== null) {
-      return styleSentinel === "alternate";
-    } else {
-      return false;
-    }
-  }
-  const setStyleSentinel = (alternate) => {
-    const value = alternate ? "alternate" : "default";
-    if (!isFileUrl()) {
-      window.localStorage.setItem("quarto-color-scheme", value);
-    } else {
-      localAlternateSentinel = value;
-    }
-  }
-  const getColorSchemeSentinel = () => {
-    if (!isFileUrl()) {
-      const storageValue = window.localStorage.getItem("quarto-color-scheme");
-      return storageValue != null ? storageValue : localAlternateSentinel;
-    } else {
-      return localAlternateSentinel;
-    }
-  }
-  const darkModeDefault = false;
-  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
-  // Dark / light mode switch
-  window.quartoToggleColorScheme = () => {
-    // Read the current dark / light value 
-    let toAlternate = !hasAlternateSentinel();
-    toggleColorMode(toAlternate);
-    setStyleSentinel(toAlternate);
-    toggleGiscusIfUsed(toAlternate, darkModeDefault);
-  };
-  // Ensure there is a toggle, if there isn't float one in the top right
-  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-    const a = window.document.createElement('a');
-    a.classList.add('top-right');
-    a.classList.add('quarto-color-scheme-toggle');
-    a.href = "";
-    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
-    const i = window.document.createElement("i");
-    i.classList.add('bi');
-    a.appendChild(i);
-    window.document.body.appendChild(a);
-  }
-  // Switch to dark mode if need be
-  if (hasAlternateSentinel()) {
-    toggleColorMode(true);
-  } else {
-    toggleColorMode(false);
-  }
-  const icon = "";
-  const anchorJS = new window.AnchorJS();
-  anchorJS.options = {
-    placement: 'right',
-    icon: icon
-  };
-  anchorJS.add('.anchored');
-  const isCodeAnnotation = (el) => {
-    for (const clz of el.classList) {
-      if (clz.startsWith('code-annotation-')) {                     
-        return true;
-      }
-    }
-    return false;
-  }
-  const onCopySuccess = function(e) {
-    // button target
-    const button = e.trigger;
-    // don't keep focus
-    button.blur();
-    // flash "checked"
-    button.classList.add('code-copy-button-checked');
-    var currentTitle = button.getAttribute("title");
-    button.setAttribute("title", "Copied!");
-    let tooltip;
-    if (window.bootstrap) {
-      button.setAttribute("data-bs-toggle", "tooltip");
-      button.setAttribute("data-bs-placement", "left");
-      button.setAttribute("data-bs-title", "Copied!");
-      tooltip = new bootstrap.Tooltip(button, 
-        { trigger: "manual", 
-          customClass: "code-copy-button-tooltip",
-          offset: [0, -8]});
-      tooltip.show();    
-    }
-    setTimeout(function() {
-      if (tooltip) {
-        tooltip.hide();
-        button.removeAttribute("data-bs-title");
-        button.removeAttribute("data-bs-toggle");
-        button.removeAttribute("data-bs-placement");
-      }
-      button.setAttribute("title", currentTitle);
-      button.classList.remove('code-copy-button-checked');
-    }, 1000);
-    // clear code selection
-    e.clearSelection();
-  }
-  const getTextToCopy = function(trigger) {
-      const codeEl = trigger.previousElementSibling.cloneNode(true);
-      for (const childEl of codeEl.children) {
-        if (isCodeAnnotation(childEl)) {
-          childEl.remove();
-        }
-      }
-      return codeEl.innerText;
-  }
-  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
-    text: getTextToCopy
-  });
-  clipboard.on('success', onCopySuccess);
-  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
-    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
-      text: getTextToCopy,
-      container: window.document.getElementById('quarto-embedded-source-code-modal')
-    });
-    clipboardModal.on('success', onCopySuccess);
-  }
-  const viewSource = window.document.getElementById('quarto-view-source') ||
-                     window.document.getElementById('quarto-code-tools-source');
-  if (viewSource) {
-    const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
-    viewSource.addEventListener("click", function(e) {
-      if (sourceUrl) {
-        // rstudio viewer pane
-        if (/\bcapabilities=\b/.test(window.location)) {
-          window.open(sourceUrl);
-        } else {
-          window.location.href = sourceUrl;
-        }
-      } else {
-        const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
-        modal.show();
-      }
-      return false;
-    });
-  }
-  function toggleCodeHandler(show) {
-    return function(e) {
-      const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
-      for (let i=0; i<detailsSrc.length; i++) {
-        const details = detailsSrc[i].parentElement;
-        if (show) {
-          details.open = true;
-        } else {
-          details.removeAttribute("open");
-        }
-      }
-      const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
-      const fromCls = show ? "hidden" : "unhidden";
-      const toCls = show ? "unhidden" : "hidden";
-      for (let i=0; i<cellCodeDivs.length; i++) {
-        const codeDiv = cellCodeDivs[i];
-        if (codeDiv.classList.contains(fromCls)) {
-          codeDiv.classList.remove(fromCls);
-          codeDiv.classList.add(toCls);
-        } 
-      }
-      return false;
-    }
-  }
-  const hideAllCode = window.document.getElementById("quarto-hide-all-code");
-  if (hideAllCode) {
-    hideAllCode.addEventListener("click", toggleCodeHandler(false));
-  }
-  const showAllCode = window.document.getElementById("quarto-show-all-code");
-  if (showAllCode) {
-    showAllCode.addEventListener("click", toggleCodeHandler(true));
-  }
-    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
-    var mailtoRegex = new RegExp(/^mailto:/);
-      var filterRegex = new RegExp('/' + window.location.host + '/');
-    var isInternal = (href) => {
-        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
-    }
-    // Inspect non-navigation links and adorn them if external
- 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
-    for (var i=0; i<links.length; i++) {
-      const link = links[i];
-      if (!isInternal(link.href)) {
-        // undo the damage that might have been done by quarto-nav.js in the case of
-        // links that we want to consider external
-        if (link.dataset.originalHref !== undefined) {
-          link.href = link.dataset.originalHref;
-        }
-      }
-    }
-  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
-    const config = {
-      allowHTML: true,
-      maxWidth: 500,
-      delay: 100,
-      arrow: false,
-      appendTo: function(el) {
-          return el.parentElement;
-      },
-      interactive: true,
-      interactiveBorder: 10,
-      theme: 'quarto',
-      placement: 'bottom-start',
-    };
-    if (contentFn) {
-      config.content = contentFn;
-    }
-    if (onTriggerFn) {
-      config.onTrigger = onTriggerFn;
-    }
-    if (onUntriggerFn) {
-      config.onUntrigger = onUntriggerFn;
-    }
-    window.tippy(el, config); 
-  }
-  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
-  for (var i=0; i<noterefs.length; i++) {
-    const ref = noterefs[i];
-    tippyHover(ref, function() {
-      // use id or data attribute instead here
-      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
-      try { href = new URL(href).hash; } catch {}
-      const id = href.replace(/^#\/?/, "");
-      const note = window.document.getElementById(id);
-      if (note) {
-        return note.innerHTML;
-      } else {
-        return "";
-      }
-    });
-  }
-  const xrefs = window.document.querySelectorAll('a.quarto-xref');
-  const processXRef = (id, note) => {
-    // Strip column container classes
-    const stripColumnClz = (el) => {
-      el.classList.remove("page-full", "page-columns");
-      if (el.children) {
-        for (const child of el.children) {
-          stripColumnClz(child);
-        }
-      }
-    }
-    stripColumnClz(note)
-    if (id === null || id.startsWith('sec-')) {
-      // Special case sections, only their first couple elements
-      const container = document.createElement("div");
-      if (note.children && note.children.length > 2) {
-        container.appendChild(note.children[0].cloneNode(true));
-        for (let i = 1; i < note.children.length; i++) {
-          const child = note.children[i];
-          if (child.tagName === "P" && child.innerText === "") {
-            continue;
-          } else {
-            container.appendChild(child.cloneNode(true));
-            break;
-          }
-        }
-        if (window.Quarto?.typesetMath) {
-          window.Quarto.typesetMath(container);
-        }
-        return container.innerHTML
-      } else {
-        if (window.Quarto?.typesetMath) {
-          window.Quarto.typesetMath(note);
-        }
-        return note.innerHTML;
-      }
-    } else {
-      // Remove any anchor links if they are present
-      const anchorLink = note.querySelector('a.anchorjs-link');
-      if (anchorLink) {
-        anchorLink.remove();
-      }
-      if (window.Quarto?.typesetMath) {
-        window.Quarto.typesetMath(note);
-      }
-      if (note.classList.contains("callout")) {
-        return note.outerHTML;
-      } else {
-        return note.innerHTML;
-      }
-    }
-  }
-  for (var i=0; i<xrefs.length; i++) {
-    const xref = xrefs[i];
-    tippyHover(xref, undefined, function(instance) {
-      instance.disable();
-      let url = xref.getAttribute('href');
-      let hash = undefined; 
-      if (url.startsWith('#')) {
-        hash = url;
-      } else {
-        try { hash = new URL(url).hash; } catch {}
-      }
-      if (hash) {
-        const id = hash.replace(/^#\/?/, "");
-        const note = window.document.getElementById(id);
-        if (note !== null) {
-          try {
-            const html = processXRef(id, note.cloneNode(true));
-            instance.setContent(html);
-          } finally {
-            instance.enable();
-            instance.show();
-          }
-        } else {
-          // See if we can fetch this
-          fetch(url.split('#')[0])
-          .then(res => res.text())
-          .then(html => {
-            const parser = new DOMParser();
-            const htmlDoc = parser.parseFromString(html, "text/html");
-            const note = htmlDoc.getElementById(id);
-            if (note !== null) {
-              const html = processXRef(id, note);
-              instance.setContent(html);
-            } 
-          }).finally(() => {
-            instance.enable();
-            instance.show();
-          });
-        }
-      } else {
-        // See if we can fetch a full url (with no hash to target)
-        // This is a special case and we should probably do some content thinning / targeting
-        fetch(url)
-        .then(res => res.text())
-        .then(html => {
-          const parser = new DOMParser();
-          const htmlDoc = parser.parseFromString(html, "text/html");
-          const note = htmlDoc.querySelector('main.content');
-          if (note !== null) {
-            // This should only happen for chapter cross references
-            // (since there is no id in the URL)
-            // remove the first header
-            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
-              note.children[0].remove();
-            }
-            const html = processXRef(null, note);
-            instance.setContent(html);
-          } 
-        }).finally(() => {
-          instance.enable();
-          instance.show();
-        });
-      }
-    }, function(instance) {
-    });
-  }
-      let selectedAnnoteEl;
-      const selectorForAnnotation = ( cell, annotation) => {
-        let cellAttr = 'data-code-cell="' + cell + '"';
-        let lineAttr = 'data-code-annotation="' +  annotation + '"';
-        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
-        return selector;
-      }
-      const selectCodeLines = (annoteEl) => {
-        const doc = window.document;
-        const targetCell = annoteEl.getAttribute("data-target-cell");
-        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
-        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
-        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
-        const lineIds = lines.map((line) => {
-          return targetCell + "-" + line;
-        })
-        let top = null;
-        let height = null;
-        let parent = null;
-        if (lineIds.length > 0) {
-            //compute the position of the single el (top and bottom and make a div)
-            const el = window.document.getElementById(lineIds[0]);
-            top = el.offsetTop;
-            height = el.offsetHeight;
-            parent = el.parentElement.parentElement;
-          if (lineIds.length > 1) {
-            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-            height = bottom - top;
-          }
-          if (top !== null && height !== null && parent !== null) {
-            // cook up a div (if necessary) and position it 
-            let div = window.document.getElementById("code-annotation-line-highlight");
-            if (div === null) {
-              div = window.document.createElement("div");
-              div.setAttribute("id", "code-annotation-line-highlight");
-              div.style.position = 'absolute';
-              parent.appendChild(div);
-            }
-            div.style.top = top - 2 + "px";
-            div.style.height = height + 4 + "px";
-            div.style.left = 0;
-            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-            if (gutterDiv === null) {
-              gutterDiv = window.document.createElement("div");
-              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-              gutterDiv.style.position = 'absolute';
-              const codeCell = window.document.getElementById(targetCell);
-              const gutter = codeCell.querySelector('.code-annotation-gutter');
-              gutter.appendChild(gutterDiv);
-            }
-            gutterDiv.style.top = top - 2 + "px";
-            gutterDiv.style.height = height + 4 + "px";
-          }
-          selectedAnnoteEl = annoteEl;
-        }
-      };
-      const unselectCodeLines = () => {
-        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
-        elementsIds.forEach((elId) => {
-          const div = window.document.getElementById(elId);
-          if (div) {
-            div.remove();
-          }
-        });
-        selectedAnnoteEl = undefined;
-      };
-        // Handle positioning of the toggle
-    window.addEventListener(
-      "resize",
-      throttle(() => {
-        elRect = undefined;
-        if (selectedAnnoteEl) {
-          selectCodeLines(selectedAnnoteEl);
-        }
-      }, 10)
-    );
-    function throttle(fn, ms) {
-    let throttle = false;
-    let timer;
-      return (...args) => {
-        if(!throttle) { // first call gets through
-            fn.apply(this, args);
-            throttle = true;
-        } else { // all the others get throttled
-            if(timer) clearTimeout(timer); // cancel #2
-            timer = setTimeout(() => {
-              fn.apply(this, args);
-              timer = throttle = false;
-            }, ms);
-        }
-      };
-    }
-      // Attach click handler to the DT
-      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
-      for (const annoteDlNode of annoteDls) {
-        annoteDlNode.addEventListener('click', (event) => {
-          const clickedEl = event.target;
-          if (clickedEl !== selectedAnnoteEl) {
-            unselectCodeLines();
-            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
-            if (activeEl) {
-              activeEl.classList.remove('code-annotation-active');
-            }
-            selectCodeLines(clickedEl);
-            clickedEl.classList.add('code-annotation-active');
-          } else {
-            // Unselect the line
-            unselectCodeLines();
-            clickedEl.classList.remove('code-annotation-active');
-          }
-        });
-      }
-  const findCites = (el) => {
-    const parentEl = el.parentElement;
-    if (parentEl) {
-      const cites = parentEl.dataset.cites;
-      if (cites) {
-        return {
-          el,
-          cites: cites.split(' ')
-        };
-      } else {
-        return findCites(el.parentElement)
-      }
-    } else {
-      return undefined;
-    }
-  };
-  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-  for (var i=0; i<bibliorefs.length; i++) {
-    const ref = bibliorefs[i];
-    const citeInfo = findCites(ref);
-    if (citeInfo) {
-      tippyHover(citeInfo.el, function() {
-        var popup = window.document.createElement('div');
-        citeInfo.cites.forEach(function(cite) {
-          var citeDiv = window.document.createElement('div');
-          citeDiv.classList.add('hanging-indent');
-          citeDiv.classList.add('csl-entry');
-          var biblioDiv = window.document.getElementById('ref-' + cite);
-          if (biblioDiv) {
-            citeDiv.innerHTML = biblioDiv.innerHTML;
-          }
-          popup.appendChild(citeDiv);
-        });
-        return popup.innerHTML;
-      });
-    }
-  }
-});
-</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="sourceCode" id="cb3" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Calypso test report"</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "auto-generated (tests/conftest.py)"</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2026-08-25 14:29"</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="an">date-format:</span><span class="co"> "YYYY-MM-DD HH:mm"</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-depth: 3</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-location: left</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: true</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">    theme:</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co">      light: cosmo</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co">      dark: darkly</span></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="co">    embed-resources: false</span></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co">  gfm:</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co">    preview-mode: raw</span></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="an">mermaid:</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co">  theme: default</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="an">execute:</span></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="co">  echo: false</span></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co">  warning: false</span></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; Auto-generated by </span><span class="in">`tests/conftest.py::pytest_sessionfinish`</span><span class="at">.</span></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; Pasteable directly in a GitHub issue/PR (Mermaid blocks render natively).</span></span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="fu">## Status global</span></span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; </span><span class="co">[</span><span class="ot">!WARNING</span><span class="co">]</span></span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; ⚠️ **PARTIAL** — 14 échec(s), 34/70 passent (49 %)</span></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>| résultat | nombre |</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>|---|---:|</span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>| ✅ passed | 34 |</span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>| ❌ failed | 14 |</span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>| ⏭️ skipped | 3 |</span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>| ⚠️ xfailed | 19 |</span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>| **total** | **70** |</span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a><span class="fu">## Pipeline — où ça casse</span></span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>Le pipeline ci-dessous trace le flux logique GSM Calypso, étape par étape.</span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>Chaque étape est colorée selon le ratio de tests qui passent. **Si une étape</span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>est rouge (0% pass), c'est le premier blocker** — tout ce qui vient après</span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>ne peut pas être validé tant qu'elle n'est pas verte.</span>
-<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
-<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a><span class="in">graph LR</span></span>
-<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef pass    fill:#bef5b1,stroke:#1f7a1f,color:#0a3d0a;</span></span>
-<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef partial fill:#fde79c,stroke:#b07a00,color:#3a2c00;</span></span>
-<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef fail    fill:#fbb4b4,stroke:#a31a1a,color:#5a0000;</span></span>
-<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef skip    fill:#e0e0e0,stroke:#6a6a6a,color:#333;</span></span>
-<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef break_  fill:#ff5252,stroke:#990000,color:#fff,stroke-width:3px;</span></span>
-<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a><span class="in">  P_Infra["Infra&lt;br/&gt;5/5"]</span></span>
-<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a><span class="in">  class P_Infra pass;</span></span>
-<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a><span class="in">  P_DSP["DSP&lt;br/&gt;10/20"]</span></span>
-<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a><span class="in">  class P_DSP partial;</span></span>
-<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a><span class="in">  P_Infra --&gt; P_DSP</span></span>
-<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a><span class="in">  P_L1_data["L1-data&lt;br/&gt;4/7"]</span></span>
-<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a><span class="in">  class P_L1_data partial;</span></span>
-<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a><span class="in">  P_DSP --&gt; P_L1_data</span></span>
-<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a><span class="in">  P_L1_ctrl["L1-ctrl&lt;br/&gt;2/8"]</span></span>
-<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a><span class="in">  class P_L1_ctrl partial;</span></span>
-<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a><span class="in">  P_L1_data --&gt; P_L1_ctrl</span></span>
-<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a><span class="in">  P_NDB["NDB&lt;br/&gt;9/19"]</span></span>
-<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a><span class="in">  class P_NDB partial;</span></span>
-<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a><span class="in">  P_L1_ctrl --&gt; P_NDB</span></span>
-<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a><span class="in">  P_ARM_feedback["ARM-feedback&lt;br/&gt;0/2"]</span></span>
-<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a><span class="in">  class P_ARM_feedback fail;</span></span>
-<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a><span class="in">  P_NDB --&gt; P_ARM_feedback</span></span>
-<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a><span class="in">  P_ARM_feedback -.-&gt;|🛑| BREAK_ARM_feedback["BREAK HERE&lt;br/&gt;ARM-feedback 0% pass"]</span></span>
-<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a><span class="in">  class BREAK_ARM_feedback break_;</span></span>
-<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a><span class="in">  P_L3_MM["L3-MM&lt;br/&gt;0/5"]</span></span>
-<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a><span class="in">  class P_L3_MM fail;</span></span>
-<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a><span class="in">  P_ARM_feedback --&gt; P_L3_MM</span></span>
-<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a><span class="in">  P_Mgmt["Mgmt&lt;br/&gt;3/3"]</span></span>
-<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a><span class="in">  class P_Mgmt pass;</span></span>
-<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a><span class="in">  P_L3_MM --&gt; P_Mgmt</span></span>
-<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a><span class="in">  P_Summary["Summary&lt;br/&gt;1/1"]</span></span>
-<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a><span class="in">  class P_Summary pass;</span></span>
-<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a><span class="in">  P_Mgmt --&gt; P_Summary</span></span>
-<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a>➡️ **Première rupture : `ARM-feedback`** (0/2 tests passent).</span>
-<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>Les étapes jusqu'à <span class="in">`Infra`</span> sont OK ; le bug à investiguer est dans la transition <span class="in">`Infra`</span> → <span class="in">`ARM-feedback`</span>.</span>
-<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a><span class="fu">## Blockers</span></span>
-<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>**14 test(s) en échec** :</span>
-<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a>🔴 **1. `test_l1ctl_data_ind_received`** — Milestone / L1-ctrl — marker(s): milestone_l1ctl — durée 0.16s</span>
-<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_calypso_milestones.py::test_l1ctl_data_ind_received`</span></span>
-<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a>🔻 **2. `test_l1ctl_data_ind_rate_vs_alc`** — Runtime / L1-ctrl — marker(s): runtime_l1ctl — durée 0.24s</span>
-<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_run_observability.py::test_l1ctl_data_ind_rate_vs_alc`</span></span>
-<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a>🔻 **3. `test_l1ctl_data_ind_received`** — Runtime / L1-ctrl — marker(s): runtime_l1ctl — durée 0.17s</span>
-<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_run_observability.py::test_l1ctl_data_ind_received`</span></span>
-<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a>🔻 **4. `test_inject_a_cd_pattern_23B`** — Injection / NDB — marker(s): inject_frames — durée 0.33s</span>
-<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_a_cd_pattern_23B`</span></span>
-<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a>🔻 **5. `test_inject_a_cd_pattern_30B`** — Injection / NDB — marker(s): inject_frames — durée 0.33s</span>
-<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_a_cd_pattern_30B`</span></span>
-<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a>🔻 **6. `test_inject_d_task[28-1]`** — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.04s</span>
-<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_d_task[28-1]`</span></span>
-<span id="cb3-109"><a href="#cb3-109" aria-hidden="true" tabindex="-1"></a>🔻 **7. `test_inject_fbsb_fb_found`** — Injection / NDB — marker(s): inject_frames — durée 0.62s</span>
-<span id="cb3-110"><a href="#cb3-110" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_fbsb_fb_found`</span></span>
-<span id="cb3-111"><a href="#cb3-111" aria-hidden="true" tabindex="-1"></a>🔻 **8. `test_inject_si[1]`** — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s</span>
-<span id="cb3-112"><a href="#cb3-112" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_si[1]`</span></span>
-<span id="cb3-113"><a href="#cb3-113" aria-hidden="true" tabindex="-1"></a>🔻 **9. `test_inject_si[2]`** — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s</span>
-<span id="cb3-114"><a href="#cb3-114" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_si[2]`</span></span>
-<span id="cb3-115"><a href="#cb3-115" aria-hidden="true" tabindex="-1"></a>🔻 **10. `test_inject_si[3]`** — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s</span>
-<span id="cb3-116"><a href="#cb3-116" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_si[3]`</span></span>
-<span id="cb3-117"><a href="#cb3-117" aria-hidden="true" tabindex="-1"></a>🔻 **11. `test_inject_si[4]`** — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s</span>
-<span id="cb3-118"><a href="#cb3-118" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_si[4]`</span></span>
-<span id="cb3-119"><a href="#cb3-119" aria-hidden="true" tabindex="-1"></a>🔻 **12. `test_inject_si[5]`** — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.37s</span>
-<span id="cb3-120"><a href="#cb3-120" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_si[5]`</span></span>
-<span id="cb3-121"><a href="#cb3-121" aria-hidden="true" tabindex="-1"></a>🔻 **13. `test_inject_si[6]`** — Injection / NDB — marker(s): inject_frames,parametrize — durée 0.33s</span>
-<span id="cb3-122"><a href="#cb3-122" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_inject_si[6]`</span></span>
-<span id="cb3-123"><a href="#cb3-123" aria-hidden="true" tabindex="-1"></a>🔻 **14. `test_efficacy_arm_reads_d_fb_det_1`** — Injection / ARM-feedback — marker(s): inject_efficacy,inject_frames — durée 3.15s</span>
-<span id="cb3-124"><a href="#cb3-124" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`test_inject_frames.py::test_efficacy_arm_reads_d_fb_det_1`</span></span>
-<span id="cb3-125"><a href="#cb3-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-126"><a href="#cb3-126" aria-hidden="true" tabindex="-1"></a><span class="fu">## Couches — ce qui marche, ce qui casse</span></span>
-<span id="cb3-127"><a href="#cb3-127" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-128"><a href="#cb3-128" aria-hidden="true" tabindex="-1"></a><span class="fu">### ✅ `Infra` — 5/5</span></span>
-<span id="cb3-129"><a href="#cb3-129" aria-hidden="true" tabindex="-1"></a>Tous les tests passent dans cette couche.</span>
-<span id="cb3-130"><a href="#cb3-130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-131"><a href="#cb3-131" aria-hidden="true" tabindex="-1"></a><span class="fu">### 🟡 `DSP` — 10/20</span></span>
-<span id="cb3-132"><a href="#cb3-132" aria-hidden="true" tabindex="-1"></a>⏭️ **Skipped :** <span class="in">`test_fb0_att_nonzero`</span>, <span class="in">`test_synth_zero_path_active`</span>, <span class="in">`test_c54x_interrupt_ex_called_nonzero`</span>, <span class="in">`test_isr_entered_implies_rete`</span>, <span class="in">`test_no_pending_irq_gated`</span>, <span class="in">`test_rxdoneflag_no_longer_blocks`</span>, <span class="in">`test_d_fb_det_pattern_unchanged`</span>, <span class="in">`test_interrupt_ex_called_counter_exposed`</span>, <span class="in">`test_isr_entered_matches_rete`</span>, <span class="in">`test_no_pending_irq_gating`</span></span>
-<span id="cb3-133"><a href="#cb3-133" aria-hidden="true" tabindex="-1"></a>⚠️ **xfail :** <span class="in">`test_fb0_att_nonzero`</span>, <span class="in">`test_c54x_interrupt_ex_called_nonzero`</span>, <span class="in">`test_isr_entered_implies_rete`</span>, <span class="in">`test_no_pending_irq_gated`</span>, <span class="in">`test_rxdoneflag_no_longer_blocks`</span>, <span class="in">`test_d_fb_det_pattern_unchanged`</span>, <span class="in">`test_interrupt_ex_called_counter_exposed`</span>, <span class="in">`test_isr_entered_matches_rete`</span>, <span class="in">`test_no_pending_irq_gating`</span></span>
-<span id="cb3-134"><a href="#cb3-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-135"><a href="#cb3-135" aria-hidden="true" tabindex="-1"></a><span class="fu">### 🟡 `L1-data` — 4/7</span></span>
-<span id="cb3-136"><a href="#cb3-136" aria-hidden="true" tabindex="-1"></a>⏭️ **Skipped :** <span class="in">`test_ar3_init_source_identified`</span>, <span class="in">`test_ar4_init_source_identified`</span>, <span class="in">`test_bridge_fn_drift_under_threshold`</span></span>
-<span id="cb3-137"><a href="#cb3-137" aria-hidden="true" tabindex="-1"></a>⚠️ **xfail :** <span class="in">`test_bridge_fn_drift_under_threshold`</span></span>
-<span id="cb3-138"><a href="#cb3-138" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-139"><a href="#cb3-139" aria-hidden="true" tabindex="-1"></a><span class="fu">### 🟡 `L1-ctrl` — 2/8</span></span>
-<span id="cb3-140"><a href="#cb3-140" aria-hidden="true" tabindex="-1"></a>❌ **Échecs :** <span class="in">`test_l1ctl_data_ind_received`</span>, <span class="in">`test_l1ctl_data_ind_received`</span>, <span class="in">`test_l1ctl_data_ind_rate_vs_alc`</span></span>
-<span id="cb3-141"><a href="#cb3-141" aria-hidden="true" tabindex="-1"></a>⏭️ **Skipped :** <span class="in">`test_neigh_pm_req_response_unchanged`</span>, <span class="in">`test_a_cd_write_pc_includes_ccch_demod`</span>, <span class="in">`test_rach_attempted`</span></span>
-<span id="cb3-142"><a href="#cb3-142" aria-hidden="true" tabindex="-1"></a>⚠️ **xfail :** <span class="in">`test_neigh_pm_req_response_unchanged`</span>, <span class="in">`test_a_cd_write_pc_includes_ccch_demod`</span>, <span class="in">`test_rach_attempted`</span></span>
-<span id="cb3-143"><a href="#cb3-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-144"><a href="#cb3-144" aria-hidden="true" tabindex="-1"></a><span class="fu">### 🟡 `NDB` — 9/19</span></span>
-<span id="cb3-145"><a href="#cb3-145" aria-hidden="true" tabindex="-1"></a>❌ **Échecs :** <span class="in">`test_inject_fbsb_fb_found`</span>, <span class="in">`test_inject_si[1]`</span>, <span class="in">`test_inject_si[2]`</span>, <span class="in">`test_inject_si[3]`</span>, <span class="in">`test_inject_si[4]`</span>, <span class="in">`test_inject_si[5]`</span>, <span class="in">`test_inject_si[6]`</span>, <span class="in">`test_inject_a_cd_pattern_23B`</span>, <span class="in">`test_inject_a_cd_pattern_30B`</span>, <span class="in">`test_inject_d_task[28-1]`</span></span>
-<span id="cb3-146"><a href="#cb3-146" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-147"><a href="#cb3-147" aria-hidden="true" tabindex="-1"></a><span class="fu">### 🛑 `ARM-feedback` — 0/2</span></span>
-<span id="cb3-148"><a href="#cb3-148" aria-hidden="true" tabindex="-1"></a>❌ **Échecs :** <span class="in">`test_efficacy_arm_reads_d_fb_det_1`</span></span>
-<span id="cb3-149"><a href="#cb3-149" aria-hidden="true" tabindex="-1"></a>⏭️ **Skipped :** <span class="in">`test_efficacy_arm_reads_a_cd`</span></span>
-<span id="cb3-150"><a href="#cb3-150" aria-hidden="true" tabindex="-1"></a>⚠️ **xfail :** <span class="in">`test_efficacy_arm_reads_a_cd`</span></span>
-<span id="cb3-151"><a href="#cb3-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-152"><a href="#cb3-152" aria-hidden="true" tabindex="-1"></a><span class="fu">### 🛑 `L3-MM` — 0/5</span></span>
-<span id="cb3-153"><a href="#cb3-153" aria-hidden="true" tabindex="-1"></a>⏭️ **Skipped :** <span class="in">`test_rach_emitted`</span>, <span class="in">`test_immediate_assignment_decoded`</span>, <span class="in">`test_rr_sdcch_established`</span>, <span class="in">`test_location_updating_request_sent`</span>, <span class="in">`test_location_updating_accept_received`</span></span>
-<span id="cb3-154"><a href="#cb3-154" aria-hidden="true" tabindex="-1"></a>⚠️ **xfail :** <span class="in">`test_rach_emitted`</span>, <span class="in">`test_immediate_assignment_decoded`</span>, <span class="in">`test_rr_sdcch_established`</span>, <span class="in">`test_location_updating_request_sent`</span>, <span class="in">`test_location_updating_accept_received`</span></span>
-<span id="cb3-155"><a href="#cb3-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-156"><a href="#cb3-156" aria-hidden="true" tabindex="-1"></a><span class="fu">### ✅ `Mgmt` — 3/3</span></span>
-<span id="cb3-157"><a href="#cb3-157" aria-hidden="true" tabindex="-1"></a>Tous les tests passent dans cette couche.</span>
-<span id="cb3-158"><a href="#cb3-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-159"><a href="#cb3-159" aria-hidden="true" tabindex="-1"></a><span class="fu">### ✅ `Summary` — 1/1</span></span>
-<span id="cb3-160"><a href="#cb3-160" aria-hidden="true" tabindex="-1"></a>Tous les tests passent dans cette couche.</span>
-<span id="cb3-161"><a href="#cb3-161" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-162"><a href="#cb3-162" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-163"><a href="#cb3-163" aria-hidden="true" tabindex="-1"></a><span class="fu">## Diagramme détaillé (catégorie → couche → test)</span></span>
-<span id="cb3-164"><a href="#cb3-164" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-167"><a href="#cb3-167" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
-<span id="cb3-168"><a href="#cb3-168" aria-hidden="true" tabindex="-1"></a><span class="in">graph TD</span></span>
-<span id="cb3-169"><a href="#cb3-169" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef pass    fill:#bef5b1,stroke:#1f7a1f,color:#0a3d0a;</span></span>
-<span id="cb3-170"><a href="#cb3-170" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef partial fill:#fde79c,stroke:#b07a00,color:#3a2c00;</span></span>
-<span id="cb3-171"><a href="#cb3-171" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef fail    fill:#fbb4b4,stroke:#a31a1a,color:#5a0000;</span></span>
-<span id="cb3-172"><a href="#cb3-172" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef skip    fill:#e0e0e0,stroke:#6a6a6a,color:#333;</span></span>
-<span id="cb3-173"><a href="#cb3-173" aria-hidden="true" tabindex="-1"></a><span class="in">  classDef xfail   fill:#fde79c,stroke:#b07a00,color:#3a2c00;</span></span>
-<span id="cb3-174"><a href="#cb3-174" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection["Injection&lt;br/&gt;9/21"]</span></span>
-<span id="cb3-175"><a href="#cb3-175" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Injection partial;</span></span>
-<span id="cb3-176"><a href="#cb3-176" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_ARM_feedback["ARM-feedback&lt;br/&gt;0/2"]</span></span>
-<span id="cb3-177"><a href="#cb3-177" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Injection_L_ARM_feedback fail;</span></span>
-<span id="cb3-178"><a href="#cb3-178" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection --&gt; C_Injection_L_ARM_feedback</span></span>
-<span id="cb3-179"><a href="#cb3-179" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_ARM_feedback --&gt; T_001_test_efficacy_arm_reads_d_fb_det_1["test_efficacy_arm_reads_d_fb_det_1&lt;br/&gt;inject_efficacy&lt;br/&gt;3.15s"]</span></span>
-<span id="cb3-180"><a href="#cb3-180" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_001_test_efficacy_arm_reads_d_fb_det_1 fail;</span></span>
-<span id="cb3-181"><a href="#cb3-181" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_ARM_feedback --&gt; T_002_test_efficacy_arm_reads_a_cd["test_efficacy_arm_reads_a_cd&lt;br/&gt;inject_efficacy&lt;br/&gt;3.11s"]</span></span>
-<span id="cb3-182"><a href="#cb3-182" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_002_test_efficacy_arm_reads_a_cd xfail;</span></span>
-<span id="cb3-183"><a href="#cb3-183" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB["NDB&lt;br/&gt;9/19"]</span></span>
-<span id="cb3-184"><a href="#cb3-184" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Injection_L_NDB partial;</span></span>
-<span id="cb3-185"><a href="#cb3-185" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection --&gt; C_Injection_L_NDB</span></span>
-<span id="cb3-186"><a href="#cb3-186" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_003_test_probe_ndb["test_probe_ndb&lt;br/&gt;inject_frames&lt;br/&gt;0.29s"]</span></span>
-<span id="cb3-187"><a href="#cb3-187" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_003_test_probe_ndb pass;</span></span>
-<span id="cb3-188"><a href="#cb3-188" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_004_test_clear_ndb["test_clear_ndb&lt;br/&gt;inject_frames&lt;br/&gt;0.29s"]</span></span>
-<span id="cb3-189"><a href="#cb3-189" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_004_test_clear_ndb pass;</span></span>
-<span id="cb3-190"><a href="#cb3-190" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_005_test_inject_fbsb_fb_found["test_inject_fbsb_fb_found&lt;br/&gt;inject_frames&lt;br/&gt;0.62s"]</span></span>
-<span id="cb3-191"><a href="#cb3-191" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_005_test_inject_fbsb_fb_found fail;</span></span>
-<span id="cb3-192"><a href="#cb3-192" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_006_test_inject_fbsb_sb_found["test_inject_fbsb_sb_found&lt;br/&gt;inject_frames&lt;br/&gt;0.54s"]</span></span>
-<span id="cb3-193"><a href="#cb3-193" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_006_test_inject_fbsb_sb_found pass;</span></span>
-<span id="cb3-194"><a href="#cb3-194" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_007_test_inject_si_1_["test_inject_si(1)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]</span></span>
-<span id="cb3-195"><a href="#cb3-195" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_007_test_inject_si_1_ fail;</span></span>
-<span id="cb3-196"><a href="#cb3-196" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_008_test_inject_si_2_["test_inject_si(2)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]</span></span>
-<span id="cb3-197"><a href="#cb3-197" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_008_test_inject_si_2_ fail;</span></span>
-<span id="cb3-198"><a href="#cb3-198" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_009_test_inject_si_3_["test_inject_si(3)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]</span></span>
-<span id="cb3-199"><a href="#cb3-199" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_009_test_inject_si_3_ fail;</span></span>
-<span id="cb3-200"><a href="#cb3-200" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_010_test_inject_si_4_["test_inject_si(4)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]</span></span>
-<span id="cb3-201"><a href="#cb3-201" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_010_test_inject_si_4_ fail;</span></span>
-<span id="cb3-202"><a href="#cb3-202" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_011_test_inject_si_5_["test_inject_si(5)&lt;br/&gt;inject_frames&lt;br/&gt;0.37s"]</span></span>
-<span id="cb3-203"><a href="#cb3-203" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_011_test_inject_si_5_ fail;</span></span>
-<span id="cb3-204"><a href="#cb3-204" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_012_test_inject_si_6_["test_inject_si(6)&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]</span></span>
-<span id="cb3-205"><a href="#cb3-205" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_012_test_inject_si_6_ fail;</span></span>
-<span id="cb3-206"><a href="#cb3-206" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_013_test_inject_a_cd_pattern_23B["test_inject_a_cd_pattern_23B&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]</span></span>
-<span id="cb3-207"><a href="#cb3-207" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_013_test_inject_a_cd_pattern_23B fail;</span></span>
-<span id="cb3-208"><a href="#cb3-208" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_014_test_inject_a_cd_pattern_30B["test_inject_a_cd_pattern_30B&lt;br/&gt;inject_frames&lt;br/&gt;0.33s"]</span></span>
-<span id="cb3-209"><a href="#cb3-209" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_014_test_inject_a_cd_pattern_30B fail;</span></span>
-<span id="cb3-210"><a href="#cb3-210" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_015_test_inject_a_cd_invalid_length["test_inject_a_cd_invalid_length&lt;br/&gt;inject_frames&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-211"><a href="#cb3-211" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_015_test_inject_a_cd_invalid_length pass;</span></span>
-<span id="cb3-212"><a href="#cb3-212" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_016_test_inject_d_task_5_0_["test_inject_d_task(5-0)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]</span></span>
-<span id="cb3-213"><a href="#cb3-213" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_016_test_inject_d_task_5_0_ pass;</span></span>
-<span id="cb3-214"><a href="#cb3-214" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_017_test_inject_d_task_6_1_["test_inject_d_task(6-1)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]</span></span>
-<span id="cb3-215"><a href="#cb3-215" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_017_test_inject_d_task_6_1_ pass;</span></span>
-<span id="cb3-216"><a href="#cb3-216" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_018_test_inject_d_task_24_0_["test_inject_d_task(24-0)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]</span></span>
-<span id="cb3-217"><a href="#cb3-217" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_018_test_inject_d_task_24_0_ pass;</span></span>
-<span id="cb3-218"><a href="#cb3-218" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_019_test_inject_d_task_28_1_["test_inject_d_task(28-1)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]</span></span>
-<span id="cb3-219"><a href="#cb3-219" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_019_test_inject_d_task_28_1_ fail;</span></span>
-<span id="cb3-220"><a href="#cb3-220" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_020_test_inject_d_burst_0_["test_inject_d_burst(0)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]</span></span>
-<span id="cb3-221"><a href="#cb3-221" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_020_test_inject_d_burst_0_ pass;</span></span>
-<span id="cb3-222"><a href="#cb3-222" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Injection_L_NDB --&gt; T_021_test_inject_d_burst_1_["test_inject_d_burst(1)&lt;br/&gt;inject_frames&lt;br/&gt;0.04s"]</span></span>
-<span id="cb3-223"><a href="#cb3-223" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_021_test_inject_d_burst_1_ pass;</span></span>
-<span id="cb3-224"><a href="#cb3-224" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone["Milestone&lt;br/&gt;6/21"]</span></span>
-<span id="cb3-225"><a href="#cb3-225" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Milestone partial;</span></span>
-<span id="cb3-226"><a href="#cb3-226" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP["DSP&lt;br/&gt;4/10"]</span></span>
-<span id="cb3-227"><a href="#cb3-227" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Milestone_L_DSP partial;</span></span>
-<span id="cb3-228"><a href="#cb3-228" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone --&gt; C_Milestone_L_DSP</span></span>
-<span id="cb3-229"><a href="#cb3-229" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_022_test_popm_decoder_active["test_popm_decoder_active&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-230"><a href="#cb3-230" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_022_test_popm_decoder_active pass;</span></span>
-<span id="cb3-231"><a href="#cb3-231" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_023_test_tier_a_decoder_fixes_present["test_tier_a_decoder_fixes_present&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-232"><a href="#cb3-232" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_023_test_tier_a_decoder_fixes_present pass;</span></span>
-<span id="cb3-233"><a href="#cb3-233" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_024_test_intm_dwell_no_regression["test_intm_dwell_no_regression&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;30.57s"]</span></span>
-<span id="cb3-234"><a href="#cb3-234" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_024_test_intm_dwell_no_regression pass;</span></span>
-<span id="cb3-235"><a href="#cb3-235" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_025_test_dsp_throughput_5x["test_dsp_throughput_5x&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;0.13s"]</span></span>
-<span id="cb3-236"><a href="#cb3-236" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_025_test_dsp_throughput_5x pass;</span></span>
-<span id="cb3-237"><a href="#cb3-237" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_026_test_fb0_att_nonzero["test_fb0_att_nonzero&lt;br/&gt;milestone_fb_det&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-238"><a href="#cb3-238" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_026_test_fb0_att_nonzero xfail;</span></span>
-<span id="cb3-239"><a href="#cb3-239" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_027_test_synth_zero_path_active["test_synth_zero_path_active&lt;br/&gt;milestone_fb_det&lt;br/&gt;0.11s"]</span></span>
-<span id="cb3-240"><a href="#cb3-240" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_027_test_synth_zero_path_active skip;</span></span>
-<span id="cb3-241"><a href="#cb3-241" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_028_test_c54x_interrupt_ex_called_nonzero["test_c54x_interrupt_ex_called_nonzero&lt;br/&gt;milestone_irq&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-242"><a href="#cb3-242" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_028_test_c54x_interrupt_ex_called_nonzero xfail;</span></span>
-<span id="cb3-243"><a href="#cb3-243" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_029_test_isr_entered_implies_rete["test_isr_entered_implies_rete&lt;br/&gt;milestone_irq&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-244"><a href="#cb3-244" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_029_test_isr_entered_implies_rete xfail;</span></span>
-<span id="cb3-245"><a href="#cb3-245" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_030_test_no_pending_irq_gated["test_no_pending_irq_gated&lt;br/&gt;milestone_irq&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-246"><a href="#cb3-246" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_030_test_no_pending_irq_gated xfail;</span></span>
-<span id="cb3-247"><a href="#cb3-247" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_DSP --&gt; T_031_test_rxdoneflag_no_longer_blocks["test_rxdoneflag_no_longer_blocks&lt;br/&gt;milestone_dsp_decoder&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-248"><a href="#cb3-248" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_031_test_rxdoneflag_no_longer_blocks xfail;</span></span>
-<span id="cb3-249"><a href="#cb3-249" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L1_ctrl["L1-ctrl&lt;br/&gt;0/2"]</span></span>
-<span id="cb3-250"><a href="#cb3-250" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Milestone_L_L1_ctrl fail;</span></span>
-<span id="cb3-251"><a href="#cb3-251" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone --&gt; C_Milestone_L_L1_ctrl</span></span>
-<span id="cb3-252"><a href="#cb3-252" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L1_ctrl --&gt; T_032_test_l1ctl_data_ind_received["test_l1ctl_data_ind_received&lt;br/&gt;milestone_l1ctl&lt;br/&gt;0.16s"]</span></span>
-<span id="cb3-253"><a href="#cb3-253" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_032_test_l1ctl_data_ind_received fail;</span></span>
-<span id="cb3-254"><a href="#cb3-254" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L1_ctrl --&gt; T_033_test_neigh_pm_req_response_unchanged["test_neigh_pm_req_response_unchanged&lt;br/&gt;milestone_l1ctl&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-255"><a href="#cb3-255" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_033_test_neigh_pm_req_response_unchanged xfail;</span></span>
-<span id="cb3-256"><a href="#cb3-256" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L1_data["L1-data&lt;br/&gt;2/4"]</span></span>
-<span id="cb3-257"><a href="#cb3-257" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Milestone_L_L1_data partial;</span></span>
-<span id="cb3-258"><a href="#cb3-258" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone --&gt; C_Milestone_L_L1_data</span></span>
-<span id="cb3-259"><a href="#cb3-259" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L1_data --&gt; T_034_test_ar3_init_source_identified["test_ar3_init_source_identified&lt;br/&gt;milestone_bsp_dma&lt;br/&gt;0.01s"]</span></span>
-<span id="cb3-260"><a href="#cb3-260" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_034_test_ar3_init_source_identified skip;</span></span>
-<span id="cb3-261"><a href="#cb3-261" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L1_data --&gt; T_035_test_ar4_init_source_identified["test_ar4_init_source_identified&lt;br/&gt;milestone_bsp_dma&lt;br/&gt;0.01s"]</span></span>
-<span id="cb3-262"><a href="#cb3-262" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_035_test_ar4_init_source_identified skip;</span></span>
-<span id="cb3-263"><a href="#cb3-263" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L1_data --&gt; T_036_test_bsp_dma_target_matches_correlator_read_zone["test_bsp_dma_target_matches_correlator&lt;br/&gt;milestone_bsp_dma&lt;br/&gt;0.06s"]</span></span>
-<span id="cb3-264"><a href="#cb3-264" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_036_test_bsp_dma_target_matches_correlator_read_zone pass;</span></span>
-<span id="cb3-265"><a href="#cb3-265" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L1_data --&gt; T_037_test_no_d_fb_det_wr_site_anomaly["test_no_d_fb_det_wr_site_anomaly&lt;br/&gt;milestone_bsp_dma&lt;br/&gt;0.17s"]</span></span>
-<span id="cb3-266"><a href="#cb3-266" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_037_test_no_d_fb_det_wr_site_anomaly pass;</span></span>
-<span id="cb3-267"><a href="#cb3-267" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L3_MM["L3-MM&lt;br/&gt;0/5"]</span></span>
-<span id="cb3-268"><a href="#cb3-268" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Milestone_L_L3_MM fail;</span></span>
-<span id="cb3-269"><a href="#cb3-269" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone --&gt; C_Milestone_L_L3_MM</span></span>
-<span id="cb3-270"><a href="#cb3-270" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L3_MM --&gt; T_038_test_rach_emitted["test_rach_emitted&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-271"><a href="#cb3-271" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_038_test_rach_emitted xfail;</span></span>
-<span id="cb3-272"><a href="#cb3-272" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L3_MM --&gt; T_039_test_immediate_assignment_decoded["test_immediate_assignment_decoded&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-273"><a href="#cb3-273" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_039_test_immediate_assignment_decoded xfail;</span></span>
-<span id="cb3-274"><a href="#cb3-274" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L3_MM --&gt; T_040_test_rr_sdcch_established["test_rr_sdcch_established&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-275"><a href="#cb3-275" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_040_test_rr_sdcch_established xfail;</span></span>
-<span id="cb3-276"><a href="#cb3-276" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L3_MM --&gt; T_041_test_location_updating_request_sent["test_location_updating_request_sent&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-277"><a href="#cb3-277" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_041_test_location_updating_request_sent xfail;</span></span>
-<span id="cb3-278"><a href="#cb3-278" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Milestone_L_L3_MM --&gt; T_042_test_location_updating_accept_received["test_location_updating_accept_received&lt;br/&gt;milestone_mm_lu&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-279"><a href="#cb3-279" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_042_test_location_updating_accept_received xfail;</span></span>
-<span id="cb3-280"><a href="#cb3-280" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime["Runtime&lt;br/&gt;19/28"]</span></span>
-<span id="cb3-281"><a href="#cb3-281" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Runtime partial;</span></span>
-<span id="cb3-282"><a href="#cb3-282" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP["DSP&lt;br/&gt;6/10"]</span></span>
-<span id="cb3-283"><a href="#cb3-283" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Runtime_L_DSP partial;</span></span>
-<span id="cb3-284"><a href="#cb3-284" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime --&gt; C_Runtime_L_DSP</span></span>
-<span id="cb3-285"><a href="#cb3-285" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_043_test_no_wait_a21a_on_window["test_no_wait_a21a_on_window&lt;br/&gt;runtime_dsp&lt;br/&gt;0.07s"]</span></span>
-<span id="cb3-286"><a href="#cb3-286" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_043_test_no_wait_a21a_on_window pass;</span></span>
-<span id="cb3-287"><a href="#cb3-287" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_044_test_no_enter_7740_dwell["test_no_enter_7740_dwell&lt;br/&gt;runtime_dsp&lt;br/&gt;0.08s"]</span></span>
-<span id="cb3-288"><a href="#cb3-288" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_044_test_no_enter_7740_dwell pass;</span></span>
-<span id="cb3-289"><a href="#cb3-289" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_045_test_intm_reaches_zero["test_intm_reaches_zero&lt;br/&gt;runtime_dsp&lt;br/&gt;0.07s"]</span></span>
-<span id="cb3-290"><a href="#cb3-290" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_045_test_intm_reaches_zero pass;</span></span>
-<span id="cb3-291"><a href="#cb3-291" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_046_test_dsp_throughput_above_threshold["test_dsp_throughput_above_threshold&lt;br/&gt;runtime_dsp&lt;br/&gt;0.07s"]</span></span>
-<span id="cb3-292"><a href="#cb3-292" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_046_test_dsp_throughput_above_threshold pass;</span></span>
-<span id="cb3-293"><a href="#cb3-293" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_047_test_d_fb_det_pattern_unchanged["test_d_fb_det_pattern_unchanged&lt;br/&gt;runtime_dsp&lt;br/&gt;0.06s"]</span></span>
-<span id="cb3-294"><a href="#cb3-294" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_047_test_d_fb_det_pattern_unchanged xfail;</span></span>
-<span id="cb3-295"><a href="#cb3-295" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_048_test_bsp_daram_write_distribution["test_bsp_daram_write_distribution&lt;br/&gt;runtime_dsp&lt;br/&gt;0.08s"]</span></span>
-<span id="cb3-296"><a href="#cb3-296" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_048_test_bsp_daram_write_distribution pass;</span></span>
-<span id="cb3-297"><a href="#cb3-297" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_049_test_d_fb_det_data_no_longer_zero["test_d_fb_det_data_no_longer_zero&lt;br/&gt;runtime_dsp&lt;br/&gt;0.08s"]</span></span>
-<span id="cb3-298"><a href="#cb3-298" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_049_test_d_fb_det_data_no_longer_zero pass;</span></span>
-<span id="cb3-299"><a href="#cb3-299" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_050_test_interrupt_ex_called_counter_exposed["test_interrupt_ex_called_counter_expos&lt;br/&gt;runtime_irq&lt;br/&gt;0.06s"]</span></span>
-<span id="cb3-300"><a href="#cb3-300" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_050_test_interrupt_ex_called_counter_exposed xfail;</span></span>
-<span id="cb3-301"><a href="#cb3-301" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_051_test_isr_entered_matches_rete["test_isr_entered_matches_rete&lt;br/&gt;runtime_irq&lt;br/&gt;0.13s"]</span></span>
-<span id="cb3-302"><a href="#cb3-302" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_051_test_isr_entered_matches_rete xfail;</span></span>
-<span id="cb3-303"><a href="#cb3-303" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_DSP --&gt; T_052_test_no_pending_irq_gating["test_no_pending_irq_gating&lt;br/&gt;runtime_irq&lt;br/&gt;0.16s"]</span></span>
-<span id="cb3-304"><a href="#cb3-304" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_052_test_no_pending_irq_gating xfail;</span></span>
-<span id="cb3-305"><a href="#cb3-305" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Infra["Infra&lt;br/&gt;5/5"]</span></span>
-<span id="cb3-306"><a href="#cb3-306" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Runtime_L_Infra pass;</span></span>
-<span id="cb3-307"><a href="#cb3-307" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime --&gt; C_Runtime_L_Infra</span></span>
-<span id="cb3-308"><a href="#cb3-308" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Infra --&gt; T_053_test_all_expected_processes_present["test_all_expected_processes_present&lt;br/&gt;runtime_health&lt;br/&gt;0.12s"]</span></span>
-<span id="cb3-309"><a href="#cb3-309" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_053_test_all_expected_processes_present pass;</span></span>
-<span id="cb3-310"><a href="#cb3-310" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Infra --&gt; T_054_test_no_zombie_or_defunct["test_no_zombie_or_defunct&lt;br/&gt;runtime_health&lt;br/&gt;0.05s"]</span></span>
-<span id="cb3-311"><a href="#cb3-311" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_054_test_no_zombie_or_defunct pass;</span></span>
-<span id="cb3-312"><a href="#cb3-312" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Infra --&gt; T_055_test_qemu_log_is_fresh["test_qemu_log_is_fresh&lt;br/&gt;runtime_health&lt;br/&gt;3.11s"]</span></span>
-<span id="cb3-313"><a href="#cb3-313" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_055_test_qemu_log_is_fresh pass;</span></span>
-<span id="cb3-314"><a href="#cb3-314" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Infra --&gt; T_056_test_mobile_pcap_growing["test_mobile_pcap_growing&lt;br/&gt;runtime_health&lt;br/&gt;10.00s"]</span></span>
-<span id="cb3-315"><a href="#cb3-315" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_056_test_mobile_pcap_growing pass;</span></span>
-<span id="cb3-316"><a href="#cb3-316" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Infra --&gt; T_057_test_volumes_mounted["test_volumes_mounted&lt;br/&gt;runtime_health&lt;br/&gt;0.08s"]</span></span>
-<span id="cb3-317"><a href="#cb3-317" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_057_test_volumes_mounted pass;</span></span>
-<span id="cb3-318"><a href="#cb3-318" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_ctrl["L1-ctrl&lt;br/&gt;2/6"]</span></span>
-<span id="cb3-319"><a href="#cb3-319" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Runtime_L_L1_ctrl partial;</span></span>
-<span id="cb3-320"><a href="#cb3-320" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime --&gt; C_Runtime_L_L1_ctrl</span></span>
-<span id="cb3-321"><a href="#cb3-321" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_ctrl --&gt; T_058_test_neigh_pm_req_loop_alive["test_neigh_pm_req_loop_alive&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.19s"]</span></span>
-<span id="cb3-322"><a href="#cb3-322" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_058_test_neigh_pm_req_loop_alive pass;</span></span>
-<span id="cb3-323"><a href="#cb3-323" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_ctrl --&gt; T_059_test_l1ctl_data_ind_received["test_l1ctl_data_ind_received&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.17s"]</span></span>
-<span id="cb3-324"><a href="#cb3-324" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_059_test_l1ctl_data_ind_received fail;</span></span>
-<span id="cb3-325"><a href="#cb3-325" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_ctrl --&gt; T_060_test_a_cd_writes_nonzero["test_a_cd_writes_nonzero&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.09s"]</span></span>
-<span id="cb3-326"><a href="#cb3-326" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_060_test_a_cd_writes_nonzero pass;</span></span>
-<span id="cb3-327"><a href="#cb3-327" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_ctrl --&gt; T_061_test_a_cd_write_pc_includes_ccch_demod["test_a_cd_write_pc_includes_ccch_demod&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.19s"]</span></span>
-<span id="cb3-328"><a href="#cb3-328" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_061_test_a_cd_write_pc_includes_ccch_demod xfail;</span></span>
-<span id="cb3-329"><a href="#cb3-329" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_ctrl --&gt; T_062_test_l1ctl_data_ind_rate_vs_alc["test_l1ctl_data_ind_rate_vs_alc&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.24s"]</span></span>
-<span id="cb3-330"><a href="#cb3-330" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_062_test_l1ctl_data_ind_rate_vs_alc fail;</span></span>
-<span id="cb3-331"><a href="#cb3-331" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_ctrl --&gt; T_063_test_rach_attempted["test_rach_attempted&lt;br/&gt;runtime_l1ctl&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-332"><a href="#cb3-332" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_063_test_rach_attempted xfail;</span></span>
-<span id="cb3-333"><a href="#cb3-333" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_data["L1-data&lt;br/&gt;2/3"]</span></span>
-<span id="cb3-334"><a href="#cb3-334" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Runtime_L_L1_data partial;</span></span>
-<span id="cb3-335"><a href="#cb3-335" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime --&gt; C_Runtime_L_L1_data</span></span>
-<span id="cb3-336"><a href="#cb3-336" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_data --&gt; T_064_test_bridge_log_shows_traffic["test_bridge_log_shows_traffic&lt;br/&gt;runtime_bridge&lt;br/&gt;0.05s"]</span></span>
-<span id="cb3-337"><a href="#cb3-337" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_064_test_bridge_log_shows_traffic pass;</span></span>
-<span id="cb3-338"><a href="#cb3-338" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_data --&gt; T_065_test_bridge_fn_drift_under_threshold["test_bridge_fn_drift_under_threshold&lt;br/&gt;runtime_bridge&lt;br/&gt;0.00s"]</span></span>
-<span id="cb3-339"><a href="#cb3-339" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_065_test_bridge_fn_drift_under_threshold xfail;</span></span>
-<span id="cb3-340"><a href="#cb3-340" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_L1_data --&gt; T_066_test_bridge_dl_lookahead_respected["test_bridge_dl_lookahead_respected&lt;br/&gt;runtime_bridge&lt;br/&gt;0.05s"]</span></span>
-<span id="cb3-341"><a href="#cb3-341" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_066_test_bridge_dl_lookahead_respected pass;</span></span>
-<span id="cb3-342"><a href="#cb3-342" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Mgmt["Mgmt&lt;br/&gt;3/3"]</span></span>
-<span id="cb3-343"><a href="#cb3-343" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Runtime_L_Mgmt pass;</span></span>
-<span id="cb3-344"><a href="#cb3-344" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime --&gt; C_Runtime_L_Mgmt</span></span>
-<span id="cb3-345"><a href="#cb3-345" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Mgmt --&gt; T_067_test_mobile_vty_reachable["test_mobile_vty_reachable&lt;br/&gt;runtime_vty&lt;br/&gt;1.61s"]</span></span>
-<span id="cb3-346"><a href="#cb3-346" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_067_test_mobile_vty_reachable pass;</span></span>
-<span id="cb3-347"><a href="#cb3-347" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Mgmt --&gt; T_068_test_mobile_imsi_loaded["test_mobile_imsi_loaded&lt;br/&gt;runtime_vty&lt;br/&gt;1.62s"]</span></span>
-<span id="cb3-348"><a href="#cb3-348" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_068_test_mobile_imsi_loaded pass;</span></span>
-<span id="cb3-349"><a href="#cb3-349" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Mgmt --&gt; T_069_test_mobile_mm_state_is_null_or_idle["test_mobile_mm_state_is_null_or_idle&lt;br/&gt;runtime_vty&lt;br/&gt;1.73s"]</span></span>
-<span id="cb3-350"><a href="#cb3-350" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_069_test_mobile_mm_state_is_null_or_idle pass;</span></span>
-<span id="cb3-351"><a href="#cb3-351" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Summary["Summary&lt;br/&gt;1/1"]</span></span>
-<span id="cb3-352"><a href="#cb3-352" aria-hidden="true" tabindex="-1"></a><span class="in">  class C_Runtime_L_Summary pass;</span></span>
-<span id="cb3-353"><a href="#cb3-353" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime --&gt; C_Runtime_L_Summary</span></span>
-<span id="cb3-354"><a href="#cb3-354" aria-hidden="true" tabindex="-1"></a><span class="in">  C_Runtime_L_Summary --&gt; T_070_test_run_summary_snapshot["test_run_summary_snapshot&lt;br/&gt;runtime_summary&lt;br/&gt;30.68s"]</span></span>
-<span id="cb3-355"><a href="#cb3-355" aria-hidden="true" tabindex="-1"></a><span class="in">  class T_070_test_run_summary_snapshot pass;</span></span>
-<span id="cb3-356"><a href="#cb3-356" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-357"><a href="#cb3-357" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-358"><a href="#cb3-358" aria-hidden="true" tabindex="-1"></a><span class="fu">## Skipped / xfailed</span></span>
-<span id="cb3-359"><a href="#cb3-359" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-360"><a href="#cb3-360" aria-hidden="true" tabindex="-1"></a><span class="fu">### 22 skipped</span></span>
-<span id="cb3-361"><a href="#cb3-361" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_ar3_init_source_identified`</span> — milestone_bsp_dma</span>
-<span id="cb3-362"><a href="#cb3-362" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_ar4_init_source_identified`</span> — milestone_bsp_dma</span>
-<span id="cb3-363"><a href="#cb3-363" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_fb0_att_nonzero`</span> — milestone_fb_det</span>
-<span id="cb3-364"><a href="#cb3-364" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_synth_zero_path_active`</span> — milestone_fb_det</span>
-<span id="cb3-365"><a href="#cb3-365" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_c54x_interrupt_ex_called_nonzero`</span> — milestone_irq</span>
-<span id="cb3-366"><a href="#cb3-366" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_isr_entered_implies_rete`</span> — milestone_irq</span>
-<span id="cb3-367"><a href="#cb3-367" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_no_pending_irq_gated`</span> — milestone_irq</span>
-<span id="cb3-368"><a href="#cb3-368" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_neigh_pm_req_response_unchanged`</span> — milestone_l1ctl</span>
-<span id="cb3-369"><a href="#cb3-369" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_rach_emitted`</span> — milestone_mm_lu</span>
-<span id="cb3-370"><a href="#cb3-370" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_immediate_assignment_decoded`</span> — milestone_mm_lu</span>
-<span id="cb3-371"><a href="#cb3-371" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_rr_sdcch_established`</span> — milestone_mm_lu</span>
-<span id="cb3-372"><a href="#cb3-372" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_location_updating_request_sent`</span> — milestone_mm_lu</span>
-<span id="cb3-373"><a href="#cb3-373" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_location_updating_accept_received`</span> — milestone_mm_lu</span>
-<span id="cb3-374"><a href="#cb3-374" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_rxdoneflag_no_longer_blocks`</span> — milestone_dsp_decoder</span>
-<span id="cb3-375"><a href="#cb3-375" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_efficacy_arm_reads_a_cd`</span> — inject_efficacy,inject_frames</span>
-<span id="cb3-376"><a href="#cb3-376" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_d_fb_det_pattern_unchanged`</span> — runtime_dsp</span>
-<span id="cb3-377"><a href="#cb3-377" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_bridge_fn_drift_under_threshold`</span> — runtime_bridge</span>
-<span id="cb3-378"><a href="#cb3-378" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_a_cd_write_pc_includes_ccch_demod`</span> — runtime_l1ctl</span>
-<span id="cb3-379"><a href="#cb3-379" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_rach_attempted`</span> — runtime_l1ctl</span>
-<span id="cb3-380"><a href="#cb3-380" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_interrupt_ex_called_counter_exposed`</span> — runtime_irq</span>
-<span id="cb3-381"><a href="#cb3-381" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_isr_entered_matches_rete`</span> — runtime_irq</span>
-<span id="cb3-382"><a href="#cb3-382" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_no_pending_irq_gating`</span> — runtime_irq</span>
-<span id="cb3-383"><a href="#cb3-383" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-384"><a href="#cb3-384" aria-hidden="true" tabindex="-1"></a><span class="fu">### 19 xfailed</span></span>
-<span id="cb3-385"><a href="#cb3-385" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_fb0_att_nonzero`</span> — milestone_fb_det</span>
-<span id="cb3-386"><a href="#cb3-386" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_c54x_interrupt_ex_called_nonzero`</span> — milestone_irq</span>
-<span id="cb3-387"><a href="#cb3-387" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_isr_entered_implies_rete`</span> — milestone_irq</span>
-<span id="cb3-388"><a href="#cb3-388" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_no_pending_irq_gated`</span> — milestone_irq</span>
-<span id="cb3-389"><a href="#cb3-389" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_neigh_pm_req_response_unchanged`</span> — milestone_l1ctl</span>
-<span id="cb3-390"><a href="#cb3-390" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_rach_emitted`</span> — milestone_mm_lu</span>
-<span id="cb3-391"><a href="#cb3-391" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_immediate_assignment_decoded`</span> — milestone_mm_lu</span>
-<span id="cb3-392"><a href="#cb3-392" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_rr_sdcch_established`</span> — milestone_mm_lu</span>
-<span id="cb3-393"><a href="#cb3-393" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_location_updating_request_sent`</span> — milestone_mm_lu</span>
-<span id="cb3-394"><a href="#cb3-394" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_location_updating_accept_received`</span> — milestone_mm_lu</span>
-<span id="cb3-395"><a href="#cb3-395" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_rxdoneflag_no_longer_blocks`</span> — milestone_dsp_decoder</span>
-<span id="cb3-396"><a href="#cb3-396" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_efficacy_arm_reads_a_cd`</span> — inject_efficacy,inject_frames</span>
-<span id="cb3-397"><a href="#cb3-397" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_d_fb_det_pattern_unchanged`</span> — runtime_dsp</span>
-<span id="cb3-398"><a href="#cb3-398" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_bridge_fn_drift_under_threshold`</span> — runtime_bridge</span>
-<span id="cb3-399"><a href="#cb3-399" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_a_cd_write_pc_includes_ccch_demod`</span> — runtime_l1ctl</span>
-<span id="cb3-400"><a href="#cb3-400" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_rach_attempted`</span> — runtime_l1ctl</span>
-<span id="cb3-401"><a href="#cb3-401" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_interrupt_ex_called_counter_exposed`</span> — runtime_irq</span>
-<span id="cb3-402"><a href="#cb3-402" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_isr_entered_matches_rete`</span> — runtime_irq</span>
-<span id="cb3-403"><a href="#cb3-403" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`test_no_pending_irq_gating`</span> — runtime_irq</span>
-<span id="cb3-404"><a href="#cb3-404" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-405"><a href="#cb3-405" aria-hidden="true" tabindex="-1"></a><span class="fu">## Résultats bruts pytest</span></span>
-<span id="cb3-406"><a href="#cb3-406" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-407"><a href="#cb3-407" aria-hidden="true" tabindex="-1"></a>&lt;details&gt;</span>
-<span id="cb3-408"><a href="#cb3-408" aria-hidden="true" tabindex="-1"></a>&lt;summary&gt;Cliquer pour déplier — sortie verbatim type &lt;code&gt;pytest -v&lt;/code&gt;&lt;/summary&gt;</span>
-<span id="cb3-409"><a href="#cb3-409" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-410"><a href="#cb3-410" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-411"><a href="#cb3-411" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_calypso_milestones.py::test_popm_decoder_active (0.001s)</span></span>
-<span id="cb3-412"><a href="#cb3-412" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_calypso_milestones.py::test_tier_a_decoder_fixes_present (0.002s)</span></span>
-<span id="cb3-413"><a href="#cb3-413" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_calypso_milestones.py::test_intm_dwell_no_regression (30.572s)</span></span>
-<span id="cb3-414"><a href="#cb3-414" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_calypso_milestones.py::test_dsp_throughput_5x (0.132s)</span></span>
-<span id="cb3-415"><a href="#cb3-415" aria-hidden="true" tabindex="-1"></a><span class="in">SKIPPED  test_calypso_milestones.py::test_ar3_init_source_identified (0.007s)</span></span>
-<span id="cb3-416"><a href="#cb3-416" aria-hidden="true" tabindex="-1"></a><span class="in">SKIPPED  test_calypso_milestones.py::test_ar4_init_source_identified (0.005s)</span></span>
-<span id="cb3-417"><a href="#cb3-417" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_calypso_milestones.py::test_bsp_dma_target_matches_correlator_read_zone (0.065s)</span></span>
-<span id="cb3-418"><a href="#cb3-418" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_calypso_milestones.py::test_no_d_fb_det_wr_site_anomaly (0.169s)</span></span>
-<span id="cb3-419"><a href="#cb3-419" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_fb0_att_nonzero (0.000s)</span></span>
-<span id="cb3-420"><a href="#cb3-420" aria-hidden="true" tabindex="-1"></a><span class="in">SKIPPED  test_calypso_milestones.py::test_synth_zero_path_active (0.111s)</span></span>
-<span id="cb3-421"><a href="#cb3-421" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_c54x_interrupt_ex_called_nonzero (0.000s)</span></span>
-<span id="cb3-422"><a href="#cb3-422" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_isr_entered_implies_rete (0.000s)</span></span>
-<span id="cb3-423"><a href="#cb3-423" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_no_pending_irq_gated (0.000s)</span></span>
-<span id="cb3-424"><a href="#cb3-424" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_calypso_milestones.py::test_l1ctl_data_ind_received (0.164s)</span></span>
-<span id="cb3-425"><a href="#cb3-425" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_neigh_pm_req_response_unchanged (0.000s)</span></span>
-<span id="cb3-426"><a href="#cb3-426" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_rach_emitted (0.000s)</span></span>
-<span id="cb3-427"><a href="#cb3-427" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_immediate_assignment_decoded (0.000s)</span></span>
-<span id="cb3-428"><a href="#cb3-428" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_rr_sdcch_established (0.000s)</span></span>
-<span id="cb3-429"><a href="#cb3-429" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_location_updating_request_sent (0.000s)</span></span>
-<span id="cb3-430"><a href="#cb3-430" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_location_updating_accept_received (0.000s)</span></span>
-<span id="cb3-431"><a href="#cb3-431" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_calypso_milestones.py::test_rxdoneflag_no_longer_blocks (0.000s)</span></span>
-<span id="cb3-432"><a href="#cb3-432" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_inject_frames.py::test_probe_ndb (0.289s)</span></span>
-<span id="cb3-433"><a href="#cb3-433" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_inject_frames.py::test_clear_ndb (0.289s)</span></span>
-<span id="cb3-434"><a href="#cb3-434" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_fbsb_fb_found (0.617s)</span></span>
-<span id="cb3-435"><a href="#cb3-435" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_inject_frames.py::test_inject_fbsb_sb_found (0.535s)</span></span>
-<span id="cb3-436"><a href="#cb3-436" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_si[1] (0.329s)</span></span>
-<span id="cb3-437"><a href="#cb3-437" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_si[2] (0.329s)</span></span>
-<span id="cb3-438"><a href="#cb3-438" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_si[3] (0.331s)</span></span>
-<span id="cb3-439"><a href="#cb3-439" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_si[4] (0.330s)</span></span>
-<span id="cb3-440"><a href="#cb3-440" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_si[5] (0.371s)</span></span>
-<span id="cb3-441"><a href="#cb3-441" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_si[6] (0.329s)</span></span>
-<span id="cb3-442"><a href="#cb3-442" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_a_cd_pattern_23B (0.331s)</span></span>
-<span id="cb3-443"><a href="#cb3-443" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_a_cd_pattern_30B (0.330s)</span></span>
-<span id="cb3-444"><a href="#cb3-444" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_inject_frames.py::test_inject_a_cd_invalid_length (0.001s)</span></span>
-<span id="cb3-445"><a href="#cb3-445" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_inject_frames.py::test_inject_d_task[5-0] (0.041s)</span></span>
-<span id="cb3-446"><a href="#cb3-446" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_inject_frames.py::test_inject_d_task[6-1] (0.041s)</span></span>
-<span id="cb3-447"><a href="#cb3-447" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_inject_frames.py::test_inject_d_task[24-0] (0.042s)</span></span>
-<span id="cb3-448"><a href="#cb3-448" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_inject_d_task[28-1] (0.043s)</span></span>
-<span id="cb3-449"><a href="#cb3-449" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_inject_frames.py::test_inject_d_burst[0] (0.043s)</span></span>
-<span id="cb3-450"><a href="#cb3-450" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_inject_frames.py::test_inject_d_burst[1] (0.042s)</span></span>
-<span id="cb3-451"><a href="#cb3-451" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_inject_frames.py::test_efficacy_arm_reads_d_fb_det_1 (3.151s)</span></span>
-<span id="cb3-452"><a href="#cb3-452" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_inject_frames.py::test_efficacy_arm_reads_a_cd (3.112s)</span></span>
-<span id="cb3-453"><a href="#cb3-453" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_all_expected_processes_present (0.122s)</span></span>
-<span id="cb3-454"><a href="#cb3-454" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_no_zombie_or_defunct (0.054s)</span></span>
-<span id="cb3-455"><a href="#cb3-455" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_qemu_log_is_fresh (3.109s)</span></span>
-<span id="cb3-456"><a href="#cb3-456" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_mobile_pcap_growing (10.000s)</span></span>
-<span id="cb3-457"><a href="#cb3-457" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_volumes_mounted (0.079s)</span></span>
-<span id="cb3-458"><a href="#cb3-458" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_no_wait_a21a_on_window (0.071s)</span></span>
-<span id="cb3-459"><a href="#cb3-459" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_no_enter_7740_dwell (0.079s)</span></span>
-<span id="cb3-460"><a href="#cb3-460" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_intm_reaches_zero (0.066s)</span></span>
-<span id="cb3-461"><a href="#cb3-461" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_dsp_throughput_above_threshold (0.066s)</span></span>
-<span id="cb3-462"><a href="#cb3-462" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_run_observability.py::test_d_fb_det_pattern_unchanged (0.064s)</span></span>
-<span id="cb3-463"><a href="#cb3-463" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_bsp_daram_write_distribution (0.083s)</span></span>
-<span id="cb3-464"><a href="#cb3-464" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_d_fb_det_data_no_longer_zero (0.076s)</span></span>
-<span id="cb3-465"><a href="#cb3-465" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_bridge_log_shows_traffic (0.051s)</span></span>
-<span id="cb3-466"><a href="#cb3-466" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_run_observability.py::test_bridge_fn_drift_under_threshold (0.000s)</span></span>
-<span id="cb3-467"><a href="#cb3-467" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_bridge_dl_lookahead_respected (0.051s)</span></span>
-<span id="cb3-468"><a href="#cb3-468" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_neigh_pm_req_loop_alive (0.189s)</span></span>
-<span id="cb3-469"><a href="#cb3-469" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_run_observability.py::test_l1ctl_data_ind_received (0.173s)</span></span>
-<span id="cb3-470"><a href="#cb3-470" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_a_cd_writes_nonzero (0.088s)</span></span>
-<span id="cb3-471"><a href="#cb3-471" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_run_observability.py::test_a_cd_write_pc_includes_ccch_demod (0.193s)</span></span>
-<span id="cb3-472"><a href="#cb3-472" aria-hidden="true" tabindex="-1"></a><span class="in">FAILED   test_run_observability.py::test_l1ctl_data_ind_rate_vs_alc (0.240s)</span></span>
-<span id="cb3-473"><a href="#cb3-473" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_run_observability.py::test_rach_attempted (0.000s)</span></span>
-<span id="cb3-474"><a href="#cb3-474" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_mobile_vty_reachable (1.612s)</span></span>
-<span id="cb3-475"><a href="#cb3-475" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_mobile_imsi_loaded (1.621s)</span></span>
-<span id="cb3-476"><a href="#cb3-476" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_mobile_mm_state_is_null_or_idle (1.731s)</span></span>
-<span id="cb3-477"><a href="#cb3-477" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_run_observability.py::test_interrupt_ex_called_counter_exposed (0.063s)</span></span>
-<span id="cb3-478"><a href="#cb3-478" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_run_observability.py::test_isr_entered_matches_rete (0.130s)</span></span>
-<span id="cb3-479"><a href="#cb3-479" aria-hidden="true" tabindex="-1"></a><span class="in">XFAIL    test_run_observability.py::test_no_pending_irq_gating (0.160s)</span></span>
-<span id="cb3-480"><a href="#cb3-480" aria-hidden="true" tabindex="-1"></a><span class="in">PASSED   test_run_observability.py::test_run_summary_snapshot (30.677s)</span></span>
-<span id="cb3-481"><a href="#cb3-481" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-482"><a href="#cb3-482" aria-hidden="true" tabindex="-1"></a><span class="in">============================================================</span></span>
-<span id="cb3-483"><a href="#cb3-483" aria-hidden="true" tabindex="-1"></a><span class="in">34 passed, 14 failed, 3 skipped, 19 xfailed in 93.00s</span></span>
-<span id="cb3-484"><a href="#cb3-484" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-485"><a href="#cb3-485" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-486"><a href="#cb3-486" aria-hidden="true" tabindex="-1"></a>&lt;/details&gt;</span>
-<span id="cb3-487"><a href="#cb3-487" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-488"><a href="#cb3-488" aria-hidden="true" tabindex="-1"></a><span class="fu">## Reproduction</span></span>
-<span id="cb3-489"><a href="#cb3-489" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-490"><a href="#cb3-490" aria-hidden="true" tabindex="-1"></a><span class="in">```bash</span></span>
-<span id="cb3-491"><a href="#cb3-491" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /home/nirvana/qemu-calypso/tests</span>
-<span id="cb3-492"><a href="#cb3-492" aria-hidden="true" tabindex="-1"></a><span class="ex">/tmp/calypso-venv/bin/pytest</span> <span class="at">-v</span> <span class="at">--tb</span><span class="op">=</span>short</span>
-<span id="cb3-493"><a href="#cb3-493" aria-hidden="true" tabindex="-1"></a><span class="co"># Filtrer par marker :</span></span>
-<span id="cb3-494"><a href="#cb3-494" aria-hidden="true" tabindex="-1"></a><span class="ex">/tmp/calypso-venv/bin/pytest</span> <span class="at">-v</span> <span class="at">-m</span> inject_frames</span>
-<span id="cb3-495"><a href="#cb3-495" aria-hidden="true" tabindex="-1"></a><span class="ex">/tmp/calypso-venv/bin/pytest</span> <span class="at">-v</span> <span class="at">-m</span> <span class="st">'not inject_efficacy'</span></span>
-<span id="cb3-496"><a href="#cb3-496" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-497"><a href="#cb3-497" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-498"><a href="#cb3-498" aria-hidden="true" tabindex="-1"></a>Le diagramme et ce rapport sont régénérés à chaque run et écrits dans</span>
-<span id="cb3-499"><a href="#cb3-499" aria-hidden="true" tabindex="-1"></a><span class="in">`/tmp/test_results_20260515_232830/test_results.{mmd,md}`</span> (override via <span class="in">`CALYPSO_TEST_OUT`</span>).</span>
-<span id="cb3-500"><a href="#cb3-500" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-501"><a href="#cb3-501" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb3-502"><a href="#cb3-502" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-503"><a href="#cb3-503" aria-hidden="true" tabindex="-1"></a>_Run finished at 2026-05-15T23:28:30._</span>
-</code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></pre></div>
-</div></div></div></div></div>
-</div> <!-- /content -->
-
-
-
-
-
-<hr>
-<section id="pl4y-sources">
-  <h2>Sources de l'instantane</h2>
-  <p>Rapport genere par <code>tests/conftest.py::pytest_sessionfinish</code> du fork
-     <a href="https://github.com/bbaranoff/qemu" target="_blank" rel="noopener">bbaranoff/qemu</a>,
-     instantane du <strong>2026-08-25 14:29</strong>. Fichiers bruts servis ici :</p>
-  <ul>
-    <li><a href="test_results.qmd"><code>test_results.qmd</code></a> &mdash; le rapport source (Quarto)</li>
-    <li><a href="log_timeline.csv"><code>log_timeline.csv</code></a> &mdash; la timeline des evenements</li>
-    <li><a href="pipeline.mmd"><code>pipeline.mmd</code></a> &mdash; le pipeline GSM (Mermaid)</li>
-    <li><a href="detail.mmd"><code>detail.mmd</code></a> &mdash; le detail par test (Mermaid)</li>
-    <li><a href="full.mmd"><code>full.mmd</code></a> &mdash; le graphe complet (Mermaid)</li>
-  </ul>
-</section>
-</body></html>
+</body>
+</html>

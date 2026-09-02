@@ -77,10 +77,10 @@ __THEME_TOKENS__
   body {
     margin:0; color:var(--fg);
     background-color:var(--bg);
+    /* Fond Nocturne : les memes halos radiaux que la page de garde. */
     background-image:
-      linear-gradient(var(--sk-grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--sk-grid) 1px, transparent 1px);
-    background-size:28px 28px;
+      radial-gradient(1200px 720px at 82% -160px, var(--glow-1), transparent 60%),
+      radial-gradient(1100px 800px at -10% 100%, var(--glow-2), transparent 55%);
     background-attachment:fixed;
     font-family:var(--sans);
     line-height:1.65; padding:0 0 1rem;
@@ -91,8 +91,7 @@ __THEME_TOKENS__
   .wrap { max-width:960px; margin:0 auto; padding:0 1rem; }
   .top { display:flex; align-items:baseline; justify-content:space-between;
          gap:1rem; flex-wrap:wrap; margin-bottom:.4rem; }
-  /* Titres manuscrits (Caveat) : le trait le plus reconnaissable du theme.
-     Caveat porte haut, d'ou une taille sensiblement plus grande a rendu egal. */
+  /* Titres Inter (theme Nocturne). */
   h1 { font-family:var(--display); font-size:clamp(2.4rem,6vw,3.4rem); margin:0;
        letter-spacing:0; font-weight:700; line-height:1.05; font-synthesis:none; }
   h1 .dot { color:var(--accent-2); }
@@ -269,92 +268,39 @@ __THEME_TOKENS__
   details pre { max-height:70vh; }
 
   /* =======================================================================
-     COUCHE SKETCHY — LA FORME
-     Les tokens injectes plus haut (pl4y-tokens.css) posaient deja la COULEUR du
-     theme : papier quadrille, encre, Caveat sur les titres. Manquait le
-     TRAIT — c'est ce bloc, et c'est le meme que celui de pl4y-doc.css cote
-     documentation, pour que l'accueil et les sections aient exactement la
-     meme main : coins traces a la main (--sk-rough / --sk-rough2, alternes),
-     bordures a l'encre de 2 px, ombres dures, rotations sous le demi-degre.
-     En fin de <style> pour l'emporter, a specificite egale, sur les formes
-     rondes definies plus haut.
+     FINITION NOCTURNE
+     L'ancienne couche sketchy (pancarte surlignee, rotations, ombres decalees,
+     soulignes ondules) est retiree : les regles de base ci-dessus sont deja aux
+     tokens Nocturne. Ce bloc ne garde que le necessaire, dans la grammaire de
+     la page de garde (Inter, coins nets, ombres douces).
      ===================================================================== */
 
-  /* Le titre : une pancarte surlignee, posee de travers. */
+  /* Le titre : Inter propre, sans pancarte ni rotation. */
   .brand h1 {
-    display:inline-block; padding:.05em .35em;
-    background:var(--sk-yellow); color:var(--sk-ink);
-    border:3px solid var(--sk-ink); border-radius:var(--sk-rough);
-    box-shadow:6px 6px 0 var(--sk-ink); transform:rotate(-1.1deg);
+    display:block; padding:0; background:none; color:var(--fg);
+    border:0; box-shadow:none; transform:none;
+    letter-spacing:-.02em;
   }
-  /* Le surligneur reste jaune sur le tableau noir : c'est un marqueur, pas un
-     fond de page — la craie ecrirait en clair sur du jaune. */
-  :root[data-theme="dark"] .brand h1 {
-    color:#20242e; border-color:#20242e; box-shadow:6px 6px 0 rgba(32,36,46,.9);
-  }
-  .sub { display:inline-block; transform:rotate(.35deg); }
+  .sub { display:inline-block; }
 
-  /* Les titres de section : un trait tire a la regle, qui derape. */
-  h2 {
-    border-top:0; border-bottom:3px solid var(--border);
-    padding-top:0; padding-bottom:.12em; border-radius:var(--sk-rough2);
-    transform:rotate(-.28deg); margin-top:2.8rem;
-  }
-  h3 { transform:rotate(.18deg); }
-  /* Les h2 des cartes sont des ETIQUETTES (petites capitales), pas des titres
-     de section : ni trait de separation, ni rotation. */
-  .card h2, .hub-card h2 { border-bottom:0; transform:none; margin-top:0; }
-
-  /* Les boites. Coins alternes : deux voisines ne portent jamais le meme. */
-  .card, .hub-card, .toc, .note, .warn, .shot, .moto img, .dl-box {
-    border-width:2px !important;
-  }
-  .card, .toc, .shot, .moto img { border-radius:var(--sk-rough) !important; }
-  .hub-card, .note, .warn, .dl-box { border-radius:var(--sk-rough2) !important; }
-  /* Le bandeau degrade de .dl-box::before : un degrade n'existe pas dans ce
-     theme, c'est un aplat d'encre jaune. */
-  .dl-box::before { background:var(--sk-yellow) !important; height:5px !important; }
+  /* Boutons de telechargement : plein accent pour l'action principale. */
   .dl-btn, .dl-btn.alt {
-    background:var(--btn-bg) !important; color:var(--fg) !important;
-    border:2px solid var(--border) !important; border-radius:var(--sk-rough2) !important;
-    box-shadow:var(--shadow) !important; filter:none !important;
-    font-family:var(--display); font-size:1.25rem; letter-spacing:0;
+    background:var(--btn-bg); color:var(--fg);
+    border:1px solid var(--border); border-radius:10px;
+    box-shadow:var(--shadow); font-family:var(--sans); letter-spacing:0;
   }
-  .dl-btn.alt { background:var(--accent) !important; color:var(--on-accent) !important; }
-  .dl-btn:hover { box-shadow:var(--shadow-lg) !important; transform:translateY(-1px) rotate(-.4deg); }
-  .card { transform:rotate(-.15deg); }
-  .card:nth-of-type(2n) { transform:rotate(.2deg); border-radius:var(--sk-rough2) !important; }
-  .note, .warn { border-left-width:5px !important; }
-  .hub-card { transform:rotate(-.3deg); }
-  .hub-card:nth-child(2n) { transform:rotate(.35deg); border-radius:var(--sk-rough) !important; }
-  .hub-card:hover { transform:rotate(0deg) translateY(-2px); }
+  .dl-btn.alt { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
+  .dl-btn:hover { box-shadow:var(--shadow-lg); transform:translateY(-1px); }
 
-  /* Le code : un cadre a l'encre, une ombre dure et decalee. */
-  pre {
-    border-width:2px !important; border-radius:var(--sk-rough) !important;
-    box-shadow:var(--shadow-lg) !important; transform:rotate(-.12deg);
-  }
-  code { border-radius:var(--sk-rough2); border-width:1.5px; }
-  pre code { border-radius:0; border-width:0; }
-  .cmd {
-    border-width:2px; border-radius:var(--sk-rough2);
-    box-shadow:var(--shadow); transform:rotate(.1deg);
-  }
-  .cmd code { border-radius:0; border-width:0; }
+  /* Encarts : liseré accent, comme les admonitions des pages doc. */
+  .note, .warn { border-left-width:3px !important; }
 
-  /* Champs, boutons, pastilles : plus un seul coin regulier. */
-  .cmd button, .btn, .theme-toggle, button, .pill, .tag {
-    border-width:2px !important; border-radius:var(--sk-rough2) !important;
-  }
-  .pl4y-bar nav a { border-radius:var(--sk-rough2); }
-  .pl4y-bar { border-bottom-width:2px; }
+  /* Cartes du hub : elevation douce au survol, sans rotation. */
+  .hub-card { transition:box-shadow .18s ease, transform .18s ease, border-color .18s ease; }
+  .hub-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg);
+    border-color:color-mix(in srgb, var(--accent) 55%, var(--border)); }
 
-  /* Le trait ondule sous les liens du corps. Pas dans la barre ni le sommaire,
-     ou il rendrait la navigation illisible. */
-  .wrap p a, .wrap li a, .card a, .note a, .warn a {
-    text-decoration-style:wavy; text-decoration-thickness:1px;
-    text-underline-offset:.22em;
-  }
+  /* Liens du corps : souligne net (fini l'ondule). */
   .toc a, .hub-card, .pl4y-bar a { text-decoration:none; }
 
   @media (prefers-reduced-motion:reduce) {
@@ -366,7 +312,7 @@ __THEME_TOKENS__
 <script>
   (function () {
     try {
-      var t = localStorage.getItem("pl4y-theme") || "light";
+      var t = localStorage.getItem("pl4y-theme") || "dark";
       document.documentElement.setAttribute("data-theme", t);
     } catch (e) {}
   })();
@@ -377,6 +323,7 @@ __THEME_TOKENS__
   <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
   <nav>
     <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/wiki#demarrage" class="pl4y-quick">Quick start</a>
     <a href="/wiki" data-pl4y-nav="/wiki" aria-current="page">Installeur &amp; wiki</a>
     <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
     <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>

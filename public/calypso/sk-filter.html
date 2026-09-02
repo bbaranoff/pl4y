@@ -4,6 +4,7 @@
   <a class="pl4y-home" href="/">pl4y<span class="dot">.</span>store</a>
   <nav>
     <a href="/" data-pl4y-nav="/">Accueil</a>
+    <a href="/wiki#demarrage" class="pl4y-quick">Quick start</a>
     <a href="/wiki" data-pl4y-nav="/wiki">Installeur &amp; wiki</a>
     <a href="/calypso/" data-pl4y-nav="/calypso/">QEMU Calypso</a>
     <a href="/osmo_egprs/" data-pl4y-nav="/osmo_egprs/">osmo_egprs</a>
@@ -48,7 +49,7 @@
 <script>
   (function () {
     try {
-      var t = localStorage.getItem("pl4y-theme") || "light";
+      var t = localStorage.getItem("pl4y-theme") || "dark";
       document.documentElement.setAttribute("data-theme", t);
     } catch (e) {}
   })();

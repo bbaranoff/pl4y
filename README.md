@@ -94,11 +94,23 @@ Le Worker garde la main sur `/` (script brut en CLI, page HTML au navigateur) ;
 les préfixes documentaires partent toujours vers les assets, même pour
 `curl`/`wget`.
 
+**Un seul thème pour tout le site : « Nocturne ».** Le design de la page de garde
+(fond bleu-nuit, accent lavande, police Inter, coins nets, ombres douces) est
+désormais celui de **toutes** les pages — accueil, wiki et les cinq sections
+documentaires. La source unique reste `docs/theme/pl4y-tokens.css` : elle est
+injectée dans l'accueil et le wiki (placeholder `__THEME_TOKENS__`) et préfixée à
+`pl4y-doc.css` dans chaque arbre. Modifier la palette là la change partout.
+
 Toutes les pages proposent un **bascule de thème clair / sombre** (bouton dans la
-barre de navigation) : le **thème clair est le défaut** et le choix est mémorisé
-dans `localStorage` (clé `pl4y-theme`), appliqué avant le premier rendu pour
-éviter tout flash. La clé est commune à l'accueil et aux sections, donc le choix
-suit le visiteur de `/` à `/sdr/`.
+barre de navigation) : le **thème sombre (Nocturne) est le défaut** et le choix
+est mémorisé dans `localStorage` (clé `pl4y-theme`), appliqué avant le premier
+rendu pour éviter tout flash. La clé est commune à l'accueil et aux sections, donc
+le choix suit le visiteur de `/` à `/sdr/`. Le corps de la page d'accueil reste
+Nocturne quel que soit le choix ; la variante claire n'agit que sur les pages
+documentaires.
+
+Le bandeau porte un onglet **Quick start** (accentué) qui mène à la section
+*Démarrage rapide* du wiki (`/wiki#demarrage`) depuis n'importe quelle page.
 
 ## Source de vérité
 
