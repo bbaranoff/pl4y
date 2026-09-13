@@ -880,7 +880,7 @@ subscriber msisdn 10001 sms sender msisdn 10002 send Hello</code></pre>
 // documentaires (genere par docs/unify.mjs dans public/) + les medias /m/*.
 // Rien de tout cela ne transite par le bundle du Worker.
 const ASSET_PREFIXES = [
-  "/calypso", "/osmo_egprs", "/tests", "/sdr", "/bbaranoff", "/docs", "/m",
+  "/calypso", "/osmo_egprs", "/tests", "/sdr", "/bbaranoff", "/docs", "/m", "/fft",
 ];
 
 // La page est identique pour tout le monde : on la rend une seule fois, a

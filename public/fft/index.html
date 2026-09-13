@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pl4y · FFT live — cfile</title>
+<style>
+  :root{
+    --bg:#0a0c12; --panel:#111624; --panel2:#0d111c; --line:#1e2740;
+    --fg:#e7ecf6; --mut:#8b97b4; --acc:#ffb020; --acc2:#3aa0ff; --ok:#37d39b; --err:#ff5c6c;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans)}
+  body{padding:18px;max-width:1080px;margin:0 auto;line-height:1.5}
+  a{color:var(--acc2);text-decoration:none} a:hover{text-decoration:underline}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;margin-bottom:6px}
+  h1{font-size:19px;margin:0;font-weight:650;letter-spacing:.2px}
+  h1 .dot{color:var(--acc)}
+  .sub{color:var(--mut);font-size:13px}
+  .back{margin-left:auto;font-size:13px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
+  .chip{font-family:var(--mono);font-size:11.5px;color:var(--mut);background:var(--panel);
+        border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  .chip b{color:var(--fg);font-weight:600}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-bottom:12px}
+  .controls label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+  .controls .row{display:flex;gap:8px;align-items:center}
+  input[type=text]{font-family:var(--mono);font-size:12px;background:var(--panel2);color:var(--fg);
+    border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:min(560px,70vw)}
+  input[type=range]{accent-color:var(--acc);width:140px}
+  select,button{font-family:var(--sans);font-size:13px;background:var(--panel2);color:var(--fg);
+    border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer}
+  button.primary{background:var(--acc);color:#1a1200;border-color:var(--acc);font-weight:650}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button:hover:not(:disabled){border-color:var(--acc)}
+  canvas{display:block;width:100%;border-radius:8px;background:#000;image-rendering:pixelated}
+  #spec{height:190px;margin-bottom:2px}
+  #wf{height:380px}
+  .axis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;
+        color:var(--mut);margin:4px 2px 12px}
+  .status{font-family:var(--mono);font-size:12px;color:var(--mut);margin-top:10px;min-height:1.3em}
+  .status.err{color:var(--err)} .status.ok{color:var(--ok)}
+  .bar{height:6px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;
+       overflow:hidden;margin-top:8px}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc2),var(--acc));transition:width .1s}
+  .note{color:var(--mut);font-size:12px;margin-top:14px}
+  .note code{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
+             border-radius:5px;padding:1px 5px}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="dot">▚</span> pl4y · FFT live</h1>
+  <span class="sub">cfile I/Q → PSD Welch, 100&nbsp;% navigateur</span>
+  <a class="back" href="/">← pl4y.store</a>
+</header>
+
+<div class="chips" id="chips"></div>
+
+<div class="panel">
+  <div class="controls">
+    <label style="flex:1 1 100%">Source cfile (complex64, ACAO&nbsp;: * requis)
+      <div class="row">
+        <input type="text" id="url" spellcheck="false"
+          value="https://raw.githubusercontent.com/ptrkrysik/test_data/refs/heads/master/vf_call6_a725_d174_g5_Kc1EF00BAB3BAC7002.cfile">
+        <button id="load" class="primary">Charger</button>
+        <button id="pick" title="Charger un fichier local">📁</button>
+        <input type="file" id="file" accept=".cfile,.raw,.bin,application/octet-stream" hidden>
+      </div>
+    </label>
+    <label>Fs (Hz)
+      <input type="text" id="fs" value="1083333" style="min-width:110px">
+    </label>
+    <label>Palette
+      <select id="pal">
+        <option value="inferno" selected>inferno</option>
+        <option value="turbo">turbo</option>
+        <option value="viridis">viridis</option>
+        <option value="gray">gray</option>
+      </select>
+    </label>
+    <label>Plage (dB)
+      <div class="row"><input type="range" id="dr" min="15" max="90" value="40"><span id="drv" style="font-family:var(--mono)">40</span></div>
+    </label>
+    <label>Vitesse
+      <div class="row"><input type="range" id="spd" min="0.1" max="4" step="0.1" value="1"><span id="spdv" style="font-family:var(--mono)">1.0×</span></div>
+    </label>
+    <label>&nbsp;
+      <button id="play" disabled>▶ Lecture</button>
+    </label>
+  </div>
+
+  <canvas id="spec"></canvas>
+  <div class="axis" id="axis"><span>−Fs/2</span><span>0</span><span>+Fs/2</span></div>
+  <canvas id="wf"></canvas>
+
+  <div class="bar" id="barwrap" hidden><i id="bar"></i></div>
+  <div class="status" id="status">Prêt. Clique « Charger » pour récupérer le cfile et démarrer la lecture en boucle.</div>
+</div>
+
+<p class="note">
+  Aucune donnée ne transite par pl4y.store : le navigateur télécharge le cfile directement depuis la source
+  (ici le jeu de test gr-gsm de Piotr Krysik), le garde en mémoire et le rejoue <b>en boucle continue</b>.
+  DSP identique à la pane FFT d'osmo-egprs-web : NFFT&nbsp;4096, fenêtre de Hanning, 16&nbsp;segments moyennés (Welch),
+  fftshift, lissage temporel exponentiel. Un cfile est du <code>complex64</code> : float32 little-endian entrelacés (I,Q), 8&nbsp;octets/échantillon.
+</p>
+
+<script>
+"use strict";
+(function(){
+  // ─── Constantes DSP (défauts identiques à server.js) ──────────────────────
+  const NFFT = 4096, NSEG = 16, TAU_MS = 400;
+  let FS = 1083333;
+
+  // ─── FFT radix-2 itérative en place (convention forward, comme numpy.fft) ──
+  function makeFFT(n){
+    const cos = new Float64Array(n>>1), sin = new Float64Array(n>>1);
+    for (let i=0;i<(n>>1);i++){ const a=-2*Math.PI*i/n; cos[i]=Math.cos(a); sin[i]=Math.sin(a); }
+    const rev = new Uint32Array(n);
+    for (let i=0,j=0;i<n;i++){ rev[i]=j; let bit=n>>1; for(;j&bit;bit>>=1) j^=bit; j^=bit; }
+    return function(re,im){
+      for (let i=0;i<n;i++){ const j=rev[i]; if (j>i){ let t=re[i];re[i]=re[j];re[j]=t; t=im[i];im[i]=im[j];im[j]=t; } }
+      for (let len=2; len<=n; len<<=1){
+        const half=len>>1, tstep=n/len;
+        for (let i=0;i<n;i+=len){
+          for (let k=0,t=0;k<half;k++,t+=tstep){
+            const c=cos[t], s=sin[t];
+            const xr=re[i+k+half], xi=im[i+k+half];
+            const ar=xr*c - xi*s, ai=xr*s + xi*c;
+            re[i+k+half]=re[i+k]-ar; im[i+k+half]=im[i+k]-ai;
+            re[i+k]+=ar; im[i+k]+=ai;
+          }
+        }
+      }
+    };
+  }
+  const fft = makeFFT(NFFT);
+  // Hanning : np.hanning(M) = 0.5 - 0.5 cos(2πn/(M-1))
+  const hann = new Float64Array(NFFT);
+  for (let i=0;i<NFFT;i++) hann[i] = 0.5 - 0.5*Math.cos(2*Math.PI*i/(NFFT-1));
+  const re = new Float64Array(NFFT), im = new Float64Array(NFFT), acc = new Float64Array(NFFT);
+
+  // ─── Welch : PSD dB (fftshift) sur les NSEG*NFFT échantillons finissant à `end` ──
+  // iq : Float32Array entrelacé [re,im,...]; total = nb d'échantillons complexes.
+  function welch(iq, total, end){
+    const need = NSEG*NFFT;
+    let start = end - need;
+    acc.fill(0);
+    const noWrap = (start >= 0) && (end <= total);
+    for (let s=0;s<NSEG;s++){
+      const seg = start + s*NFFT;
+      if (noWrap){
+        const b = seg*2;
+        for (let i=0;i<NFFT;i++){ const w=hann[i], p=b+2*i; re[i]=iq[p]*w; im[i]=iq[p+1]*w; }
+      } else {
+        for (let i=0;i<NFFT;i++){ let idx=((seg+i)%total+total)%total, p=idx*2, w=hann[i]; re[i]=iq[p]*w; im[i]=iq[p+1]*w; }
+      }
+      fft(re,im);
+      for (let i=0;i<NFFT;i++) acc[i]+=re[i]*re[i]+im[i]*im[i];
+    }
+    const half=NFFT>>1, out=new Float64Array(NFFT);
+    for (let k=0;k<NFFT;k++){ const src=(k+half)%NFFT; out[k]=10*Math.log10(acc[src]/NSEG + 1e-12); }
+    return out; // index 0..NFFT ↔ fréquence -Fs/2 .. +Fs/2
+  }
+
+  // ─── Palettes (ancres matplotlib interpolées vers 256) ────────────────────
+  const ANCHORS = {
+    inferno:[[0,0,4],[22,11,57],[66,10,104],[106,23,110],[147,38,103],[188,55,84],[221,81,58],[243,120,25],[252,165,10],[246,215,70],[252,255,164]],
+    magma:  [[0,0,4],[24,11,57],[68,15,118],[114,31,129],[158,47,127],[205,64,113],[240,96,93],[253,149,103],[254,201,141],[252,240,190],[252,253,191]],
+    viridis:[[68,1,84],[72,36,117],[65,68,135],[53,95,141],[42,120,142],[33,145,140],[34,168,132],[68,190,112],[122,209,81],[189,223,38],[253,231,37]],
+    turbo:  [[48,18,59],[62,73,213],[46,138,246],[26,196,193],[86,231,110],[173,247,45],[236,221,32],[251,155,26],[227,86,12],[169,32,4],[122,4,3]],
+    gray:   [[0,0,0],[255,255,255]],
+  };
+  function buildLUT(name){
+    const a=ANCHORS[name]||ANCHORS.inferno, lut=new Uint8Array(256*3);
+    for (let i=0;i<256;i++){
+      const t=i/255*(a.length-1), lo=Math.floor(t), hi=Math.min(a.length-1,lo+1), f=t-lo;
+      for (let c=0;c<3;c++) lut[i*3+c]=Math.round(a[lo][c]+(a[hi][c]-a[lo][c])*f);
+    }
+    return lut;
+  }
+  let LUT = buildLUT('inferno');
+
+  // ─── DOM ──────────────────────────────────────────────────────────────────
+  const $=id=>document.getElementById(id);
+  const spec=$('spec'), wf=$('wf'), sctx=spec.getContext('2d'), wctx=wf.getContext('2d');
+  const statusEl=$('status');
+  function setStatus(msg,cls){ statusEl.textContent=msg; statusEl.className='status'+(cls?' '+cls:''); }
+  function chips(items){ $('chips').innerHTML=items.map(([k,v])=>`<span class="chip">${k}&nbsp;<b>${v}</b></span>`).join(''); }
+
+  function fitCanvas(cv){ const r=cv.getBoundingClientRect(), dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=Math.round(r.width); cv.height=Math.round(r.height); return cv.width; } // waterfall en pixels 1:1
+
+  // ─── État lecture ──────────────────────────────────────────────────────────
+  let iq=null, total=0, cursor=0, avg=null, lastT=0, playing=false, raf=0;
+  let DR=40, SPEED=1;
+
+  function metaFromName(u){
+    const name=(u.split('/').pop()||'').replace(/\.cfile$/i,'');
+    const m={}; const a=name.match(/(?:^|_)a(\d+)/i); if(a)m['ARFCN']=a[1];
+    const g=name.match(/(?:^|_)g(\d+)/i); if(g)m['gain']=g[1];
+    const k=name.match(/(?:^|_)Kc([0-9A-Fa-f]+)/); if(k)m['Kc']=k[1].toUpperCase();
+    return {name,m};
+  }
+  function fmtDur(s){ return s<1?(s*1000).toFixed(0)+' ms':s.toFixed(2)+' s'; }
+
+  function showChips(url,bytes){
+    const {name,m}=metaFromName(url);
+    const smp=bytes/8, dur=smp/FS;
+    const list=[['fichier',name.length>34?name.slice(0,34)+'…':name],
+      ['taille',(bytes/1048576).toFixed(1)+' Mo'],['échant.',smp.toLocaleString('fr')],
+      ['durée',fmtDur(dur)],['Fs',(FS/1e6).toFixed(6).replace(/0+$/,'')+' MHz'],['NFFT',NFFT],['Welch',NSEG+' seg']];
+    if(m.ARFCN)list.push(['ARFCN',m.ARFCN]); if(m.gain)list.push(['gain',m.gain]);
+    if(m.Kc)list.push(['Kc',m.Kc]);
+    chips(list);
+  }
+
+  // ─── Récupération ───────────────────────────────────────────────────────────
+  async function loadURL(url){
+    stop();
+    setStatus('Téléchargement… '+url,''); $('barwrap').hidden=false; $('bar').style.width='0%';
+    $('load').disabled=true; $('play').disabled=true;
+    try{
+      const resp=await fetch(url,{mode:'cors'});
+      if(!resp.ok) throw new Error('HTTP '+resp.status+' '+resp.statusText);
+      const len=+(resp.headers.get('content-length')||0);
+      let buf;
+      if(resp.body && len){
+        const reader=resp.body.getReader(); const chunks=[]; let got=0;
+        for(;;){ const {done,value}=await reader.read(); if(done)break; chunks.push(value); got+=value.length;
+          $('bar').style.width=(100*got/len).toFixed(1)+'%';
+          setStatus('Téléchargement… '+(got/1048576).toFixed(1)+' / '+(len/1048576).toFixed(1)+' Mo',''); }
+        buf=new Uint8Array(got); let off=0; for(const c of chunks){ buf.set(c,off); off+=c.length; }
+        buf=buf.buffer;
+      } else { buf=await resp.arrayBuffer(); }
+      adopt(buf,url);
+    }catch(e){
+      $('barwrap').hidden=true; $('load').disabled=false;
+      setStatus('Échec : '+e.message+' — CORS ? (la source doit renvoyer Access-Control-Allow-Origin). Essaie 📁 pour un fichier local.','err');
+    }
+  }
+  function adopt(buf,url){
+    const n8=buf.byteLength - (buf.byteLength % 8);           // aligne sur 8 octets (1 échantillon complexe)
+    iq=new Float32Array(buf,0,n8>>2); total=iq.length>>1; cursor=NSEG*NFFT % total; avg=null;
+    $('barwrap').hidden=true; $('load').disabled=false; $('play').disabled=false;
+    showChips(url,n8);
+    if(total < NFFT){ setStatus('Fichier trop court ('+total+' échantillons < NFFT '+NFFT+').','err'); return; }
+    setStatus('Chargé — '+total.toLocaleString('fr')+' échantillons. Lecture…','ok');
+    start();
+  }
+
+  // ─── Boucle de rendu ────────────────────────────────────────────────────────
+  function drawSpectrum(a,top,bot){
+    const W=spec.width, H=spec.height; sctx.clearRect(0,0,W,H);
+    sctx.fillStyle='#000'; sctx.fillRect(0,0,W,H);
+    // grille
+    sctx.strokeStyle='rgba(120,140,180,.14)'; sctx.lineWidth=1; sctx.beginPath();
+    for(let g=0;g<=4;g++){ const y=Math.round(H*g/4)+.5; sctx.moveTo(0,y); sctx.lineTo(W,y); }
+    const xc=Math.round(W/2)+.5; sctx.moveTo(xc,0); sctx.lineTo(xc,H); sctx.stroke();
+    // courbe
+    sctx.strokeStyle='#ffb020'; sctx.lineWidth=1.4; sctx.beginPath();
+    const span=top-bot||1;
+    for(let x=0;x<W;x++){ const k=(x*NFFT/W)|0; const y=H*(1-(a[k]-bot)/span);
+      if(x===0) sctx.moveTo(0,y); else sctx.lineTo(x,y); }
+    sctx.stroke();
+    // libellés dB
+    sctx.fillStyle='rgba(180,190,210,.6)'; sctx.font='10px ui-monospace,monospace';
+    sctx.fillText(top.toFixed(0)+' dB',4,12); sctx.fillText(bot.toFixed(0)+' dB',4,H-4);
+  }
+  function pushWaterfall(a,top,bot){
+    const W=wf.width, H=wf.height;
+    wctx.drawImage(wf,0,0,W,H-1,0,1,W,H-1);            // décale d'un pixel vers le bas
+    const row=wctx.createImageData(W,1), d=row.data, span=top-bot||1;
+    for(let x=0;x<W;x++){ const k=(x*NFFT/W)|0; let n=(a[k]-bot)/span; n=n<0?0:n>1?1:n;
+      const c=(n*255)|0; d[x*4]=LUT[c*3]; d[x*4+1]=LUT[c*3+1]; d[x*4+2]=LUT[c*3+2]; d[x*4+3]=255; }
+    wctx.putImageData(row,0,0);                         // nouvelle ligne en haut
+  }
+  function frame(t){
+    if(!playing){ return; }
+    const dt=lastT?Math.min(0.1,(t-lastT)/1000):1/60; lastT=t;
+    cursor=(cursor + FS*dt*SPEED) % total;
+    if(cursor<0) cursor+=total;
+    const out=welch(iq,total,Math.round(cursor));
+    // lissage temporel exponentiel (constante de temps TAU, en dB)
+    const alpha=Math.exp(-(dt*1000)/TAU_MS);
+    if(!avg||avg.length!==out.length){ avg=Float64Array.from(out); }
+    else { for(let i=0;i<out.length;i++) avg[i]=avg[i]*alpha+out[i]*(1-alpha); }
+    let mx=-Infinity; for(let i=0;i<avg.length;i++) if(avg[i]>mx) mx=avg[i];
+    const top=mx+2, bot=mx-DR;
+    drawSpectrum(avg,top,bot); pushWaterfall(avg,top,bot);
+    raf=requestAnimationFrame(frame);
+  }
+  function start(){ if(playing||!iq)return; playing=true; lastT=0; $('play').textContent='⏸ Pause'; raf=requestAnimationFrame(frame); }
+  function stop(){ playing=false; if(raf)cancelAnimationFrame(raf); raf=0; if(iq)$('play').textContent='▶ Lecture'; }
+
+  // ─── Câblage UI ──────────────────────────────────────────────────────────────
+  function relayout(){ fitCanvas(spec); fitCanvas(wf); wctx.fillStyle='#000'; wctx.fillRect(0,0,wf.width,wf.height); }
+  window.addEventListener('resize',()=>{ relayout(); });
+  $('load').onclick=()=>{ FS=parseFloat($('fs').value)||FS; loadURL($('url').value.trim()); };
+  $('play').onclick=()=>{ playing?stop():start(); };
+  $('pick').onclick=()=>$('file').click();
+  $('file').onchange=e=>{ const f=e.target.files[0]; if(!f)return; stop(); setStatus('Lecture fichier local…','');
+    f.arrayBuffer().then(b=>{ FS=parseFloat($('fs').value)||FS; adopt(b,f.name); }); };
+  $('pal').onchange=e=>{ LUT=buildLUT(e.target.value); };
+  $('dr').oninput=e=>{ DR=+e.target.value; $('drv').textContent=DR; };
+  $('spd').oninput=e=>{ SPEED=+e.target.value; $('spdv').textContent=SPEED.toFixed(1)+'×'; };
+  $('fs').onchange=e=>{ const v=parseFloat(e.target.value); if(v>0){ FS=v; $('axis').children[0].textContent='−'+(FS/2e3).toFixed(0)+' kHz'; $('axis').children[2].textContent='+'+(FS/2e3).toFixed(0)+' kHz'; } };
+  $('url').addEventListener('keydown',e=>{ if(e.key==='Enter')$('load').click(); });
+
+  relayout();
+  $('axis').children[0].textContent='−'+(FS/2e3).toFixed(0)+' kHz';
+  $('axis').children[2].textContent='+'+(FS/2e3).toFixed(0)+' kHz';
+})();
+</script>
+</body>
+</html>
