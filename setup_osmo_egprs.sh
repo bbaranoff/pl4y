@@ -428,7 +428,7 @@ install_iso_deps() {
 }
 
 do_build_iso() {
-    warn "Mode BUILD-ISO : ne fonctionne PAS sous Windows/WSL (hote Linux reel requis : loop devices, debootstrap, grub). Sous Windows, utilise l'ISO pre-faite (Release GitHub / MEGA)."
+    warn "Mode BUILD-ISO : ne fonctionne PAS sous Windows/WSL (hote Linux reel requis : loop devices, debootstrap, grub). Sous Windows, utilise l'ISO pre-faite : https://github.com/bbaranoff/osmo-operator/releases"
     install_iso_deps
     ensure_docker
     [ -f "$REPO_DIR/build-iso.sh" ] || die "build-iso.sh introuvable dans $REPO_DIR"

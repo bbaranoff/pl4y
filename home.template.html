@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pl4y.store &mdash; osmo-operator-desktop.iso</title>
-<meta name="description" content="Une ISO Ubuntu 22.04 qui embarque un reseau 2G Osmocom complet, un baseband Calypso emule, un coeur 4G open5gs + srsRAN, le CSFB entre les deux, et un telephone postmarketOS qui s'y attache.">
+<meta name="description" content="Un ISO Ubuntu 24.04 qui embarque un reseau 2G Osmocom complet, un baseband Calypso emule, un coeur 4G open5gs + srsRAN, le CSFB entre les deux, et un telephone postmarketOS qui s'y attache.">
 <style>
 /* Les @import doivent ouvrir le bloc : Inter (Nocturne) puis, dans les
    tokens partages, les polices du theme sketchy. */
@@ -425,16 +425,16 @@ svg.map { display: block; width: 100%; min-width: 940px; height: auto; }
   <a href="#couches">Les plans</a>
   <a href="#bureau">Bureau</a>
   <a href="#demarrer">Démarrer</a>
-  <a class="btn btn-primary" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener">Télécharger l'ISO</a>
+  <a class="btn btn-primary" href="https://github.com/bbaranoff/osmo-operator/releases" target="_blank" rel="noopener">Télécharger l'ISO</a>
 </nav>
 
 <div class="wrap">
   <section style="padding:104px 0 72px;">
     <h1 style="font-weight:500; font-size:clamp(40px,6vw,84px); line-height:1.11; letter-spacing:-0.015em; margin:0 0 0 -0.06em;">
-      <span style="display:block;">Un IMSI. Deux réseaux.</span>
+      <span style="display:block;">Un ISO. Deux réseaux.</span>
       <span style="display:block;">Zéro antenne.</span>
     </h1>
-    <p style="font-size:17px; line-height:28px; max-width:62ch; margin:36px 0 0;">Une image Ubuntu 22.04 (noyau 6.8) qui démarre, seule, un réseau <strong style="font-weight:500;">2G/GPRS Osmocom</strong> complet — SS7, deux cellules DCS1800, un baseband TI Calypso émulé qui exécute le vrai firmware OsmocomBB — <strong style="font-weight:500;">et</strong> un cœur <strong style="font-weight:500;">4G/LTE open5gs + srsRAN</strong>, reliés par un lien <strong style="font-weight:500;">SGs</strong>. Au bout : un téléphone postmarketOS, data en LTE, voix et SMS en GSM, sur la même identité. Aucune radio à brancher : le lien radio est une socket.</p>
+    <p style="font-size:17px; line-height:28px; max-width:62ch; margin:36px 0 0;">Une image Ubuntu 24.04 (noyau 6.8) qui démarre, seule, un réseau <strong style="font-weight:500;">2G/GPRS Osmocom</strong> complet — SS7, deux cellules DCS1800, un baseband TI Calypso émulé qui exécute le vrai firmware OsmocomBB — <strong style="font-weight:500;">et</strong> un cœur <strong style="font-weight:500;">4G/LTE open5gs + srsRAN</strong>, reliés par un lien <strong style="font-weight:500;">SGs</strong>. Au bout : un téléphone postmarketOS, data en LTE, voix et SMS en GSM, sur la même identité. Aucune radio à brancher : le lien radio est une socket.</p>
     <ul class="chips" style="margin-top:30px;">
       <li class="live">banc relevé le <b>10 sept. 2025, 21:10</b></li>
       <li>IMAGE_VERSION <b>OSMO_EGPRS_V2</b></li>
@@ -444,7 +444,7 @@ svg.map { display: block; width: 100%; min-width: 940px; height: auto; }
       <li>IMSI <b>001010001000001</b> → MSISDN <b>100101</b></li>
     </ul>
     <div class="actions" style="margin-top:30px;">
-      <a class="btn btn-primary" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener">Télécharger l'ISO</a>
+      <a class="btn btn-primary" href="https://github.com/bbaranoff/osmo-operator/releases" target="_blank" rel="noopener">Télécharger l'ISO</a>
       <a class="btn btn-ghost" href="#carte">Ouvrir la carte du banc</a>
     </div>
   </section>
@@ -850,7 +850,7 @@ svg.map { display: block; width: 100%; min-width: 940px; height: auto; }
 
   <section id="installer" style="padding:70px 0 56px;">
     <h3 style="font-size:24px; line-height:28px; margin:0;">Gravez, démarrez, double-cliquez.</h3>
-    <p class="lead" style="margin:20px 0 0; max-width:58ch;">L'ISO démarre en session live avec le bureau prêt&nbsp;; l'installateur Calamares la pose sur disque, et les paquets .deb de chaque composant (osmo-operator, pont, qemu-calypso, firmware Calypso, noyau pmOS repatché) sont embarqués — l'installation se fait sans git ni réseau. L'image se construit avec <code class="k">build-iso.sh</code> depuis le dépôt&nbsp;; sur un Ubuntu 22.04 déjà en place, le même dépôt s'installe en natif. L'installeur en une ligne et le wiki technique restent sur la page <a href="/wiki">Installeur &amp; wiki</a>.</p>
+    <p class="lead" style="margin:20px 0 0; max-width:58ch;">L'ISO démarre en session live avec le bureau prêt&nbsp;; l'installateur Calamares la pose sur disque, et les paquets .deb de chaque composant (osmo-operator, pont, qemu-calypso, firmware Calypso, noyau pmOS repatché) sont embarqués — l'installation se fait sans git ni réseau. L'image se construit avec <code class="k">build-iso.sh</code> depuis le dépôt&nbsp;; sur un Ubuntu 24.04 déjà en place, le même dépôt s'installe en natif. L'installeur en une ligne et le wiki technique restent sur la page <a href="/wiki">Installeur &amp; wiki</a>.</p>
     <div class="actions" style="margin-top:28px;">
       <a class="btn btn-primary" href="https://github.com/bbaranoff/osmo-operator" target="_blank" rel="noopener">Dépôt osmo-operator</a>
       <a class="btn btn-ghost" href="https://github.com/bbaranoff/qosmo-grgsm" target="_blank" rel="noopener">qosmo-grgsm</a>
@@ -862,14 +862,14 @@ svg.map { display: block; width: 100%; min-width: 940px; height: auto; }
   <section id="telechargement" aria-label="Lien de téléchargement" style="margin:8px 0 0; padding:34px clamp(20px,4vw,44px); border:2px solid var(--color-accent); border-radius:var(--radius-md); background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface)); box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 14%, transparent);">
     <p class="muted" style="margin:0; font-size:12px; letter-spacing:0.12em; text-transform:uppercase;">Téléchargement</p>
     <h3 style="font-size:24px; line-height:30px; margin:10px 0 0;">osmo-operator-desktop.iso</h3>
-    <p class="lead" style="margin:8px 0 0; max-width:58ch;">L'image complète, hébergée sur MEGA&nbsp;: Ubuntu 22.04, pile Osmocom, Asterisk, qosmo-grgsm, open5gs + srsRAN et le téléphone postmarketOS.</p>
+    <p class="lead" style="margin:8px 0 0; max-width:58ch;">L'image complète, publiée en Release GitHub&nbsp;: Ubuntu 24.04, pile Osmocom, Asterisk, qosmo-grgsm, open5gs + srsRAN et le téléphone postmarketOS.</p>
     <div class="actions" style="margin-top:22px; display:flex; flex-wrap:wrap; align-items:center; gap:14px 18px;">
-      <a class="btn btn-primary" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener" style="font-size:16px; padding:14px 26px; background: color-mix(in srgb, var(--color-accent) 18%, transparent);">&#11015; Télécharger osmo-operator-desktop.iso</a>
-      <a class="mono" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener" style="font-size:13px; word-break:break-all;">https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag</a>
+      <a class="btn btn-primary" href="https://github.com/bbaranoff/osmo-operator/releases" target="_blank" rel="noopener" style="font-size:16px; padding:14px 26px; background: color-mix(in srgb, var(--color-accent) 18%, transparent);">&#11015; Télécharger osmo-operator-desktop.iso</a>
+      <a class="mono" href="https://github.com/bbaranoff/osmo-operator/releases" target="_blank" rel="noopener" style="font-size:13px; word-break:break-all;">github.com/bbaranoff/osmo-operator/releases</a>
     </div>
   </section>
 
-  <footer class="muted" style="padding:56px 0; font-size:13px; line-height:28px;">osmo-operator-desktop.iso · IMAGE_VERSION OSMO_EGPRS_V2 · Ubuntu 22.04 · noyau 6.8 · Osmocom · Asterisk · qosmo-grgsm · open5gs · srsRAN · postmarketOS · usage pédagogique, en environnement blindé.</footer>
+  <footer class="muted" style="padding:56px 0; font-size:13px; line-height:28px;">osmo-operator-desktop.iso · IMAGE_VERSION OSMO_EGPRS_V2 · Ubuntu 24.04 · noyau 6.8 · Osmocom · Asterisk · qosmo-grgsm · open5gs · srsRAN · postmarketOS · usage pédagogique, en environnement blindé.</footer>
 </div>
 <script>
 /* ---------------------------------------------------------------------------

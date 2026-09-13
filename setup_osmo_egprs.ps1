@@ -581,12 +581,10 @@ Initialize-Bootstrap
 $mode = Get-Mode
 # BUILD-ISO ne fonctionne pas sous Windows (WSL n'a ni loop devices, ni les
 # outils hote requis : debootstrap, grub, xorriso). On stoppe proprement et on
-# pointe vers l'ISO deja construite (Release GitHub / MEGA).
+# pointe vers l'ISO deja construite (Release GitHub).
 if ($mode -eq "build-iso") {
     Warn "BUILD-ISO ne fonctionne pas sous Windows (WSL). Telecharge l'ISO pre-faite :"
-    Warn "  Release GitHub : https://github.com/bbaranoff/osmo_egprs/releases#release-main"
-    Warn "  MEGA interstp.iso              : https://mega.nz/file/meYhVZzK#Xw1MFkTrFCtf9pGW-9zhH30jIzfoa1y_AdUIZe4JwMk"
-    Warn "  MEGA osmo-operator-desktop.iso : https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag"
+    Warn "  Release GitHub : https://github.com/bbaranoff/osmo-operator/releases"
     Warn "  Doc VirtualBox : https://pl4y.store/wiki#virtualbox"
     exit 0
 }

@@ -436,18 +436,18 @@ __THEME_TOKENS__
        l'<strong>ISO</strong> bootee (serveur sur <code>127.0.0.1:8000</code>) ou le <strong>conteneur Docker</strong>
        lance (<code>172.20.0.11:80</code>). Depuis l'exterieur elles ne menent nulle part.</p>
     <span class="dl-label">&#11015; Telechargements &mdash; image ISO bootable</span>
-    <a class="dl-btn alt" href="https://mega.nz/file/meYhVZzK#Xw1MFkTrFCtf9pGW-9zhH30jIzfoa1y_AdUIZe4JwMk" target="_blank" rel="noopener">&#9729;&#65039; MEGA &mdash; interstp.iso</a>
-    <a class="dl-btn alt" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener">&#9729;&#65039; MEGA &mdash; osmo-operator-desktop.iso</a>
-    <a class="dl-btn" href="https://github.com/bbaranoff/osmo_egprs/releases#release-main" target="_blank" rel="noopener">&#128230; Release GitHub (ISO en parties)</a>
+    <a class="dl-btn" href="https://github.com/bbaranoff/osmo-operator/releases" target="_blank" rel="noopener">&#128230; Release GitHub &mdash; osmo-operator-desktop.iso</a>
+    <a class="dl-btn alt" href="https://github.com/bbaranoff/osmo-operator/releases" target="_blank" rel="noopener">&#128230; Release GitHub &mdash; interstp.iso</a>
     <p class="hint"><strong>QEMU-CALYPSO ISO &mdash; POC voix</strong> : QEMU dans un reseau Osmocom
        <em>network in the box</em>, environnement NOFR. Support <strong>voix</strong> et
        <strong>SMS MT / MO</strong> en <strong>A5/0</strong> et <strong>A5/1</strong>.
        Pas encore complet : le <strong>DSP n'est pas entierement reverse</strong>, c'est un
        <em>shunt</em> qui passe par <strong>grgsm</strong>.</p>
-    <p class="hint">L'ISO depasse la limite GitHub de 2 Go par fichier : la Release la fournit
-       <strong>decoupee en parties</strong> (<code>osmo_egprs.iso.part-00/01</code>, a reassembler +
-       verifier <code>osmo_egprs.iso.sha256</code>). Le miroir <strong>MEGA</strong> fournit les images en un seul fichier :
-       <code>interstp.iso</code> et <code>osmo-operator-desktop.iso</code>.</p>
+    <p class="hint">Les images sont publiees sur la <strong>Release GitHub</strong> du depot
+       <code>bbaranoff/osmo-operator</code> : <code>osmo-operator-desktop.iso</code> et
+       <code>interstp.iso</code>. GitHub limitant un fichier a 2 Go, une image plus grosse y est
+       fournie <strong>decoupee en parties</strong> (<code>.part-00/01</code>, a reassembler, puis
+       verifier le <code>.sha256</code> joint).</p>
     <span class="dl-label">&#128218; Documentation &mdash; servie ici, sur pl4y.store</span>
     <a class="dl-btn alt" href="/osmo-operator/">&#128230; osmo-operator (bundle du depot)</a>
     <a class="dl-btn alt" href="/qosmo-grgsm/">&#128196; qosmo-grgsm (bundle du depot)</a>
@@ -573,14 +573,14 @@ $env:OSMO_REF="main"; irm pl4y.store | iex               # Windows</code></pre>
   <h2 id="virtualbox">Installation via VirtualBox (ISO)</h2>
   <p>Alternative a l'installeur pl4y.store : l'<strong>ISO bootable</strong> (Linux live) tourne
      dans une VM VirtualBox sans rien installer sur l'hote. Liens :
-     <a href="#telechargements">Release GitHub / MEGA</a>.</p>
+     <a href="#telechargements">Release GitHub</a>.</p>
 
   <h3>1. Recuperer et reassembler l'ISO</h3>
   <pre><code>cat osmo_egprs.iso.part-* &gt; osmo_egprs.iso
 sha256sum -c osmo_egprs.iso.sha256        # -&gt; osmo_egprs.iso: Reussi</code></pre>
-  <p>Ou via le miroir <strong>MEGA</strong> :
-     <a href="https://mega.nz/file/meYhVZzK#Xw1MFkTrFCtf9pGW-9zhH30jIzfoa1y_AdUIZe4JwMk" target="_blank" rel="noopener"><strong>interstp.iso</strong></a>,
-     <a href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener"><strong>osmo-operator-desktop.iso</strong></a>.</p>
+  <p>Ou directement depuis la <strong>Release GitHub</strong> :
+     <a href="https://github.com/bbaranoff/osmo-operator/releases" target="_blank" rel="noopener"><strong>interstp.iso</strong></a>,
+     <a href="https://github.com/bbaranoff/osmo-operator/releases" target="_blank" rel="noopener"><strong>osmo-operator-desktop.iso</strong></a>.</p>
 
   <h3>2. Creer la VM</h3>
   <ul>
