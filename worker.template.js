@@ -325,6 +325,7 @@ __THEME_TOKENS__
     <a href="/" data-pl4y-nav="/">Accueil</a>
     <a href="/wiki#demarrage" class="pl4y-quick">Quick start</a>
     <a href="/wiki" data-pl4y-nav="/wiki" aria-current="page">Installeur &amp; wiki</a>
+    <a href="/fft" data-pl4y-nav="/fft">FFT · Trames</a>
     <a href="/qosmo-grgsm/" data-pl4y-nav="/qosmo-grgsm/">qosmo-grgsm</a>
     <a href="/osmo-operator/" data-pl4y-nav="/osmo-operator/">osmo-operator</a>
     <a href="/tests/" data-pl4y-nav="/tests/">Tests</a>

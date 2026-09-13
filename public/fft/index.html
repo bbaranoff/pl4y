@@ -47,8 +47,24 @@
        overflow:hidden;margin-top:8px}
   .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc2),var(--acc));transition:width .1s}
   .note{color:var(--mut);font-size:12px;margin-top:14px}
-  .note code{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
+  .note code,.sub code{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
              border-radius:5px;padding:1px 5px}
+  .fhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .fhead b{font-size:14px}
+  .fright{margin-left:auto;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .fright label{display:flex;gap:6px;align-items:center}
+  .fright select{padding:4px 8px}
+  .ftable{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .ftable table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px}
+  .ftable th{position:sticky;top:0;background:var(--panel2);color:var(--mut);text-align:left;
+    padding:6px 8px;border-bottom:1px solid var(--line);font-weight:600;z-index:1}
+  .ftable td{padding:3px 8px;border-bottom:1px solid rgba(30,39,64,.5);white-space:nowrap}
+  .c-t{color:var(--mut)} .c-fn{color:var(--mut)} .c-ts{color:var(--mut);text-align:center}
+  .c-msg{color:var(--fg)} .c-hex{color:#5f6b88;max-width:46vw;overflow:hidden;text-overflow:ellipsis}
+  .fr-si .c-msg{color:#7fd1ff} .fr-pag .c-msg{color:#ffd27f} .fr-sms .c-msg{color:#ff9ecb}
+  .fr-cc .c-msg{color:#9effc0} .fr-ia .c-msg{color:#c7a3ff} .fr-nch .c-msg{color:#8b97b4}
+  .fr.now{background:rgba(255,176,32,.16);outline:1px solid rgba(255,176,32,.45);outline-offset:-1px}
+  .fr.now .c-t{color:var(--acc);font-weight:700}
 </style>
 </head>
 <body>
@@ -72,7 +88,7 @@
       </div>
     </label>
     <label>Fs (Hz)
-      <input type="text" id="fs" value="1083333" style="min-width:110px">
+      <input type="text" id="fs" value="574712.64" style="min-width:120px">
     </label>
     <label>Palette
       <select id="pal">
@@ -101,11 +117,45 @@
   <div class="status" id="status">Prêt. Clique « Charger » pour récupérer le cfile et démarrer la lecture en boucle.</div>
 </div>
 
+<div class="panel" style="margin-top:14px">
+  <div class="fhead">
+    <b>▤ Trames GSM décodées</b>
+    <span class="sub" id="fmeta">chargement…</span>
+    <span class="fright">
+      <label class="sub">filtre
+        <select id="ffilter">
+          <option value="all">toutes</option>
+          <option value="si">System Info</option>
+          <option value="pag">Paging</option>
+          <option value="nch">Notification/NCH</option>
+          <option value="sms">SMS / CP-RP</option>
+          <option value="cc">Call Control</option>
+          <option value="ia">Imm. Assignment</option>
+          <option value="l2">LAPDm</option>
+        </select>
+      </label>
+      <label class="sub"><input type="checkbox" id="fsync" checked> suivre la lecture</label>
+    </span>
+  </div>
+  <div class="ftable">
+    <table>
+      <thead><tr><th>t&nbsp;(s)</th><th>FN</th><th>TS</th><th>message</th><th>L2 (hex)</th></tr></thead>
+      <tbody id="ftbody"></tbody>
+    </table>
+  </div>
+  <div class="sub" style="margin-top:8px">
+    Décodées hors-ligne par <code>grgsm_decode</code> (ARFCN&nbsp;725, Kc&nbsp;<code>1EF00BAB3BAC7002</code>, A5/1)
+    → GSMTAP → <code>tshark</code>, servies en <code>frames.json</code>. Le surlignage suit le curseur de lecture FFT.
+    Ces trames correspondent à la capture par défaut&nbsp;; charger un autre cfile change le spectre mais pas la liste.
+  </div>
+</div>
+
 <p class="note">
   Aucune donnée ne transite par pl4y.store : le navigateur télécharge le cfile directement depuis la source
   (ici le jeu de test gr-gsm de Piotr Krysik), le garde en mémoire et le rejoue <b>en boucle continue</b>.
   DSP identique à la pane FFT d'osmo-egprs-web : NFFT&nbsp;4096, fenêtre de Hanning, 16&nbsp;segments moyennés (Welch),
   fftshift, lissage temporel exponentiel. Un cfile est du <code>complex64</code> : float32 little-endian entrelacés (I,Q), 8&nbsp;octets/échantillon.
+  Fs&nbsp;par défaut&nbsp;= 100&nbsp;MHz&nbsp;/&nbsp;décimation&nbsp;174&nbsp;≈ 574&nbsp;713&nbsp;Hz (encodé <code>d174</code> dans le nom). Les <b>trames GSM décodées</b> apparaissent sous le spectre.
 </p>
 
 <script>
@@ -113,7 +163,7 @@
 (function(){
   // ─── Constantes DSP (défauts identiques à server.js) ──────────────────────
   const NFFT = 4096, NSEG = 16, TAU_MS = 400;
-  let FS = 1083333;
+  let FS = 574712.64;   // 100 MHz / décimation 174 (capture ptrkrysik vf_call6)
 
   // ─── FFT radix-2 itérative en place (convention forward, comme numpy.fft) ──
   function makeFFT(n){
@@ -291,6 +341,7 @@
     let mx=-Infinity; for(let i=0;i<avg.length;i++) if(avg[i]>mx) mx=avg[i];
     const top=mx+2, bot=mx-DR;
     drawSpectrum(avg,top,bot); pushWaterfall(avg,top,bot);
+    updateFrames(cursor/FS);
     raf=requestAnimationFrame(frame);
   }
   function start(){ if(playing||!iq)return; playing=true; lastT=0; $('play').textContent='⏸ Pause'; raf=requestAnimationFrame(frame); }
@@ -309,6 +360,58 @@
   $('spd').oninput=e=>{ SPEED=+e.target.value; $('spdv').textContent=SPEED.toFixed(1)+'×'; };
   $('fs').onchange=e=>{ const v=parseFloat(e.target.value); if(v>0){ FS=v; $('axis').children[0].textContent='−'+(FS/2e3).toFixed(0)+' kHz'; $('axis').children[2].textContent='+'+(FS/2e3).toFixed(0)+' kHz'; } };
   $('url').addEventListener('keydown',e=>{ if(e.key==='Enter')$('load').click(); });
+
+  // ─── Trames GSM (frames.json généré hors-ligne : grgsm_decode + tshark) ────
+  let FR=[], FRt=null, frRows=[], frLast=-1;
+  function frClass(info){ info=info||'';
+    if(/System Information/.test(info)) return 'si';
+    if(/Immediate Assign/.test(info))  return 'ia';
+    if(/Paging/.test(info))            return 'pag';
+    if(/SMS|CP-|RP-/.test(info))       return 'sms';
+    if(/Setup|Connect|Alerting|Release|Disconnect|Call Proceeding/.test(info)) return 'cc';
+    if(/Notification/.test(info))      return 'nch';
+    return 'l2';
+  }
+  function frLabel(f){
+    let i=f.info||f.proto||'?';
+    i=i.replace(/^\((CCCH|DTAP|SACCH|PCH|AGCH)\)\s*/,'').replace(/\(RR\)\s*/,'');
+    return i||f.proto||'trame';
+  }
+  function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  async function loadFrames(){
+    try{
+      const r=await fetch('frames.json',{cache:'no-cache'}); if(!r.ok) throw new Error('HTTP '+r.status);
+      const d=await r.json(); FR=d.frames||[]; FRt=Float64Array.from(FR.map(f=>f.t));
+      const dur=FR.length?FR[FR.length-1].t.toFixed(1):0;
+      $('fmeta').textContent=`${d.count} trames · ARFCN ${d.arfcn} · ${dur}s`;
+      renderFrames();
+    }catch(e){ $('fmeta').textContent='frames.json indisponible ('+e.message+')'; }
+  }
+  function renderFrames(){
+    const filt=$('ffilter').value, tb=$('ftbody'); frLast=-1; frRows=[];
+    const frag=document.createDocumentFragment();
+    for(const f of FR){
+      const cls=frClass(f.info);
+      if(filt!=='all' && filt!==cls){ frRows.push(null); continue; }
+      const tr=document.createElement('tr'); tr.className='fr fr-'+cls;
+      tr.innerHTML='<td class="c-t">'+f.t.toFixed(3)+'</td><td class="c-fn">'+f.fn+'</td>'+
+        '<td class="c-ts">'+(f.ts??'')+'</td><td class="c-msg">'+esc(frLabel(f))+'</td>'+
+        '<td class="c-hex">'+(f.hex||'').replace(/(..)/g,'$1 ').trim()+'</td>';
+      frag.appendChild(tr); frRows.push(tr);
+    }
+    tb.innerHTML=''; tb.appendChild(frag);
+  }
+  function updateFrames(curT){
+    if(!FRt||!FRt.length) return;
+    let lo=0,hi=FRt.length-1,idx=-1;               // dernière trame de t ≤ curT (dichotomie)
+    while(lo<=hi){ const m=(lo+hi)>>1; if(FRt[m]<=curT){ idx=m; lo=m+1; } else hi=m-1; }
+    if(idx===frLast) return;
+    if(frRows[frLast]) frRows[frLast].classList.remove('now');
+    frLast=idx; const cur=frRows[idx];
+    if(cur){ cur.classList.add('now'); if($('fsync').checked) cur.scrollIntoView({block:'nearest'}); }
+  }
+  $('ffilter').onchange=renderFrames;
+  loadFrames();
 
   relayout();
   $('axis').children[0].textContent='−'+(FS/2e3).toFixed(0)+' kHz';
