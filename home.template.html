@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pl4y.store &mdash; osmo-operator-desktop.iso</title>
+<meta name="description" content="Une ISO Ubuntu 22.04 qui embarque un reseau 2G Osmocom complet, un baseband Calypso emule, un coeur 4G open5gs + srsRAN, le CSFB entre les deux, et un telephone postmarketOS qui s'y attache.">
 <style>
 /* Les @import doivent ouvrir le bloc : Inter (Nocturne) puis, dans les
    tokens partages, les polices du theme sketchy. */
@@ -35,9 +36,13 @@ __THEME_TOKENS__
   --color-section: #262a60;
   --color-section-glow: #353b80;
 
+  --color-ok: #7fd6a6;
+  --color-warn: #e0b27f;
+
   --font-heading: "Inter", system-ui, sans-serif;
   --font-heading-weight: 500;
   --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
 
   --space-1: 2.8px;
   --space-2: 5.6px;
@@ -76,6 +81,8 @@ img { display: block; max-width: 100%; }
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 ::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+@keyframes pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes dash { to { stroke-dashoffset: -100; } }
 
 /* — rules — */
 .hr {
@@ -128,7 +135,7 @@ img { display: block; max-width: 100%; }
   color: color-mix(in srgb, var(--color-text) 60%, transparent);
   padding: var(--space-2); border-bottom: 1px solid transparent;
 }
-.table td { padding: var(--space-2); border-bottom: 1px solid transparent; }
+.table td { padding: var(--space-2); border-bottom: 1px solid transparent; vertical-align: top; }
 .table thead tr {
   background: linear-gradient(to right,
     transparent, var(--color-divider) 48px,
@@ -147,6 +154,7 @@ img { display: block; max-width: 100%; }
       transparent, color-mix(in srgb, var(--color-text) 8%, transparent) 48px,
       color-mix(in srgb, var(--color-text) 8%, transparent) calc(100% - 48px), transparent) no-repeat bottom / 100% 1px;
 }
+.table-wrap { overflow-x: auto; }
 
 /* — utilitaires de la page — */
 .wrap { max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 72px); }
@@ -156,11 +164,11 @@ img { display: block; max-width: 100%; }
 }
 .lead { font-size: 15.5px; line-height: 28px; margin: 0; color: color-mix(in srgb, var(--color-text) 78%, transparent); }
 .muted { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
-.mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.mono { font-family: var(--font-mono); }
 code.k {
   font-size: 13.5px; background: var(--color-neutral-900);
   padding: 1px 6px; border-radius: var(--radius-sm);
-  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 .row {
   position: relative; display: grid;
@@ -197,22 +205,131 @@ code.k {
 .term {
   background: var(--color-neutral-900); border-radius: var(--radius-md);
   box-shadow: var(--nc-shadow-sm); padding: var(--space-6) var(--space-8);
-  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13.5px; line-height: 24px;
+  font-family: var(--font-mono); font-size: 13.5px; line-height: 24px;
   overflow-x: auto;
 }
 .term div { color: color-mix(in srgb, var(--color-text) 50%, transparent); white-space: nowrap; }
+.term.soft div { white-space: pre-wrap; }
 .term .in { color: var(--color-text); }
 .term .c { color: color-mix(in srgb, var(--color-text) 40%, transparent); }
-.term .cursor {
-  display: inline-block; width: 8px; height: 15px; vertical-align: -2px;
-  background: var(--color-accent); animation: blink 1s steps(1) infinite;
+.term .ok { color: var(--color-ok); }
+.term .hl { color: var(--color-accent-400); }
+.term-title {
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em;
+  text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 45%, transparent);
+  margin: 0 0 8px;
 }
 .actions { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
 .clone {
-  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13.5px;
+  font-family: var(--font-mono); font-size: 13.5px;
   color: color-mix(in srgb, var(--color-text) 78%, transparent);
   background: var(--color-neutral-900); padding: 8px 14px; border-radius: var(--radius-sm);
   overflow-x: auto; max-width: 100%;
+}
+
+/* — chips d'identite de l'image — */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.chips li {
+  font-family: var(--font-mono); font-size: 12px; line-height: 18px;
+  padding: 5px 11px; border-radius: 999px;
+  background: var(--color-neutral-900); border: 1px solid var(--color-neutral-800);
+  color: color-mix(in srgb, var(--color-text) 66%, transparent);
+}
+.chips b { font-weight: 500; color: var(--color-accent-400); }
+.chips .live::before {
+  content: "\25CF"; color: var(--color-ok); margin-right: 7px;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+/* — la carte du banc — */
+.map-wrap {
+  background: var(--color-neutral-900); border-radius: var(--radius-lg);
+  box-shadow: var(--nc-shadow-sm); padding: 14px; overflow-x: auto;
+}
+svg.map { display: block; width: 100%; min-width: 940px; height: auto; }
+.map .panel-bg { fill: color-mix(in srgb, var(--color-text) 3%, transparent); stroke: var(--color-neutral-800); stroke-dasharray: 5 5; }
+.map .panel-label {
+  fill: color-mix(in srgb, var(--color-text) 42%, transparent);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em;
+}
+.map .node { cursor: pointer; }
+.map .node rect {
+  fill: var(--color-surface); stroke: var(--color-neutral-800); stroke-width: 1.4;
+  transition: fill .16s ease, stroke .16s ease;
+}
+.map .node.key rect { stroke: color-mix(in srgb, var(--color-accent) 60%, transparent); }
+.map .node:hover rect, .map .node.sel rect { fill: var(--color-accent-900); stroke: var(--color-accent); }
+.map .node:focus-visible rect { stroke: var(--color-accent); }
+.map .nt { fill: var(--color-text); font-family: var(--font-heading); font-weight: 500; font-size: 13px; }
+.map .ns { fill: color-mix(in srgb, var(--color-text) 52%, transparent); font-family: var(--font-mono); font-size: 10.5px; }
+.map .edge { fill: none; stroke: var(--color-neutral-700); stroke-width: 1.6; }
+.map .edge.hot { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 7 5; animation: dash 3.2s linear infinite; }
+.map .elabel { fill: var(--color-accent-400); font-family: var(--font-mono); font-size: 11px; }
+.map .elabel.dim { fill: color-mix(in srgb, var(--color-text) 45%, transparent); }
+@media (prefers-reduced-motion: reduce) { .map .edge.hot { animation: none; } }
+
+.detail {
+  margin-top: 18px; padding: 22px 24px; border-radius: var(--radius-md);
+  background: var(--color-surface); border-left: 3px solid var(--color-accent);
+}
+.detail h3 { font-size: 19px; line-height: 26px; margin: 0; }
+.detail .sub { font-family: var(--font-mono); font-size: 12.5px; color: var(--color-accent-400); margin: 6px 0 0; }
+.detail ul { margin: 14px 0 0; padding: 0 0 0 18px; }
+.detail li {
+  font-size: 14px; line-height: 24px; margin: 0 0 6px;
+  color: color-mix(in srgb, var(--color-text) 76%, transparent);
+}
+.detail li::marker { color: var(--color-accent); }
+.detail li b { font-weight: 500; color: var(--color-text); }
+.detail li span.m { font-family: var(--font-mono); font-size: 13px; color: var(--color-text); }
+
+/* — onglets — */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 32px; }
+.tab {
+  font-family: var(--font-heading); font-weight: 500; font-size: 14px; line-height: 1.2;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  background: transparent; border: 1px solid var(--color-neutral-800);
+  border-radius: 999px; padding: 9px 18px; cursor: pointer;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.tab:hover { color: var(--color-text); border-color: var(--color-neutral-700); }
+.tab[aria-selected="true"] {
+  color: var(--color-accent); border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+.tabpanel[hidden] { display: none !important; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 34px clamp(24px, 4vw, 64px); align-items: start; }
+.subhead { font-size: 20px; line-height: 28px; margin: 0 0 12px; }
+
+/* — bandeau de compteurs — */
+.strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 18px; padding: 24px clamp(18px, 3vw, 30px);
+  background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--nc-shadow-sm);
+}
+.strip .v { font-family: var(--font-heading); font-weight: 500; font-size: 25px; line-height: 32px; margin: 0; font-feature-settings: 'tnum' 1; }
+.strip .l { font-family: var(--font-mono); font-size: 11.5px; line-height: 17px; margin: 5px 0 0; color: color-mix(in srgb, var(--color-text) 52%, transparent); }
+.strip .v.good { color: var(--color-ok); }
+
+/* — diff de patch — */
+.diff {
+  background: var(--color-neutral-900); border-radius: var(--radius-md); box-shadow: var(--nc-shadow-sm);
+  padding: var(--space-6) var(--space-8); overflow-x: auto;
+  font-family: var(--font-mono); font-size: 13px; line-height: 23px;
+}
+.diff div { white-space: pre; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.diff .add { color: var(--color-ok); }
+.diff .del { color: var(--color-warn); }
+
+.quote {
+  margin: 0; padding: 4px 0 4px 20px; border-left: 3px solid var(--color-accent);
+  font-size: 18px; line-height: 30px; color: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+.quote cite { display: block; margin-top: 10px; font-style: normal; font-size: 13px; color: color-mix(in srgb, var(--color-text) 50%, transparent); }
+
+.note {
+  font-size: 13.5px; line-height: 23px; margin: 0;
+  color: color-mix(in srgb, var(--color-text) 58%, transparent);
 }
 
 @media (max-width: 760px) {
@@ -225,6 +342,11 @@ code.k {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .term .cursor { animation: none; }
+  .chips .live::before { animation: none; }
+}
+.term .cursor {
+  display: inline-block; width: 8px; height: 15px; vertical-align: -2px;
+  background: var(--color-accent); animation: blink 1s steps(1) infinite;
 }
 
 /* =========================================================================
@@ -298,30 +420,39 @@ code.k {
 
 <nav class="nav" style="padding-inline: max(clamp(20px,5vw,72px), calc((100% - 1200px) / 2 + clamp(20px,5vw,72px)));">
   <span class="nav-brand">osmo-operator-desktop.iso</span>
-  <a href="#contenu">Contenu</a>
+  <a href="#carte">La carte</a>
+  <a href="#calypso">Calypso</a>
+  <a href="#couches">Les plans</a>
   <a href="#bureau">Bureau</a>
   <a href="#demarrer">Démarrer</a>
-  <a href="#installer">Installer</a>
   <a class="btn btn-primary" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener">Télécharger l'ISO</a>
 </nav>
 
 <div class="wrap">
-  <section style="padding:112px 0 84px;">
-    <h1 style="font-weight:500; font-size:clamp(44px,6.4vw,88px); line-height:1.11; letter-spacing:-0.015em; margin:0 0 0 -0.06em;">
-      <span style="display:block;">Un réseau GSM dans la boîte.</span>
-      <span style="display:block;">Double-clic, et il émet.</span>
+  <section style="padding:104px 0 72px;">
+    <h1 style="font-weight:500; font-size:clamp(40px,6vw,84px); line-height:1.11; letter-spacing:-0.015em; margin:0 0 0 -0.06em;">
+      <span style="display:block;">Un IMSI. Deux réseaux.</span>
+      <span style="display:block;">Zéro antenne.</span>
     </h1>
-    <p style="font-size:17px; line-height:28px; max-width:58ch; margin:36px 0 0;">Une image Ubuntu 22.04 (noyau 6.8) qui embarque la pile Osmocom complète, Asterisk, et <strong style="font-weight:500;">qosmo-grgsm</strong>, le fork gr-gsm de qemu-calypso : un baseband TI Calypso émulé qui fait tourner le vrai firmware OsmocomBB. Aucune radio à brancher. Un à neuf opérateurs, interconnectés en SS7. Live, ou installable sur disque.</p>
-    <div class="actions" style="margin-top:28px;">
+    <p style="font-size:17px; line-height:28px; max-width:62ch; margin:36px 0 0;">Une image Ubuntu 22.04 (noyau 6.8) qui démarre, seule, un réseau <strong style="font-weight:500;">2G/GPRS Osmocom</strong> complet — SS7, deux cellules DCS1800, un baseband TI Calypso émulé qui exécute le vrai firmware OsmocomBB — <strong style="font-weight:500;">et</strong> un cœur <strong style="font-weight:500;">4G/LTE open5gs + srsRAN</strong>, reliés par un lien <strong style="font-weight:500;">SGs</strong>. Au bout : un téléphone postmarketOS, data en LTE, voix et SMS en GSM, sur la même identité. Aucune radio à brancher : le lien radio est une socket.</p>
+    <ul class="chips" style="margin-top:30px;">
+      <li class="live">banc relevé le <b>10 sept. 2025, 21:10</b></li>
+      <li>IMAGE_VERSION <b>OSMO_EGPRS_V2</b></li>
+      <li>OSMO_ROLE <b>operator</b></li>
+      <li>OSMO_LITE <b>0</b></li>
+      <li>OSMO_HUB_IP <b>172.20.0.10</b></li>
+      <li>IMSI <b>001010001000001</b> → MSISDN <b>100101</b></li>
+    </ul>
+    <div class="actions" style="margin-top:30px;">
       <a class="btn btn-primary" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener">Télécharger l'ISO</a>
-      <a class="btn btn-ghost" href="#demarrer">Voir le démarrage</a>
+      <a class="btn btn-ghost" href="#carte">Ouvrir la carte du banc</a>
     </div>
   </section>
 </div>
 
 <section aria-label="En chiffres" style="padding:70px 0; background: radial-gradient(900px 420px at 85% -40%, color-mix(in srgb, var(--color-section-glow) 70%, transparent), transparent 64%), var(--color-section);">
-  <div class="wrap" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:42px 28px;">
-    <div><p class="stat-num">22.04</p><p class="stat-label">Ubuntu LTS, noyau 6.8</p></div>
+  <div class="wrap" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:42px 28px;">
+    <div><p class="stat-num">2G + 4G</p><p class="stat-label">Osmocom &amp; open5gs, reliés en SGs</p></div>
     <div><p class="stat-num">1 à 9</p><p class="stat-label">Opérateurs en interco SS7</p></div>
     <div><p class="stat-num">0</p><p class="stat-label">Matériel radio requis</p></div>
     <div><p class="stat-num">1 clic</p><p class="stat-label">Deux, pour être précis</p></div>
@@ -330,39 +461,337 @@ code.k {
 
 <div class="wrap">
 
-  <section id="contenu" style="padding:98px 0 70px;">
-    <span class="kicker">Ce qu'il y a dedans</span>
+  <section id="carte" style="padding:96px 0 0;">
+    <span class="kicker">La carte du banc</span>
+    <h2 style="font-size:32px; line-height:42px; letter-spacing:-0.012em; margin:0 0 14px;">Tout ce qui tourne, et ce qui relie tout.</h2>
+    <p class="lead" style="max-width:62ch; margin:0 0 32px;">Deux plans complets, un pont entre eux, un téléphone en bas qui parle aux deux. Cliquez n'importe quel bloc&nbsp;: les ports, les point codes et les compteurs relevés sur le banc s'affichent dessous.</p>
 
-    <div class="row">
-      <p class="num">01</p>
-      <h2>Réseau autonome au double-clic</h2>
-      <p class="lead">Le lanceur <em>Lancer le banc GSM</em> ouvre quatre fenêtres, une par quart d'écran : le terminal du banc (<code class="k">start-direct.sh</code>), la console web sur 127.0.0.1:8080, Wireshark sur GSMTAP udp/4729, et Linphone avec les postes 100 et 200 déjà enregistrés. Une à deux minutes plus tard, la radio est stable.</p>
+    <div class="map-wrap">
+      <svg class="map" id="bench-map" viewBox="0 0 1270 700" role="img" aria-label="Carte du banc : plan 2G/GPRS a gauche, plan 4G/LTE a droite, lien SGs au centre, telephone postmarketOS en bas.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--color-neutral-700)"></path>
+          </marker>
+          <marker id="ahh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--color-accent)"></path>
+          </marker>
+        </defs>
+      </svg>
     </div>
 
-    <div class="row">
-      <p class="num">02</p>
-      <h2>qosmo-grgsm : le baseband émulé</h2>
-      <p class="lead">Fork de gr-gsm issu de qemu-calypso : une machine QEMU <code class="k">calypso</code> émule le SoC TI Calypso (ARM7TDMI + DSP TMS320C54x) et exécute le vrai firmware <code class="k">layer1.highram.elf</code>. Un pont relaie les bursts vers osmo-bts-trx, QEMU tient l'horloge TDMA, et <code class="k">mobile</code> s'attache par L1CTL. Un vrai téléphone, sans téléphone.</p>
+    <div class="detail" id="map-detail" aria-live="polite">
+      <h3>Le banc, en une phrase</h3>
+      <p class="sub">srsUE + postmarketOS · IMSI 001010001000001 · MSISDN 100101</p>
+      <ul>
+        <li>Le même abonné est attaché <b>des deux côtés</b>&nbsp;: attach combiné EPS+IMSI par SGsAP côté LTE, présence radio côté GSM sur la cellule 6001.</li>
+        <li>Un appel entrant vers 100101 arrive au MSC, le MME <b>page l'UE</b>, l'UE redescend sur la BTS. C'est ça, le CSFB, et les deux extrémités sont en place.</li>
+        <li><b>Cliquez un bloc de la carte</b> pour le détail&nbsp;: ports, point codes, identifiants de cellule, compteurs.</li>
+      </ul>
     </div>
+    <p class="note" style="margin:14px 0 0;">Les blocs violets sont les trois pièces qui font la singularité du banc&nbsp;: le baseband Calypso émulé, le lien SGs, et le téléphone postmarketOS.</p>
+  </section>
 
-    <div class="row">
-      <p class="num">03</p>
-      <h2>Multi-opérateur, généré à la volée</h2>
-      <p class="lead">Le lanceur <em>multi-operator</em> démarre N PLMN, chacun avec BSC, MSC, HLR, MGW, STP et Asterisk, reliés par un inter-STP central en M3UA/SCCP. Point codes N.23.x, routing contexts, trunks SIP, dialplan et routage SMS inter-op sont écrits au démarrage selon N. Un « DHCP pour SS7 ».</p>
-    </div>
+  <section id="calypso" style="padding:96px 0 0;">
+    <span class="kicker">Couche 1</span>
+    <h2 style="font-size:32px; line-height:42px; letter-spacing:-0.012em; margin:0 0 14px;">Un vrai Calypso, émulé.</h2>
+    <p class="lead" style="max-width:62ch; margin:0 0 34px;">C'est la partie qui distingue ce banc d'un lab Osmocom ordinaire&nbsp;: il n'y a ni SDR ni téléphone physique. QEMU émule le SoC TI Calypso, le firmware OsmocomBB s'exécute dessus, et les bursts remontent jusqu'à la BTS par un pont en Python.</p>
 
-    <div class="row">
-      <p class="num">04</p>
-      <h2>Live, puis installable</h2>
-      <p class="lead">L'ISO démarre en session live avec le bureau prêt. Pour la garder, l'installateur Calamares la pose sur disque ; les paquets .deb de chaque composant (osmo-operator, pont, qemu-calypso, firmware Calypso) sont embarqués dans l'image et s'installent sans git ni réseau.</p>
+    <div class="grid2">
+      <div>
+        <p class="term-title">La chaîne, de bas en haut</p>
+        <div class="term soft">
+          <div><span class="in">qemu-system-arm -M calypso -cpu arm946</span>  <span class="c">&#8592; le baseband TI Calypso, émulé</span></div>
+          <div>  &#8595; <span class="hl">layer1.highram.elf</span>  <span class="c">firmware osmocom-bb, gdb :1234</span></div>
+          <div><span class="in">osmocon -m romload</span>  <span class="c">&#8592; charge le firmware comme sur un vrai C123</span></div>
+          <div>  &#8595; pty <span class="hl">/dev/pts/20</span></div>
+          <div><span class="in">pont.py</span>  <span class="c">&#8592; le pont bursts &#8596; IQ</span></div>
+          <div>  &#8595; <span class="hl">5700 / 5701 / 5702</span></div>
+          <div><span class="in">fake_trx.py -P 5720 -p 6720</span>  <span class="c">&#8592; le transceiver virtuel</span></div>
+          <div>  &#8595;                &#8595;</div>
+          <div><span class="in">trxcon (MS)</span>      <span class="in">osmo-bts-trx (réseau)</span></div>
+          <div>  &#8595;                &#8595;</div>
+          <div><span class="in">mobile &#215;2</span>        <span class="in">osmo-bsc</span></div>
+        </div>
+        <p class="note" style="margin:16px 0 0;">Deux instances <code class="k">mobile</code> (osmocom-bb)&nbsp;: <code class="k">mobile_faketrx_bts1.cfg</code> et <code class="k">mobile_group1.cfg</code>, tous les sous-systèmes en debug (DRR:DMM:DSIM:DCC:DLSMS:DGAPK:DLLAPD…).</p>
+      </div>
+      <div>
+        <p class="term-title">Ce que compte pont.py — fn = 86 671</p>
+        <div class="strip">
+          <div><p class="v">27 104</p><p class="l">bursts DL / 6 765 blocs<br>SDCCH8 SS=0 TS=1</p></div>
+          <div><p class="v">956 / 952</p><p class="l">TCH DL / UL</p></div>
+          <div><p class="v good">0</p><p class="l">burst perdu · fifo_drop = 0</p></div>
+          <div><p class="v">4 524 / 4 185</p><p class="l">blocs A5 DL / UL<br>le chiffrement tourne</p></div>
+          <div><p class="v">&minus;60 dBm</p><p class="l">rxlev MS · ber = 0 · TA = 0</p></div>
+          <div><p class="v">001-01-1-6001</p><p class="l">CGI vu par le mobile</p></div>
+        </div>
+        <p class="note" style="margin:18px 0 0;">Seul compteur non nul&nbsp;: <code class="k">TS1/base51</code>, 43 blocs OK pour 11 échecs (CRC = 11 en DL). <code class="k">pont/README.md</code> prévient explicitement que ce symptôme a des causes documentées — Kc écrasé, en-tête L1 du SACCH, remplissage de C0 — avant d'être une panne radio.</p>
+        <p class="note" style="margin:12px 0 0;">Capture GSMTAP live&nbsp;: <code class="k">mobile-gsmtap-20250910_211053.pcap0</code>, 1,8 Mo.</p>
+      </div>
     </div>
   </section>
 
-  <section id="bureau" class="bureau">
+  <section id="couches" style="padding:96px 0 0;">
+    <span class="kicker">Les plans, un par un</span>
+    <h2 style="font-size:32px; line-height:42px; letter-spacing:-0.012em; margin:0 0 30px;">Relevé sur la machine, pas sur le papier.</h2>
+
+    <div class="tabs" role="tablist" aria-label="Plans du banc">
+      <button class="tab" role="tab" id="t-2g"   aria-controls="p-2g"   aria-selected="true">2G · SS7</button>
+      <button class="tab" role="tab" id="t-gprs" aria-controls="p-gprs" aria-selected="false">GPRS / EDGE</button>
+      <button class="tab" role="tab" id="t-voix" aria-controls="p-voix" aria-selected="false">Voix &amp; SMS</button>
+      <button class="tab" role="tab" id="t-4g"   aria-controls="p-4g"   aria-selected="false">4G / LTE</button>
+      <button class="tab" role="tab" id="t-csfb" aria-controls="p-csfb" aria-selected="false">CSFB</button>
+      <button class="tab" role="tab" id="t-pmos" aria-controls="p-pmos" aria-selected="false">Téléphone pmOS</button>
+    </div>
+
+    <!-- ------------------------------------------------------------------ 2G -->
+    <div class="tabpanel" role="tabpanel" id="p-2g" aria-labelledby="t-2g">
+      <div class="grid2">
+        <div>
+          <h3 class="subhead">Signalisation SS7</h3>
+          <p class="lead" style="margin:0 0 18px;"><code class="k">osmo-stp</code> en SCTP sur <strong style="font-weight:500;">127.0.0.1:2905</strong> (M3UA). Deux ASP établis&nbsp;: <code class="k">osmo-bsc</code> depuis :2907, <code class="k">osmo-msc</code> depuis :2906 — ESTAB vérifiés dans <code class="k">ss</code>. Point code <strong style="font-weight:500;">2057</strong> côté MSC.</p>
+          <p class="note">Le seul incident au démarrage — <code class="k">N-NOTICE.ind cause='MTP failure'</code> à 21:10:27 — est la course habituelle BSC-avant-STP, résorbée d'elle-même.</p>
+
+          <h3 class="subhead" style="margin-top:36px;">Accès radio — deux cellules DCS1800</h3>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th></th><th>BTS 0</th><th>BTS 1</th></tr></thead>
+              <tbody>
+                <tr><td>Cell ID</td><td class="mono">6001</td><td class="mono">6012</td></tr>
+                <tr><td>BSIC</td><td class="mono">7 (NCC 0 / BCC 7)</td><td class="mono">8 (NCC 1 / BCC 0)</td></tr>
+                <tr><td>Unit ID</td><td class="mono">6010/0/0</td><td class="mono">6012/0/0</td></tr>
+                <tr><td>OML / RSL</td><td class="mono">connectés, 0 échec</td><td class="mono">connectés, 0 échec</td></tr>
+                <tr><td>TRX</td><td class="mono">1, RSL up</td><td class="mono">1, RSL up</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note" style="margin-top:14px;">LAC 1 pour les deux, 8 slots de paging. Deux <code class="k">osmo-bts-trx</code>&nbsp;: l'un sur <code class="k">/etc/osmocom/osmo-bts-trx.cfg</code>, l'autre sur <code class="k">-bts1.cfg</code>.</p>
+        </div>
+        <div>
+          <p class="term-title">Authentification — reproductible par construction</p>
+          <div class="term soft">
+            <div><span class="in">auth-tuple-max-reuse-count 3</span></div>
+            <div><span class="c"># A3A8 joué pour les deux abonnés, SRES + Kc visibles au VTY</span></div>
+            <div></div>
+            <div><span class="hl">msc-force-rand-toy.patch</span></div>
+            <div><span class="hl">hlr-force-rand-toy.patch</span></div>
+            <div><span class="hl">bts-force-rand-toy.patch</span></div>
+            <div><span class="hl">osmocom-bb-force-rand-toy.patch</span></div>
+            <div><span class="c"># RAND déterministe — un banc doit être reproductible</span></div>
+          </div>
+          <p class="note" style="margin:18px 0 0;">Les VTY exposés&nbsp;: <code class="k">osmo-bsc:4242</code> (MCC/MNC, ARFCN, état d'enregistrement), <code class="k">osmo-msc:4254</code>, <code class="k">mobile:4247</code>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------------------------------------------------------- GPRS -->
+    <div class="tabpanel" role="tabpanel" id="p-gprs" aria-labelledby="t-gprs" hidden>
+      <div class="grid2">
+        <div>
+          <h3 class="subhead">La cellule data s'ouvre en 25 secondes</h3>
+          <p class="lead" style="margin:0 0 18px;"><code class="k">osmo-pcu</code> se raccroche aux BTS par <code class="k">/tmp/pcu_bts</code>. Les <em>Failed to connect… Retrying</em> de 21:10:28 à 21:10:48 sont la montée en ordre, pas une erreur — et elle se termine.</p>
+          <div class="term soft">
+            <div>21:10:28  <span class="c">pcu: Failed to connect… Retrying</span></div>
+            <div>21:10:48  <span class="c">pcu: Failed to connect… Retrying</span></div>
+            <div>21:10:53  <span class="ok">BSSGP BVC_RESET_ACK</span></div>
+            <div>21:10:53  <span class="ok">BVC-UNBLOCK-ACK  BVCI=12</span>  <span class="c"># cellule data ouverte</span></div>
+          </div>
+        </div>
+        <div>
+          <h3 class="subhead">Le tuyau</h3>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Élément</th><th>Adresse</th></tr></thead>
+              <tbody>
+                <tr><td>NS (BSSGP)</td><td class="mono">23000 / 23001</td></tr>
+                <tr><td>osmo-sgsn</td><td class="mono">127.0.0.1 : 2123 / 2152 / 3386</td></tr>
+                <tr><td>osmo-ggsn</td><td class="mono">192.168.2.10 — GTPv1-C/U</td></tr>
+                <tr><td>BVCI</td><td class="mono">12</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note" style="margin-top:16px;">C'est la voie data historique du banc&nbsp;: elle reste montée en parallèle du plan LTE, pour comparer GPRS et EPS sur la même machine.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ------------------------------------------------------------ Voix/SMS -->
+    <div class="tabpanel" role="tabpanel" id="p-voix" aria-labelledby="t-voix" hidden>
+      <div class="grid2">
+        <div>
+          <h3 class="subhead">Voix</h3>
+          <p class="lead" style="margin:0 0 18px;">Le MSC est en <strong style="font-weight:500;">MNCC externe</strong> sur <code class="k">/tmp/msc_mncc</code> &#8594; Asterisk (SIP 5060, codecs <code class="k">mncc-int</code> tch-f fr / tch-h hr). <code class="k">osmo-sip-connector</code> sur 127.0.0.1:5061, <code class="k">osmo-mgw</code> en MGCP 2427.</p>
+          <h3 class="subhead" style="margin-top:34px;">SMS</h3>
+          <p class="lead" style="margin:0 0 18px;"><code class="k">sms-over-gsup</code>&nbsp;: les SM-RP partent au HLR, puis au <code class="k">proto-smsc-daemon</code> (SMSC-OP1, 127.0.0.2). SMPP 2775 en <code class="k">smpp-first</code>, ESME <code class="k">msc_tester</code>, avec les quatre formes de numérotation de 100101 routées (unknown/unknown, unknown/isdn, national/isdn, international/isdn).</p>
+          <p class="note"><code class="k">sms-interop-relay.py</code> sur 7890 fait le lien inter-opérateurs.</p>
+        </div>
+        <div>
+          <div class="card" style="padding:24px 26px; gap:10px;">
+            <p class="term-title" style="margin:0;">Le commentaire de config qui dit pourquoi</p>
+            <p class="lead" style="color:var(--color-text);">« Le téléphone pmOS est l'abonné 100101, au même titre que le mobile osmocom-bb, et on veut que les deux sonnent. »</p>
+            <p class="note" style="margin:0;">Autrement dit&nbsp;: un SMS entrant arrive par l'ESME SMPP et est <strong style="font-weight:500;">dupliqué</strong> vers le mobile osmocom-bb par le VTY — <code class="k">OSMO_SMS_DUPLIQUE=1</code>.</p>
+          </div>
+          <h3 class="subhead" style="margin-top:34px;">Le plan de numérotation</h3>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Numéro</th><th>Destination</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">100</td><td>Linphone A</td></tr>
+                <tr><td class="mono">200</td><td>Linphone B</td></tr>
+                <tr><td class="mono">600</td><td>Test d'écho, votre voix vous revient</td></tr>
+                <tr><td class="mono">500 / 700</td><td>Annonces enregistrées</td></tr>
+                <tr><td class="mono">100101</td><td>Abonné #01 — srsUE + téléphone pmOS, cellule 6001</td></tr>
+                <tr><td class="mono">100102</td><td>Abonné #00 — mobile osmocom-bb, cellule 6012 (BTS 1)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note" style="margin-top:14px;">100101 &#8594; 100102 est l'appel de référence&nbsp;: inter-cellule, avec fallback.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ------------------------------------------------------------------ 4G -->
+    <div class="tabpanel" role="tabpanel" id="p-4g" aria-labelledby="t-4g" hidden>
+      <div class="grid2">
+        <div>
+          <h3 class="subhead">Cœur — open5gs, 8 démons</h3>
+          <p class="lead" style="margin:0 0 18px;"><code class="k">nrfd, hssd, mmed, sgwcd, sgwud, smfd, upfd, pcrfd</code>, chacun sur sa loopback dédiée.</p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Loopback</th><th>Fonction</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">127.0.0.2</td><td>MME — Diameter S6a :3868, SGsAP :29118</td></tr>
+                <tr><td class="mono">127.0.0.3</td><td>SGW-C</td></tr>
+                <tr><td class="mono">127.0.0.4</td><td>SMF</td></tr>
+                <tr><td class="mono">127.0.0.6</td><td>SGW-U</td></tr>
+                <tr><td class="mono">127.0.0.7</td><td>UPF</td></tr>
+                <tr><td class="mono">127.0.0.8</td><td>HSS — MongoDB derrière, WebUI :9999</td></tr>
+                <tr><td class="mono">127.0.0.9</td><td>PCRF</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note" style="margin-top:14px;">Métriques Prometheus sur :9090. PLMN MCC 001 / MNC 01, TAC 7, GUMMEI <code class="k">mme_gid 2</code> / <code class="k">mme_code 1</code>.</p>
+
+          <h3 class="subhead" style="margin-top:36px;">Sécurité NAS — nulle, et volontairement</h3>
+          <p class="lead" style="margin:0;"><code class="k">integrity_order [EIA2, EIA1, EIA0]</code>, <code class="k">ciphering_order [EEA0, …]</code>&nbsp;: chiffrement nul en tête, pour lire le NAS dans Wireshark. C'est un banc d'analyse, pas un réseau de production.</p>
+        </div>
+        <div>
+          <h3 class="subhead">RAN — srsRAN en ZMQ</h3>
+          <p class="lead" style="margin:0 0 18px;"><code class="k">device_name = zmq</code>&nbsp;: pas de SDR, le lien radio est une socket.</p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>srsENB</th><th>srsUE</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">enb_id 0x19B</td><td class="mono">IMSI 001010001000001</td></tr>
+                <tr><td class="mono">n_prb 50 (10 MHz)</td><td class="mono">algo milenage</td></tr>
+                <tr><td class="mono">dl_earfcn 3350 (bande 7)</td><td class="mono">même EARFCN</td></tr>
+                <tr><td class="mono">S1AP 127.0.0.1:45138 &#8594; 127.0.0.2:36412</td><td class="mono">K 00112233445566778899aabbccdd0101</td></tr>
+                <tr><td class="mono">GTP-U bind 127.0.0.1:2152</td><td class="mono">OPc 63BFA50E6523365FF14C1F45F88737D</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="term-title" style="margin-top:28px;">Ça a marché — le log MME le dit</p>
+          <div class="term">
+            <div>21:10:37.548  ENB_UE_S1AP_ID[1] MME_UE_S1AP_ID[1] TAC[7] <span class="hl">CellID[0x19b01]</span></div>
+            <div>21:10:37.548  [001010001000001] Unknown UE by IMSI &#8594; <span class="in">Attach request</span></div>
+            <div>21:10:37.612  Bearer added <span class="hl">(EBI=5</span> IMSI=001010001000001)</div>
+            <div>21:10:37.916  [001010001000001] <span class="ok">Attach complete</span></div>
+          </div>
+          <p class="note" style="margin:16px 0 0;">Résultat&nbsp;: <code class="k">tun_srsue = 10.45.0.2/24</code> dans la netns <code class="k">ue1</code>, route par défaut dessus, et <code class="k">iptables -t nat</code> masque <code class="k">10.45.0.0/16</code> derrière <code class="k">enxa0cec8a98b06</code> — l'UE a un vrai accès Internet.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------------------------------------------------------- CSFB -->
+    <div class="tabpanel" role="tabpanel" id="p-csfb" aria-labelledby="t-csfb" hidden>
+      <p class="lead" style="max-width:64ch; margin:0 0 30px;">C'est le point d'articulation du banc, et il est opérationnel&nbsp;: la table <code class="k">map</code> traduit TAI (001-01, TAC 7) &#8594; LAI (001-01, LAC 1). Le VLR classe l'abonné dans la LAC 1 alors qu'il est physiquement sur la LTE.</p>
+      <div class="grid2">
+        <div>
+          <p class="term-title">Côté 2G — osmo-msc.cfg</p>
+          <div class="term soft">
+            <div><span class="in">sgs</span></div>
+            <div> local-port <span class="hl">29118</span></div>
+            <div> local-ip <span class="hl">127.0.0.1</span></div>
+            <div> vlr-name vlr.msc001.mcc001.3gppnetwork.org</div>
+          </div>
+          <p class="term-title" style="margin-top:26px;">Côté 4G — mme.yaml</p>
+          <div class="term soft">
+            <div><span class="in">sgsap:</span></div>
+            <div>  client:</div>
+            <div>    - address: <span class="hl">127.0.0.1</span>        <span class="c"># osmo-msc</span></div>
+            <div>      local_address: <span class="hl">127.0.0.2</span>  <span class="c"># le MME</span></div>
+            <div>      map:</div>
+            <div>        tai: { plmn_id: { mcc: 001, mnc: 01 }, tac: 7 }   <span class="c"># zone 4G</span></div>
+            <div>        lai: { plmn_id: { mcc: 001, mnc: 01 }, lac: 1 }   <span class="c"># zone 2G</span></div>
+          </div>
+        </div>
+        <div>
+          <p class="term-title">Deux preuves indépendantes</p>
+          <div class="term soft">
+            <div><span class="in">$ ss</span></div>
+            <div>sctp  ESTAB  <span class="ok">127.0.0.2:29118 &#8596; 127.0.0.1:29118</span></div>
+            <div></div>
+            <div><span class="in">OsmoMSC# show sgs-connections</span></div>
+            <div>r=127.0.0.2:29118 &#8596; l=127.0.0.1:29118  <span class="c">(osmo-msc pid 7382)</span></div>
+          </div>
+          <p class="lead" style="margin:24px 0 0;">Et l'abonné du CSFB est identifiable&nbsp;: <code class="k">srsue</code> porte l'IMSI 001010001000001, c'est-à-dire exactement l'abonné <strong style="font-weight:500;">#01</strong> du cache MSC &#8594; MSISDN <strong style="font-weight:500;">100101</strong>, TMSI <code class="k">17CC99EC</code>, actuellement attaché sur GERAN-A, cellule <strong style="font-weight:500;">6001</strong>.</p>
+          <p class="lead" style="margin:16px 0 0;">Le même abonné est enregistré des deux côtés&nbsp;: attach combiné EPS+IMSI par SGsAP côté LTE, présence radio côté GSM. Un appel entrant vers 100101 &#8594; le MSC page par le MME &#8594; l'UE redescend sur la BTS.</p>
+          <p class="note" style="margin:16px 0 0;">L'abonné #00 (100102, IMSI …002, cellule 6012, BTS 1) est le correspondant&nbsp;: le banc est câblé pour un appel 100101 &#8594; 100102, inter-cellule, avec fallback.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------------------------------------------------------- pmOS -->
+    <div class="tabpanel" role="tabpanel" id="p-pmos" aria-labelledby="t-pmos" hidden>
+      <div class="grid2">
+        <div>
+          <h3 class="subhead">Le problème, et le patch</h3>
+          <p class="lead" style="margin:0 0 18px;">Le noyau <code class="k">linux-postmarketos-stable x86_64</code> a, en amont, <code class="k"># CONFIG_PPP is not set</code>. Sans PPP, un modem AT ne peut pas transporter d'IP&nbsp;: pas de data sur le téléphone. <code class="k">patches/pmaports-linux-postmarketos-stable-ppp.patch</code> corrige exactement ça&nbsp;:</p>
+          <div class="diff">
+            <div class="del">-# CONFIG_PPP is not set</div>
+            <div class="add">+CONFIG_PPP=m</div>
+            <div class="add">+CONFIG_PPP_BSDCOMP=m</div>
+            <div class="add">+CONFIG_PPP_DEFLATE=m</div>
+            <div class="add">+CONFIG_PPP_FILTER=y</div>
+            <div class="add">+CONFIG_PPP_MULTILINK=y</div>
+            <div class="add">+CONFIG_PPP_ASYNC=m</div>
+            <div class="add">+CONFIG_PPP_SYNC_TTY=m</div>
+          </div>
+          <p class="note" style="margin:16px 0 0;">(+ la somme de contrôle <code class="k">config-stable.x86_64</code> dans l'APKBUILD, sans quoi abuild refuse.)</p>
+          <p class="note" style="margin:14px 0 0;">Recompiler un noyau pmOS à chaque build d'ISO serait rédhibitoire&nbsp;: <code class="k">iso_modules/88-lte-pmos.sh</code> télécharge un .deb prébuilt via Git LFS — <code class="k">osmo-build-pmos-kernel_7.2.3.0+pp-noble_amd64.deb</code> depuis <code class="k">bbaranoff/pmos_ppp_kernel</code> — et le pose dans <code class="k">/usr/lib/user_interface/kernel/pmos/</code> (avec APKINDEX.tar.gz, vérifié par <code class="k">chk</code> du module). Second patch, <code class="k">pmbootstrap-qemu-bench.patch</code> (15 Ko), injecte dans pmbootstrap les options QEMU du banc.</p>
+        </div>
+        <div>
+          <h3 class="subhead">La 4G du téléphone — PPP &#8594; bearer LTE</h3>
+          <div class="term soft">
+            <div>pmOS : NetworkManager &#8594; <span class="in">pppd</span>  <span class="c">(ATD*99***1#, CONNECT)</span></div>
+            <div>  &#8595; virtio-console &#8594; <span class="hl">osmo.data</span> &#8594; 127.0.0.1:12347</div>
+            <div>hôte : <span class="in">osmo-phonesim-banc.py --connect</span> &#8594; interface <span class="hl">ppp-pmos</span></div>
+            <div>  &#8595; 10.99.0.1 &#8596; 10.99.0.2, <span class="ok">DANS la netns ue1</span></div>
+            <div><span class="hl">tun_srsue</span> 10.45.0.2 &#8594; srsUE &#8594; srsENB &#8594; open5gs UPF &#8594; MASQUERADE &#8594; Internet</div>
+          </div>
+          <p class="note" style="margin:16px 0 0;">Vérifié&nbsp;: <code class="k">ip netns exec ue1 ip route</code> montre <code class="k">10.99.0.2 dev ppp-pmos src 10.99.0.1</code> à côté de la route par défaut <code class="k">dev tun_srsue</code>. Le trafic data du téléphone transite bien par le bearer LTE. Les rugosités sont notées&nbsp;: IPv6CP et CCP refusés en Protocol-Reject, et une fois <code class="k">pppd</code> lancé, plus rien d'AT ne doit être écrit sur le port (un RING ou un +CMTI émis là partirait dans le flux PPP).</p>
+
+          <h3 class="subhead" style="margin-top:36px;">La 2G du téléphone — voix et SMS</h3>
+          <p class="lead" style="margin:0 0 16px;">Seconde virtio-console, <code class="k">osmo.modem</code> = 127.0.0.1:12346, où <code class="k">osmo-phonesim-banc.py</code> tient le rôle du modem&nbsp;:</p>
+          <blockquote class="quote">« oFono ne fabrique pas de modem&nbsp;: il en PILOTE un. Sur ce banc il n'y a pas de dongle — l'EC25, pour nous, c'est oFono. »
+            <cite>commentaire d'en-tête, osmo-phonesim-banc.py</cite></blockquote>
+          <p class="note" style="margin:16px 0 0;">Le programme répond en AT 27.007 en lisant les VTY du banc&nbsp;: <code class="k">osmo-bsc:4242</code> (MCC/MNC, ARFCN, état d'enregistrement), <code class="k">osmo-msc:4254</code>, <code class="k">mobile:4247</code>. Un banc arrêté = un modem « non enregistré »&nbsp;: c'est la vérité, pas une panne.</p>
+          <p class="note" style="margin:14px 0 0;"><strong style="font-weight:500; color:var(--color-text);">Audio</strong>&nbsp;: deux chaînes PulseAudio duplex sur le QEMU — <code class="k">gsm_mic</code> / <code class="k">gsm_audio.monitor</code> (le pont audio du mobile osmocom-bb, via GAPK) et <code class="k">osmo_hp_ec</code> / <code class="k">osmo_mic_ec</code> (avec annulation d'écho), chacune sur son intel-hda + hda-duplex.</p>
+          <p class="note" style="margin:14px 0 0;"><code class="k">osmo-ril-atmodem.py</code> tourne aussi, mais c'est un vestige assumé&nbsp;: écrit pour le RIL d'un Android sous Waydroid, abandonné depuis, il reste le port AT adossé à oFono, exposé dans <code class="k">/run/osmo-ril/at-pty</code>.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:38px; padding:28px 30px; border-left:3px solid var(--color-accent); border-radius:var(--radius-md);">
+        <p class="kicker" style="margin:0 0 10px;">Le résultat</p>
+        <p style="font-size:19px; line-height:30px; margin:0; max-width:76ch;">Le téléphone pmOS est <strong style="font-weight:500;">data en 4G, voix et SMS en 2G</strong>, sur la même identité (IMSI 001010001000001 / 100101) — c'est-à-dire le comportement d'un vrai terminal CSFB, réalisé au niveau du modem, avec un noyau dont on a dû rallumer PPP pour que ce soit possible.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="bureau" class="bureau" style="padding-top:96px;">
     <div>
       <span class="kicker">Le bureau</span>
       <h2 style="font-size:32px; line-height:42px; letter-spacing:-0.012em; margin:0;">Trois icônes. Rien à taper.</h2>
-      <p class="lead" style="margin:20px 0 0; max-width:48ch;">Les mêmes raccourcis que pose <code class="k">install.sh --only bureau</code> sur une machine déjà installée : dans le menu des applications et sur le bureau. Le tutoriel s'ouvre dans le navigateur.</p>
+      <p class="lead" style="margin:20px 0 0; max-width:48ch;">Les mêmes raccourcis que pose <code class="k">install.sh --only bureau</code> sur une machine déjà installée&nbsp;: dans le menu des applications et sur le bureau. Le lanceur ouvre quatre fenêtres, une par quart d'écran — terminal du banc, console web sur 127.0.0.1:8080, Wireshark sur GSMTAP udp/4729, Linphone avec les postes 100 et 200 enregistrés.</p>
     </div>
     <div class="icons">
       <div class="card">
@@ -390,27 +819,30 @@ code.k {
     <h2 style="font-size:32px; line-height:42px; letter-spacing:-0.012em; margin:0 0 42px;">Commencez par le 600.</h2>
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:42px clamp(24px,5vw,96px); align-items:start;">
       <div>
-        <p class="lead" style="margin:0 0 14px;">Dans Linphone, composez un numéro et décrochez. Si le 600 vous répond, la chaîne SIP et l'audio sont bonnes.</p>
-        <table class="table">
-          <thead><tr><th>Numéro</th><th>Destination</th></tr></thead>
-          <tbody>
-            <tr><td class="mono">100</td><td>Linphone A</td></tr>
-            <tr><td class="mono">200</td><td>Linphone B</td></tr>
-            <tr><td class="mono">600</td><td>Test d'écho, votre voix vous revient</td></tr>
-            <tr><td class="mono">500 / 700</td><td>Annonces enregistrées</td></tr>
-            <tr><td class="mono">1001XX</td><td>Un mobile GSM du réseau local</td></tr>
-          </tbody>
-        </table>
+        <p class="lead" style="margin:0 0 14px;">Dans Linphone, composez un numéro et décrochez. Si le 600 vous répond, la chaîne SIP et l'audio sont bonnes. Ensuite, appelez 100101&nbsp;: c'est le téléphone.</p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Numéro</th><th>Destination</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">100</td><td>Linphone A</td></tr>
+              <tr><td class="mono">200</td><td>Linphone B</td></tr>
+              <tr><td class="mono">600</td><td>Test d'écho, votre voix vous revient</td></tr>
+              <tr><td class="mono">500 / 700</td><td>Annonces enregistrées</td></tr>
+              <tr><td class="mono">100101</td><td>Abonné #01 — srsUE + pmOS, cellule 6001</td></tr>
+              <tr><td class="mono">100102</td><td>Abonné #00 — mobile osmocom-bb, cellule 6012</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <div>
-        <p class="lead" style="margin:0 0 14px;">Depuis un mobile, tout passe par le VTY de la console web : choisissez l'opérateur, le mobile, puis <strong style="font-weight:500;">Go</strong>.</p>
+        <p class="lead" style="margin:0 0 14px;">Depuis un mobile, tout passe par le VTY de la console web&nbsp;: choisissez l'opérateur, le mobile, puis <strong style="font-weight:500;">Go</strong>.</p>
         <div class="term">
           <div>OsmoMobile&gt; <span class="in">call 1 100</span>   <span class="c"># appelle Linphone A</span></div>
           <div>OsmoMobile&gt; <span class="in">call 1 answer</span> <span class="c"># décroche</span></div>
           <div>OsmoMobile&gt; <span class="in">call 1 hangup</span> <span class="c"># raccroche</span></div>
           <div>OsmoMobile&gt; <span class="cursor"></span></div>
         </div>
-        <p class="muted" style="font-size:13px; line-height:20px; margin:14px 0 0;">Arrêter : <code class="k" style="font-size:12.5px;">sudo /opt/osmo-launch.sh stop</code>, ou Ctrl+C dans le terminal du banc.</p>
+        <p class="muted" style="font-size:13px; line-height:20px; margin:14px 0 0;">Arrêter&nbsp;: <code class="k" style="font-size:12.5px;">sudo /opt/osmo-launch.sh stop</code>, ou Ctrl+C dans le terminal du banc.</p>
       </div>
     </div>
   </section>
@@ -418,10 +850,11 @@ code.k {
 
   <section id="installer" style="padding:70px 0 56px;">
     <h3 style="font-size:24px; line-height:28px; margin:0;">Gravez, démarrez, double-cliquez.</h3>
-    <p class="lead" style="margin:20px 0 0; max-width:58ch;">L'image se construit avec <code class="k">build-iso.sh</code> depuis le dépôt. Sur un Ubuntu 22.04 déjà en place, le même dépôt s'installe en natif. L'installeur en une ligne, les liens de téléchargement et le wiki technique restent sur la page <a href="/wiki">Installeur &amp; wiki</a>.</p>
+    <p class="lead" style="margin:20px 0 0; max-width:58ch;">L'ISO démarre en session live avec le bureau prêt&nbsp;; l'installateur Calamares la pose sur disque, et les paquets .deb de chaque composant (osmo-operator, pont, qemu-calypso, firmware Calypso, noyau pmOS repatché) sont embarqués — l'installation se fait sans git ni réseau. L'image se construit avec <code class="k">build-iso.sh</code> depuis le dépôt&nbsp;; sur un Ubuntu 22.04 déjà en place, le même dépôt s'installe en natif. L'installeur en une ligne et le wiki technique restent sur la page <a href="/wiki">Installeur &amp; wiki</a>.</p>
     <div class="actions" style="margin-top:28px;">
       <a class="btn btn-primary" href="https://github.com/bbaranoff/osmo-operator" target="_blank" rel="noopener">Dépôt osmo-operator</a>
       <a class="btn btn-ghost" href="https://github.com/bbaranoff/qosmo-grgsm" target="_blank" rel="noopener">qosmo-grgsm</a>
+      <a class="btn btn-ghost" href="https://github.com/bbaranoff/pmos_ppp_kernel" target="_blank" rel="noopener">pmos_ppp_kernel</a>
       <code class="clone">git clone https://github.com/bbaranoff/osmo-operator &amp;&amp; sudo ./install.sh</code>
     </div>
   </section>
@@ -429,31 +862,307 @@ code.k {
   <section id="telechargement" aria-label="Lien de téléchargement" style="margin:8px 0 0; padding:34px clamp(20px,4vw,44px); border:2px solid var(--color-accent); border-radius:var(--radius-md); background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface)); box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 14%, transparent);">
     <p class="muted" style="margin:0; font-size:12px; letter-spacing:0.12em; text-transform:uppercase;">Téléchargement</p>
     <h3 style="font-size:24px; line-height:30px; margin:10px 0 0;">osmo-operator-desktop.iso</h3>
-    <p class="lead" style="margin:8px 0 0; max-width:58ch;">L'image complète, hébergée sur MEGA : Ubuntu 22.04, pile Osmocom, Asterisk et qosmo-grgsm.</p>
+    <p class="lead" style="margin:8px 0 0; max-width:58ch;">L'image complète, hébergée sur MEGA&nbsp;: Ubuntu 22.04, pile Osmocom, Asterisk, qosmo-grgsm, open5gs + srsRAN et le téléphone postmarketOS.</p>
     <div class="actions" style="margin-top:22px; display:flex; flex-wrap:wrap; align-items:center; gap:14px 18px;">
       <a class="btn btn-primary" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener" style="font-size:16px; padding:14px 26px; background: color-mix(in srgb, var(--color-accent) 18%, transparent);">&#11015; Télécharger osmo-operator-desktop.iso</a>
       <a class="mono" href="https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag" target="_blank" rel="noopener" style="font-size:13px; word-break:break-all;">https://mega.nz/file/yeBGiAjR#LAIofoar_Bl-6dXIXLQsGT4vvT35EjMQ08_ebiO0oag</a>
     </div>
   </section>
 
-  <footer class="muted" style="padding:56px 0; font-size:13px; line-height:28px;">osmo-operator-desktop.iso · Ubuntu 22.04 · noyau 6.8 · Osmocom · Asterisk · qosmo-grgsm · usage pédagogique, en environnement blindé.</footer>
+  <footer class="muted" style="padding:56px 0; font-size:13px; line-height:28px;">osmo-operator-desktop.iso · IMAGE_VERSION OSMO_EGPRS_V2 · Ubuntu 22.04 · noyau 6.8 · Osmocom · Asterisk · qosmo-grgsm · open5gs · srsRAN · postmarketOS · usage pédagogique, en environnement blindé.</footer>
 </div>
 <script>
-  (function(){
-    var btn = document.querySelector(".theme-toggle");
-    if (!btn) return;
-    function label(){
-      var light = document.documentElement.getAttribute("data-theme") === "light";
-      btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
-    }
-    label();
-    btn.addEventListener("click", function(){
-      var next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
-      document.documentElement.setAttribute("data-theme", next);
-      try { localStorage.setItem("pl4y-theme", next); } catch(e){}
-      label();
+/* ---------------------------------------------------------------------------
+   Carte du banc — le SVG est construit ici a partir d'une table de noeuds :
+   les coordonnees se deduisent d'une grille (colonne, rangee), ce qui evite
+   d'entretenir a la main une centaine de nombres dans le HTML.
+   --------------------------------------------------------------------------- */
+(function () {
+  var svg = document.getElementById("bench-map");
+  var out = document.getElementById("map-detail");
+  if (!svg || !svg.createSVGRect) return;
+
+  var NS = "http://www.w3.org/2000/svg";
+  var COL = { LA: 40, LB: 300, RA: 760, RB: 1020 };
+  var ROW = { 1: 56, 2: 124, 3: 192, 4: 260, 5: 328, 6: 396, 7: 464 };
+  var W = 200, H = 50;
+
+  function el(name, attrs) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) if (attrs.hasOwnProperty(k)) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function txt(name, attrs, s) { var e = el(name, attrs); e.textContent = s; return e; }
+
+  var NODES = [
+    { id: "calypso", c: "LA", r: 1, t: "QEMU · Calypso",     s: "-M calypso -cpu arm946",     key: 1 },
+    { id: "pont",    c: "LA", r: 2, t: "pont.py + fake_trx",      s: "5700-5702 · 5720/6720" },
+    { id: "mobile",  c: "LB", r: 2, t: "trxcon + mobile ×2", s: "osmocom-bb · VTY 4247" },
+    { id: "bts",     c: "LA", r: 3, t: "osmo-bts-trx ×2",    s: "BTS0 6001 · BTS1 6012" },
+    { id: "pcu",     c: "LB", r: 3, t: "osmo-pcu",                s: "BVCI 12 · NS 23000/23001" },
+    { id: "bsc",     c: "LA", r: 4, t: "osmo-bsc",                s: "LAC 1 · DCS1800 · 4242" },
+    { id: "sgsn",    c: "LB", r: 4, t: "osmo-sgsn",               s: "2123 / 2152 / 3386" },
+    { id: "stp",     c: "LA", r: 5, t: "osmo-stp",                s: "M3UA 2905 · PC 2057" },
+    { id: "ggsn",    c: "LB", r: 5, t: "osmo-ggsn",               s: "192.168.2.10 · GTPv1" },
+    { id: "msc",     c: "LA", r: 6, t: "osmo-msc + osmo-hlr",     s: "MNCC ext. · SGs 29118", key: 1 },
+    { id: "ast",     c: "LA", r: 7, t: "Asterisk + osmo-mgw",     s: "SIP 5060 · MGCP 2427" },
+
+    { id: "srsue",   c: "RA", r: 1, t: "srsUE",                   s: "zmq · IMSI …000001" },
+    { id: "srsenb",  c: "RA", r: 2, t: "srsENB",                  s: "0x19B · EARFCN 3350" },
+    { id: "mme",     c: "RA", r: 3, t: "open5gs MME",             s: "127.0.0.2 · TAC 7",    key: 1 },
+    { id: "hss",     c: "RB", r: 3, t: "HSS · PCRF · NRF", s: "S6a 3868 · MongoDB" },
+    { id: "smf",     c: "RA", r: 4, t: "SGW-C · SMF",        s: "127.0.0.3 / .4" },
+    { id: "upf",     c: "RA", r: 5, t: "SGW-U · UPF",        s: "127.0.0.6 / .7" },
+    { id: "inet",    c: "RA", r: 6, t: "Internet",                s: "MASQUERADE 10.45.0.0/16" },
+    { id: "netns",   c: "RA", r: 7, t: "netns ue1 · ppp-pmos", s: "10.99.0.1 ↔ 10.99.0.2" },
+
+    { id: "pmos", x: 480, y: 580, w: 300, h: 56, t: "postmarketOS", s: "noyau PPP repatché · 2 virtio-console", key: 1 }
+  ];
+
+  var EDGES = [
+    { d: "M140 106 V124" }, { d: "M240 149 H300" }, { d: "M140 174 V192" },
+    { d: "M240 217 H300" }, { d: "M140 242 V260" }, { d: "M400 242 V260" },
+    { d: "M140 310 V328" }, { d: "M400 310 V328" }, { d: "M140 378 V396" },
+    { d: "M140 446 V464" },
+    { d: "M860 106 V124" }, { d: "M860 174 V192" }, { d: "M960 217 H1020" },
+    { d: "M860 242 V260" }, { d: "M860 310 V328" }, { d: "M860 378 V396" },
+    { d: "M240 421 H700 V217 H760", hot: 1 },
+    { d: "M960 489 H1250 V81 H960", hot: 1 },
+    { d: "M530 580 V560 H30 V421 H40", hot: 1 },
+    { d: "M730 580 V560 H860 V514", hot: 1 }
+  ];
+
+  var LABELS = [
+    { x: 34,  y: 50,  t: "PLAN 2G · GPRS / EDGE", cls: "panel-label" },
+    { x: 754, y: 50,  t: "PLAN 4G · LTE — open5gs + srsRAN", cls: "panel-label" },
+    { x: 335, y: 552, t: "osmo.modem · AT · voix + SMS", cls: "elabel", a: "middle" },
+    { x: 880, y: 556, t: "osmo.data · PPP · data", cls: "elabel" },
+    { x: 1105, y: 481, t: "tun_srsue", cls: "elabel dim", a: "middle" }
+  ];
+
+  var DET = {
+    calypso: { h: "QEMU — le baseband TI Calypso, émulé", s: "qemu-system-arm -M calypso -cpu arm946", li: [
+      "Il exécute <b>layer1.highram.elf</b>, le vrai firmware OsmocomBB — celui d'un C123, pas une simulation de couche 1.",
+      "<span class='m'>gdb :1234</span> est ouvert sur le baseband.",
+      "<span class='m'>osmocon -m romload</span> charge le firmware comme sur la cible, par un pty <span class='m'>/dev/pts/20</span>.",
+      "Ni SDR ni téléphone physique : l'ARM7TDMI et le DSP TMS320C54x sont émulés."
+    ]},
+    pont: { h: "pont.py + fake_trx.py", s: "bursts ↔ IQ · fn = 86 671", li: [
+      "<span class='m'>pont.py</span> relaie les bursts sur les sockets <span class='m'>5700 / 5701 / 5702</span>.",
+      "<span class='m'>fake_trx.py -P 5720 -p 6720</span> tient le transceiver virtuel ; QEMU tient l'horloge TDMA.",
+      "Canal dédié SDCCH8 SS=0 TS=1 : <b>DL 27 104 bursts / 6 765 blocs</b>, TCH DL 956 / UL 952.",
+      "<b>0 burst perdu</b>, <span class='m'>fifo_drop = 0</span>, A5 : 4 524 blocs DL / 4 185 UL — le chiffrement tourne."
+    ]},
+    mobile: { h: "trxcon + mobile ×2 (osmocom-bb)", s: "mobile_faketrx_bts1.cfg · mobile_group1.cfg", li: [
+      "Tous les sous-systèmes en debug : DRR:DMM:DSIM:DCC:DLSMS:DGAPK:DLLAPD…",
+      "Le MS mesure <b>rxlev = −60</b>, <b>ber = 0</b>, <b>TA = 0</b>, CGI = <span class='m'>001-01-1-6001</span>.",
+      "Seul compteur non nul : TS1/base51, 43 blocs OK / 11 échecs (CRC = 11 en DL) — <span class='m'>pont/README.md</span> documente ces causes (Kc écrasé, en-tête L1 du SACCH) avant la panne radio.",
+      "Capture GSMTAP live : <span class='m'>mobile-gsmtap-20250910_211053.pcap0</span>, 1,8 Mo.",
+      "C'est aussi l'abonné <b>100102</b>, sur la cellule 6012 — le correspondant de l'appel de référence."
+    ]},
+    bts: { h: "osmo-bts-trx ×2 — deux cellules DCS1800", s: "LAC 1 · 8 slots de paging", li: [
+      "<b>BTS 0</b> : Cell ID 6001, BSIC 7 (NCC 0 / BCC 7), unit 6010/0/0.",
+      "<b>BTS 1</b> : Cell ID 6012, BSIC 8 (NCC 1 / BCC 0), unit 6012/0/0.",
+      "OML et RSL connectés des deux côtés, <b>0 échec</b> ; 1 TRX chacune, RSL up.",
+      "Configs : <span class='m'>/etc/osmocom/osmo-bts-trx.cfg</span> et <span class='m'>-bts1.cfg</span>."
+    ]},
+    pcu: { h: "osmo-pcu — la cellule data", s: "BSSGP · BVCI 12", li: [
+      "Attaché aux BTS par <span class='m'>/tmp/pcu_bts</span>.",
+      "Les <em>Failed to connect… Retrying</em> de 21:10:28 à 21:10:48 sont la montée en ordre, et elle se termine.",
+      "À 21:10:53 : <b>BVC_RESET_ACK</b> puis <b>BVC-UNBLOCK-ACK, BVCI = 12</b> — cellule data ouverte.",
+      "NS sur <span class='m'>23000 / 23001</span>."
+    ]},
+    bsc: { h: "osmo-bsc", s: "VTY 4242 · ASP vers le STP depuis :2907", li: [
+      "Pilote les deux cellules DCS1800 en LAC 1.",
+      "Le seul incident au démarrage — <span class='m'>N-NOTICE.ind cause='MTP failure'</span> à 21:10:27 — est la course habituelle BSC-avant-STP, résorbée.",
+      "Son VTY sert aussi de source de vérité au modem du téléphone : MCC/MNC, ARFCN, état d'enregistrement."
+    ]},
+    stp: { h: "osmo-stp — la signalisation SS7", s: "SCTP 127.0.0.1:2905 (M3UA)", li: [
+      "Deux ASP établis : <b>osmo-bsc</b> depuis :2907 et <b>osmo-msc</b> depuis :2906 — ESTAB vérifiés dans <span class='m'>ss</span>.",
+      "Point code <b>2057</b> côté MSC.",
+      "C'est par lui que passe aussi l'interco multi-opérateur, quand le lanceur <em>multi-operator</em> monte N PLMN."
+    ]},
+    msc: { h: "osmo-msc + osmo-hlr", s: "VTY 4254 · MNCC externe · SGs 29118", li: [
+      "MNCC externe sur <span class='m'>/tmp/msc_mncc</span> vers Asterisk, codecs <span class='m'>mncc-int</span> tch-f fr / tch-h hr.",
+      "SMS : <span class='m'>sms-over-gsup</span>, les SM-RP partent au HLR puis au <b>proto-smsc-daemon</b> (SMSC-OP1, 127.0.0.2) ; SMPP 2775 en <span class='m'>smpp-first</span>, ESME <span class='m'>msc_tester</span>.",
+      "Auth : <span class='m'>auth-tuple-max-reuse-count 3</span>, A3A8 joué pour les deux abonnés (SRES + Kc visibles au VTY).",
+      "Les patches <span class='m'>*-force-rand-toy.patch</span> (msc, hlr, bts, osmocom-bb) rendent le RAND déterministe : un banc doit être reproductible.",
+      "C'est ici que se branche le <b>SGs</b> : <span class='m'>local-port 29118</span>, <span class='m'>vlr-name vlr.msc001.mcc001.3gppnetwork.org</span>."
+    ]},
+    ast: { h: "Asterisk + osmo-mgw + osmo-sip-connector", s: "SIP 5060 · 5061 · MGCP 2427", li: [
+      "Postes 100 et 200 (Linphone), écho 600, annonces 500 / 700.",
+      "<span class='m'>osmo-sip-connector</span> sur 127.0.0.1:5061 traduit le MNCC en SIP ; <span class='m'>osmo-mgw</span> tient le média en MGCP 2427.",
+      "<span class='m'>sms-interop-relay.py</span> sur 7890 relaie les SMS entre opérateurs."
+    ]},
+    sgsn: { h: "osmo-sgsn", s: "127.0.0.1 : 2123 / 2152 / 3386", li: [
+      "Le nœud paquet 2G : GTP-C 2123, GTP-U 2152, GTP' 3386.",
+      "En amont, <span class='m'>osmo-pcu</span> ; en aval, <span class='m'>osmo-ggsn</span>."
+    ]},
+    ggsn: { h: "osmo-ggsn", s: "192.168.2.10 · GTPv1-C/U", li: [
+      "La sortie data historique du banc, maintenue en parallèle du plan LTE — de quoi comparer GPRS et EPS sur la même machine."
+    ]},
+    srsue: { h: "srsUE — l'abonné LTE", s: "device_name = zmq", li: [
+      "Pas de SDR : <b>le lien radio est une socket</b>. Même EARFCN que l'eNB.",
+      "IMSI <b>001010001000001</b>, algo <span class='m'>milenage</span>.",
+      "K <span class='m'>00112233445566778899aabbccdd0101</span>, OPc <span class='m'>63BFA50E6523365FF14C1F45F88737D</span>.",
+      "Après attach : <span class='m'>tun_srsue = 10.45.0.2/24</span> dans la netns <span class='m'>ue1</span>, route par défaut dessus.",
+      "Le même IMSI est l'abonné <b>#01 / 100101</b> côté MSC — c'est ce qui rend le CSFB possible."
+    ]},
+    srsenb: { h: "srsENB", s: "enb_id 0x19B · CellID 0x19b01", li: [
+      "<span class='m'>n_prb 50</span> (10 MHz), <span class='m'>dl_earfcn 3350</span> (bande 7), <span class='m'>device_name = zmq</span>.",
+      "S1AP en SCTP <span class='m'>127.0.0.1:45138 → 127.0.0.2:36412</span>, <b>ESTAB</b>.",
+      "GTP-U bind <span class='m'>127.0.0.1:2152</span>."
+    ]},
+    mme: { h: "open5gs MME", s: "127.0.0.2 · TAC 7 · GUMMEI 2/1", li: [
+      "PLMN MCC 001 / MNC 01, TAC 7, <span class='m'>mme_gid 2</span> / <span class='m'>mme_code 1</span>.",
+      "Sécurité NAS : <span class='m'>integrity_order [EIA2, EIA1, EIA0]</span>, <span class='m'>ciphering_order [EEA0, …]</span> — chiffrement nul en tête, <b>volontairement</b>, pour lire le NAS dans Wireshark.",
+      "Attach vérifié dans le log : <span class='m'>CellID[0x19b01]</span>, <span class='m'>Bearer added (EBI=5)</span>, <b>Attach complete</b>.",
+      "C'est lui qui porte le SGsAP côté LTE : <span class='m'>local_address 127.0.0.2</span> vers <span class='m'>127.0.0.1</span>."
+    ]},
+    hss: { h: "HSS · PCRF · NRF — open5gs, 8 démons", s: "nrfd hssd mmed sgwcd sgwud smfd upfd pcrfd", li: [
+      "Chaque démon sur sa loopback : .2 MME, .3 SGW-C, .4 SMF, .6 SGW-U, .7 UPF, .8 HSS, .9 PCRF.",
+      "Diameter S6a sur <span class='m'>127.0.0.2:3868</span>.",
+      "MongoDB derrière le HSS, WebUI sur <span class='m'>:9999</span>.",
+      "Métriques Prometheus sur <span class='m'>:9090</span>."
+    ]},
+    smf: { h: "SGW-C / SMF", s: "127.0.0.3 et 127.0.0.4", li: [
+      "Le plan de contrôle des sessions PDN : c'est lui qui accorde le bearer EBI=5 vu dans le log d'attach."
+    ]},
+    upf: { h: "SGW-U / UPF", s: "127.0.0.6 et 127.0.0.7", li: [
+      "Le plan utilisateur : le trafic de l'UE — et donc celui du téléphone, via PPP — sort par ici."
+    ]},
+    inet: { h: "Sortie Internet", s: "iptables -t nat MASQUERADE", li: [
+      "<span class='m'>10.45.0.0/16</span> masqué derrière <span class='m'>enxa0cec8a98b06</span>.",
+      "L'UE a un <b>vrai accès Internet</b> — ce n'est pas un bouclage."
+    ]},
+    netns: { h: "netns ue1 · interface ppp-pmos", s: "10.99.0.1 ↔ 10.99.0.2", li: [
+      "<span class='m'>osmo-phonesim-banc.py --connect</span> crée l'interface <b>ppp-pmos</b>, côté hôte.",
+      "L'interface vit <b>dans la netns ue1</b> — la même que <span class='m'>tun_srsue</span>.",
+      "Vérification : <span class='m'>ip netns exec ue1 ip route</span> montre <span class='m'>10.99.0.2 dev ppp-pmos src 10.99.0.1</span> à côté de la route par défaut <span class='m'>dev tun_srsue</span>.",
+      "Le trafic data du téléphone transite donc par le bearer LTE."
+    ]},
+    pmos: { h: "postmarketOS — le téléphone", s: "noyau PPP repatché · osmo.data + osmo.modem", li: [
+      "En amont, <span class='m'>linux-postmarketos-stable x86_64</span> a <span class='m'># CONFIG_PPP is not set</span> : sans PPP, un modem AT ne peut pas transporter d'IP.",
+      "<span class='m'>pmaports-linux-postmarketos-stable-ppp.patch</span> rallume PPP, BSDCOMP, DEFLATE, FILTER, MULTILINK, ASYNC, SYNC_TTY (+ la somme de contrôle dans l'APKBUILD).",
+      "<b>osmo.data</b> (virtio-console, 127.0.0.1:12347) : NetworkManager → pppd (<span class='m'>ATD*99***1#</span>) → ppp-pmos → LTE.",
+      "<b>osmo.modem</b> (virtio-console, 127.0.0.1:12346) : <span class='m'>osmo-phonesim-banc.py</span> répond en AT 27.007 en lisant les VTY du banc — oFono ne fabrique pas de modem, il en pilote un.",
+      "Résultat : <b>data en 4G, voix et SMS en 2G, sur la même identité</b> — le comportement d'un vrai terminal CSFB, réalisé au niveau du modem."
+    ]},
+    sgs: { h: "Le lien SGs — la pièce qui relie les deux", s: "SGsAP · SCTP 29118 · TAI 7 ↔ LAI 1", li: [
+      "Côté 2G, <span class='m'>osmo-msc.cfg</span> : <span class='m'>sgs / local-port 29118 / local-ip 127.0.0.1 / vlr-name vlr.msc001.mcc001.3gppnetwork.org</span>.",
+      "Côté 4G, <span class='m'>mme.yaml</span> : client <span class='m'>127.0.0.1</span>, local <span class='m'>127.0.0.2</span>, map <span class='m'>tai tac 7 → lai lac 1</span>.",
+      "Preuve 1 : <span class='m'>ss</span> → <b>sctp ESTAB 127.0.0.2:29118 ↔ 127.0.0.1:29118</b>.",
+      "Preuve 2 : <span class='m'>OsmoMSC# show sgs-connections</span> → <b>r=127.0.0.2:29118 ↔ l=127.0.0.1:29118</b> (osmo-msc pid 7382).",
+      "La table map traduit TAI (001-01, TAC 7) en LAI (001-01, LAC 1) : le VLR classe l'abonné dans la LAC 1 alors qu'il est physiquement sur la LTE."
+    ]}
+  };
+
+  /* panneaux de fond */
+  svg.appendChild(el("rect", { x: 20, y: 30, width: 500, height: 504, rx: 12, "class": "panel-bg" }));
+  svg.appendChild(el("rect", { x: 740, y: 30, width: 490, height: 504, rx: 12, "class": "panel-bg" }));
+
+  /* aretes */
+  EDGES.forEach(function (e) {
+    svg.appendChild(el("path", {
+      d: e.d, "class": "edge" + (e.hot ? " hot" : ""),
+      "marker-end": "url(#" + (e.hot ? "ahh" : "ah") + ")"
+    }));
+  });
+
+  /* libelles libres */
+  LABELS.forEach(function (l) {
+    var a = { x: l.x, y: l.y, "class": l.cls };
+    if (l.a) a["text-anchor"] = l.a;
+    svg.appendChild(txt("text", a, l.t));
+  });
+
+  /* zone cliquable du lien SGs */
+  var hot = el("g", { "class": "node", "data-k": "sgs", tabindex: "0", role: "button",
+                      "aria-label": "Lien SGs entre le MSC et le MME" });
+  hot.appendChild(el("rect", { x: 378, y: 396, width: 184, height: 24, rx: 6,
+                               style: "fill:color-mix(in srgb, var(--color-accent) 14%, transparent);stroke:none" }));
+  hot.appendChild(txt("text", { x: 470, y: 412, "class": "elabel", "text-anchor": "middle" },
+                      "SGs · SGsAP 29118"));
+  svg.appendChild(hot);
+
+  /* noeuds */
+  NODES.forEach(function (n) {
+    var x = n.x !== undefined ? n.x : COL[n.c];
+    var y = n.y !== undefined ? n.y : ROW[n.r];
+    var w = n.w || W, h = n.h || H, cx = x + w / 2;
+    var g = el("g", { "class": "node" + (n.key ? " key" : ""), "data-k": n.id,
+                      tabindex: "0", role: "button", "aria-label": n.t + " — " + n.s });
+    g.appendChild(el("rect", { x: x, y: y, width: w, height: h, rx: 8 }));
+    g.appendChild(txt("text", { x: cx, y: y + 21, "class": "nt", "text-anchor": "middle" }, n.t));
+    g.appendChild(txt("text", { x: cx, y: y + 38, "class": "ns", "text-anchor": "middle" }, n.s));
+    svg.appendChild(g);
+  });
+
+  var sel = null;
+  function show(k) {
+    var d = DET[k];
+    if (!d) return;
+    if (sel) sel.classList.remove("sel");
+    var g = svg.querySelector('[data-k="' + k + '"]');
+    if (g) { g.classList.add("sel"); sel = g; }
+    var html = "<h3>" + d.h + "</h3><p class='sub'>" + d.s + "</p><ul>";
+    for (var i = 0; i < d.li.length; i++) html += "<li>" + d.li[i] + "</li>";
+    out.innerHTML = html + "</ul>";
+  }
+
+  svg.addEventListener("click", function (ev) {
+    var g = ev.target.closest ? ev.target.closest("[data-k]") : null;
+    if (g) show(g.getAttribute("data-k"));
+  });
+  svg.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    var g = ev.target.closest ? ev.target.closest("[data-k]") : null;
+    if (g) { ev.preventDefault(); show(g.getAttribute("data-k")); }
+  });
+})();
+
+/* --------------------------------------------------------------- onglets --- */
+(function () {
+  var tabs = [].slice.call(document.querySelectorAll(".tab"));
+  if (!tabs.length) return;
+  function select(tab) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      var p = document.getElementById(t.getAttribute("aria-controls"));
+      if (p) p.hidden = !on;
     });
-  })();
+  }
+  tabs.forEach(function (t, i) {
+    t.tabIndex = t.getAttribute("aria-selected") === "true" ? 0 : -1;
+    t.addEventListener("click", function () { select(t); });
+    t.addEventListener("keydown", function (ev) {
+      var d = ev.key === "ArrowRight" ? 1 : ev.key === "ArrowLeft" ? -1 : 0;
+      if (!d) return;
+      ev.preventDefault();
+      var n = tabs[(i + d + tabs.length) % tabs.length];
+      select(n); n.focus();
+    });
+  });
+})();
+
+/* ------------------------------------------------------ bascule de theme --- */
+(function(){
+  var btn = document.querySelector(".theme-toggle");
+  if (!btn) return;
+  function label(){
+    var light = document.documentElement.getAttribute("data-theme") === "light";
+    btn.innerHTML = light ? "☀️ Clair" : "🌙 Sombre";
+  }
+  label();
+  btn.addEventListener("click", function(){
+    var next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("pl4y-theme", next); } catch(e){}
+    label();
+  });
+})();
 </script>
 </body>
 </html>
