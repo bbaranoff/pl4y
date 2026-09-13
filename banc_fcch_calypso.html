@@ -1,0 +1,823 @@
+<title>Banc FCCH Calypso</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+:root{
+  --bg:#080e1c; --panel:#0d1526; --panel2:#111b2f;
+  --line:#1f2b45; --line-soft:#182238;
+  --ink:#e2e9f8; --muted:#8a99ba; --faint:#5d6d92;
+  --accent:#7aa2f7; --cyan:#5cc8e0; --amber:#e6b24a;
+  --pass:#48c08c; --fault:#f0726f;
+  --mono:'IBM Plex Mono','SF Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --cond:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--sans); font-size:14px; line-height:1.55;
+  background-image:linear-gradient(var(--line-soft) 1px,transparent 1px),linear-gradient(90deg,var(--line-soft) 1px,transparent 1px);
+  background-size:34px 34px; background-position:center top;
+}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(110% 70% at 50% -14%,rgba(122,162,247,.11),transparent 62%)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:44px 72px;padding-left:20px;padding-right:20px;position:relative}
+
+/* ---------- header ---------- */
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+h1{font-family:var(--sans);font-size:clamp(28px,5vw,44px);font-weight:600;letter-spacing:-.025em;line-height:1.05;margin:0 0 14px;text-wrap:balance}
+h1 em{font-style:normal;font-family:var(--mono);font-weight:600;font-size:.74em;color:var(--fault);letter-spacing:-.01em}
+.lede{color:var(--muted);max-width:66ch;margin:0 0 20px;font-size:15px}
+.lede b{color:var(--ink);font-weight:600}
+.lede code{font-family:var(--mono);font-size:.87em;color:var(--cyan)}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pill{font-family:var(--mono);font-size:11px;letter-spacing:.05em;padding:5px 11px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:var(--panel);display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:none}
+.pill.live .dot{background:var(--pass);box-shadow:0 0 8px rgba(72,192,140,.7);animation:bl 1.9s ease-in-out infinite}
+.pill.bad{color:var(--fault);border-color:rgba(240,114,111,.38);background:rgba(240,114,111,.07)}
+.pill.bad .dot{background:var(--fault);box-shadow:0 0 8px rgba(240,114,111,.6)}
+.pill.good{color:var(--pass);border-color:rgba(72,192,140,.35);background:rgba(72,192,140,.06)}
+.pill.good .dot{background:var(--pass);box-shadow:0 0 8px rgba(72,192,140,.6)}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ---------- section chrome ---------- */
+section{margin-top:46px}
+.sh{display:flex;align-items:baseline;gap:13px;margin:0 0 20px;padding-bottom:11px;border-bottom:1px solid var(--line)}
+.sh h2{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0}
+.sh .tag{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:600}
+.sh .sub{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+/* ---------- bench ---------- */
+.bench{display:grid;grid-template-columns:296px minmax(0,1fr);gap:18px;align-items:start}
+.rack{display:grid;gap:14px;position:sticky;top:18px}
+.mod{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:15px 16px}
+.mod>h3{margin:0 0 13px;font-family:var(--cond);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.ctl{display:grid;gap:5px;margin-bottom:15px}
+.ctl:last-child{margin-bottom:0}
+.ctl .top{display:flex;align-items:baseline;gap:8px}
+.ctl label{font-size:12.5px;color:var(--muted)}
+.ctl .val{margin-left:auto;font-family:var(--mono);font-size:12.5px;color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line);border-radius:2px}
+input[type=range]::-moz-range-track{height:3px;background:var(--line);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;margin-top:-5px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 0 0 1px var(--accent)}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 0 0 1px var(--accent)}
+input[type=range]:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:4px}
+.hint{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.02em}
+
+/* DSP switch */
+.mod.dsp{border-color:var(--line)}
+.mod.dsp.on{border-color:rgba(240,114,111,.5);background:linear-gradient(180deg,rgba(240,114,111,.08),var(--panel))}
+.sw{display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--ink);font-family:var(--mono);font-size:12px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s}
+.sw:hover{border-color:#2e3f63}
+.sw:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.led{width:11px;height:11px;border-radius:50%;flex:none;background:var(--faint);box-shadow:inset 0 0 0 1px rgba(0,0,0,.4)}
+.sw[aria-pressed="true"]{border-color:rgba(240,114,111,.55);background:rgba(240,114,111,.1);color:var(--fault)}
+.sw[aria-pressed="true"] .led{background:var(--fault);box-shadow:0 0 9px rgba(240,114,111,.8)}
+.sw .lbl{display:grid;gap:1px}
+.sw .lbl small{font-size:10px;color:var(--faint);letter-spacing:.04em}
+.sw[aria-pressed="true"] .lbl small{color:rgba(240,114,111,.75)}
+.runrow{display:flex;gap:8px;margin-top:12px}
+.btn{flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--muted);font-family:var(--mono);font-size:11.5px;cursor:pointer;transition:color .15s,border-color .15s}
+.btn:hover{color:var(--ink);border-color:#2e3f63}
+.btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.btn.pri{color:var(--accent);border-color:rgba(122,162,247,.4)}
+
+/* scopes */
+.scopes{display:grid;gap:14px;min-width:0}
+figure.scope{margin:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+figure.scope figcaption{display:flex;align-items:baseline;gap:12px;padding:11px 15px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+figcaption .st{font-family:var(--cond);font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink);font-weight:600}
+figcaption .su{font-family:var(--mono);font-size:11px;color:var(--faint)}
+figcaption .rd{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+figure.scope canvas{display:block;width:100%;height:186px;max-width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:14px;padding:9px 15px;border-top:1px solid var(--line-soft);font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.key{width:14px;height:2px;flex:none;border-radius:1px}
+.key.dash{background:repeating-linear-gradient(90deg,currentColor 0 4px,transparent 4px 7px);height:2px}
+
+/* ---------- verdict ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tile{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:14px 16px;display:grid;gap:3px;align-content:start}
+.tile .k{font-family:var(--cond);font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.tile .v{font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.2}
+.tile .u{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.tile.hero{grid-column:span 2;border-color:rgba(122,162,247,.3)}
+.tile.hero .v{font-size:30px}
+.v.ok{color:var(--pass)} .v.ko{color:var(--fault)} .v.neutral{color:var(--ink)} .v.amb{color:var(--amber)}
+.chain{margin-top:12px;display:flex;align-items:stretch;gap:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow-x:auto}
+.chain .step{flex:1;min-width:132px;padding:13px 15px;border-right:1px solid var(--line-soft);display:grid;gap:4px}
+.chain .step:last-child{border-right:none}
+.chain .step .n{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.04em}
+.chain .step .s{font-family:var(--mono);font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+.chain .step.pass .s{color:var(--pass)} .chain .step.fail .s{color:var(--fault)} .chain .step.idle .s{color:var(--faint)}
+.chain .step.pass .dot{background:var(--pass)} .chain .step.fail .dot{background:var(--fault)}
+
+/* ---------- multiframe ---------- */
+.mf{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:15px 16px;overflow-x:auto}
+.mfgrid{display:grid;grid-template-columns:repeat(51,minmax(15px,1fr));gap:2px;min-width:660px}
+.cell{height:34px;border-radius:3px;background:var(--panel2);border:1px solid var(--line-soft);position:relative;display:grid;place-items:center;font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+.cell.fcch{background:rgba(122,162,247,.14);border-color:rgba(122,162,247,.4);color:var(--accent)}
+.cell.sch{background:rgba(92,200,224,.1);border-color:rgba(92,200,224,.3);color:var(--cyan)}
+.cell.cur{outline:2px solid var(--ink);outline-offset:1px;z-index:2}
+.cell .res{position:absolute;left:50%;transform:translateX(-50%);bottom:3px;width:6px;height:6px;border-radius:50%}
+.cell .res.ok{background:var(--pass);box-shadow:0 0 6px rgba(72,192,140,.8)}
+.cell .res.ko{background:var(--fault);box-shadow:0 0 6px rgba(240,114,111,.8)}
+.mflab{display:flex;gap:16px;flex-wrap:wrap;margin-top:11px;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.mflab b{font-weight:500}
+
+/* ---------- decode table ---------- */
+.tblw{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:680px}
+th{font-family:var(--cond);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);text-align:left;font-weight:600;padding:12px 15px;border-bottom:1px solid var(--line)}
+td{padding:11px 15px;border-bottom:1px solid var(--line-soft);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+td.m{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.hx{color:var(--cyan)} .op{color:var(--amber)}
+tr.bugrow td:first-child{box-shadow:inset 3px 0 0 var(--fault)}
+tr.bugrow{background:rgba(240,114,111,.04)}
+tr.okrow td:first-child{box-shadow:inset 3px 0 0 rgba(72,192,140,.45)}
+.chip{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px}
+.chip.f{color:var(--fault)} .chip.p{color:var(--pass)}
+.chip .dot{width:7px;height:7px}
+.chip.f .dot{background:var(--fault)} .chip.p .dot{background:var(--pass)}
+
+.note{margin-top:18px;border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:10px;background:var(--panel);padding:15px 18px;color:var(--muted);font-size:13.5px;max-width:78ch}
+.note b{color:var(--ink);font-weight:600}
+.note code{font-family:var(--mono);font-size:.86em;color:var(--cyan)}
+footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+@media(max-width:900px){
+  .bench{grid-template-columns:1fr}
+  .rack{position:static;grid-template-columns:1fr;}
+  .tile.hero{grid-column:span 1}
+}
+@media(max-width:560px){
+  .wrap{padding-block:30px 52px}
+  .sh .sub{display:none}
+  figure.scope canvas{height:160px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">QEMU Calypso · DSP TMS320C54x émulé · banc temps réel</p>
+    <h1>Le burst que le firmware ne voit pas : <em>d_fb_det = 0</em></h1>
+    <p class="lede">Le FCCH est le premier signal qu'un mobile GSM doit trouver : 148 bits à zéro, donc
+      une <b>porteuse pure à +67 708,33 Hz</b> du centre du canal. Ce banc en synthétise le GMSK, le noie
+      dans le bruit et le trafic voisin, puis le passe dans deux lectures — le détecteur de phase
+      différentielle, et le noyau de corrélation du DSP. Basculez <code>case 0x5</code> : le signal reste
+      parfaitement présent à l'antenne, et l'accumulateur publié tombe à zéro.</p>
+    <div class="status">
+      <span class="pill live" id="pillRun"><span class="dot"></span><span id="runTxt">acquisition en cours</span></span>
+      <span class="pill" id="pillFn"><span class="dot"></span>FN 0 · TS0 · BCCH</span>
+      <span class="pill" id="pillMode"><span class="dot"></span>PROM page0 — décodage nominal</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sh"><span class="tag">01</span><h2>Banc</h2><span class="sub">fs 1 083,333 kHz · 4 éch/symbole · fenêtre 256 symboles</span></div>
+    <div class="bench">
+      <aside class="rack">
+        <div class="mod">
+          <h3>Voie radio</h3>
+          <div class="ctl">
+            <div class="top"><label for="snr">Rapport signal/bruit</label><span class="val" id="vSnr">8,0 dB</span></div>
+            <input type="range" id="snr" min="-8" max="30" step="0.5" value="8">
+            <span class="hint">C/N dans 1,08 MHz, avant filtrage</span>
+          </div>
+          <div class="ctl">
+            <div class="top"><label for="foff">Erreur d'oscillateur</label><span class="val" id="vFoff">+900 Hz</span></div>
+            <input type="range" id="foff" min="-6000" max="6000" step="25" value="900">
+            <span class="hint" id="hPpm">1,00 ppm @ 900 MHz</span>
+          </div>
+          <div class="ctl">
+            <div class="top"><label for="toa">Retard d'arrivée</label><span class="val" id="vToa">23 sym</span></div>
+            <input type="range" id="toa" min="0" max="80" step="1" value="23">
+            <span class="hint">TOA visé par le firmware : 23</span>
+          </div>
+        </div>
+
+        <div class="mod dsp" id="dspMod">
+          <h3>Décodeur d'instruction DSP</h3>
+          <button class="sw" id="bug" aria-pressed="false">
+            <span class="led"></span>
+            <span class="lbl"><span id="bugTxt">DADST/DSADT → correct</span><small id="bugSub">calypso_c54x.c · famille double mot</small></span>
+          </button>
+          <div class="runrow">
+            <button class="btn pri" id="play" aria-pressed="true">Pause</button>
+            <button class="btn" id="shot">Coup unique</button>
+          </div>
+        </div>
+
+        <div class="mod">
+          <h3>Mémoire DARAM</h3>
+          <div class="ctl" style="margin:0">
+            <div class="top"><label>Buffer I/Q</label><span class="val hx">0x2a00</span></div>
+            <div class="top"><label>Buffer référence</label><span class="val hx">0x2c00</span></div>
+            <div class="top"><label>Pointeur AR5</label><span class="val" id="ar5">0x2a00</span></div>
+            <div class="top"><label>Slot d_fb_det</label><span class="val hx">0x08f8</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="scopes">
+        <figure class="scope">
+          <figcaption>
+            <span class="st">Phase différentielle</span>
+            <span class="su">arg( x[n] · x*[n−4] ) — attendu +π/2 sur tout le burst</span>
+            <span class="rd" id="rdPhase">—</span>
+          </figcaption>
+          <canvas id="cvPhase"></canvas>
+          <div class="legend">
+            <span style="color:var(--accent)"><i class="key" style="background:currentColor"></i>échantillon dans la bande</span>
+            <span style="color:var(--faint)"><i class="key" style="background:currentColor"></i>hors bande</span>
+            <span style="color:var(--pass)"><i class="key" style="background:currentColor"></i>fenêtre retenue (75 sym)</span>
+          </div>
+        </figure>
+
+        <figure class="scope">
+          <figcaption>
+            <span class="st">Spectre reçu</span>
+            <span class="su">FFT 1024 · fenêtre de Hann</span>
+            <span class="rd" id="rdSpec">—</span>
+          </figcaption>
+          <canvas id="cvSpec"></canvas>
+          <div class="legend">
+            <span style="color:var(--cyan)"><i class="key" style="background:currentColor"></i>densité reçue</span>
+            <span style="color:var(--amber)"><i class="key dash" ></i>raie FCCH théorique +67,708 kHz</span>
+          </div>
+        </figure>
+
+        <figure class="scope">
+          <figcaption>
+            <span class="st">Accumulateur du corrélateur</span>
+            <span class="su">|Σ x·réf*| sur 64 symboles, glissé sur la fenêtre</span>
+            <span class="rd" id="rdCorr">—</span>
+          </figcaption>
+          <canvas id="cvCorr"></canvas>
+          <div class="legend">
+            <span style="color:var(--amber)"><i class="key" style="background:currentColor"></i>accumulateur publié</span>
+            <span style="color:var(--faint)"><i class="key dash"></i>ce que le décodage correct produirait</span>
+            <span style="color:var(--pass)"><i class="key" style="background:currentColor"></i>seuil de publication</span>
+          </div>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="tag">02</span><h2>Ce que lit le firmware ARM</h2><span class="sub">prim_fbsb.c · via MMIO 0x01F0</span></div>
+    <div class="tiles">
+      <div class="tile hero"><span class="k">d_fb_det · slot 0x08f8</span><span class="v ko" id="tDet">0</span><span class="u" id="tDetU">mot Q15 publié par le DSP</span></div>
+      <div class="tile"><span class="k">Décalage estimé</span><span class="v neutral" id="tFoff">—</span><span class="u" id="tFoffU">erreur vs vérité terrain</span></div>
+      <div class="tile"><span class="k">TOA</span><span class="v neutral" id="tToa">—</span><span class="u">symboles, cible 23</span></div>
+      <div class="tile"><span class="k">SNR post-filtre</span><span class="v neutral" id="tSnr">—</span><span class="u">estimé sur la variance de phase</span></div>
+    </div>
+    <div class="chain" id="chain">
+      <div class="step pass"><span class="n">radio</span><span class="s"><i class="dot"></i><span id="s1">burst présent</span></span></div>
+      <div class="step pass"><span class="n">détecteur de phase</span><span class="s"><i class="dot"></i><span id="s2">verrouillé</span></span></div>
+      <div class="step fail"><span class="n">corrélateur DSP</span><span class="s"><i class="dot"></i><span id="s3">accumulateur figé</span></span></div>
+      <div class="step fail"><span class="n">prim_fbsb.c</span><span class="s"><i class="dot"></i><span id="s4">d_fb_det = 0</span></span></div>
+      <div class="step fail"><span class="n">résultat</span><span class="s"><i class="dot"></i><span id="s5">pas de FBSB_CONF</span></span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="tag">03</span><h2>Multitrame 51 — TS0 de la porteuse BCCH</h2><span class="sub">FCCH en 0, 10, 20, 30, 40 · SCH juste après</span></div>
+    <div class="mf">
+      <div class="mfgrid" id="mfGrid" role="img" aria-label="Multitrame 51 : occasions FCCH et résultat de détection"></div>
+      <div class="mflab">
+        <span style="color:var(--accent)"><b>FCCH</b> — 148 bits à zéro</span>
+        <span style="color:var(--cyan)"><b>SCH</b> — bloqué tant que le FCCH échoue</span>
+        <span><b>BCCH / CCCH</b> — trafic, aucune raie</span>
+        <span>pastille verte = <b>FBSB_CONF</b> émis · rouge = occasion perdue</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="tag">04</span><h2>La boucle, instruction par instruction</h2><span class="sub">prog[0xa076..0xa09f] — un groupe sur huit</span></div>
+    <div class="tblw">
+      <table>
+        <thead><tr><th>PC</th><th>Opcode</th><th>Instruction réelle</th><th>Handler emprunté</th><th>Effet sur l'accumulateur</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="note"><b>Pourquoi zéro et pas « faux ».</b> Le mis-routage n'abîme pas le résultat au hasard :
+      <code>SFTA</code> décale l'accumulateur au lieu d'y additionner un produit, et la post-modification
+      <code>*AR5+</code> disparaît avec lui. La somme de produits n'est donc jamais amorcée, le pointeur
+      ne parcourt jamais les 296 mots du buffer I/Q, et le mot publié reste exactement celui de
+      l'initialisation. Un accumulateur à zéro n'est pas une détection ratée : c'est une corrélation
+      qui n'a jamais eu lieu.</p>
+  </section>
+
+  <footer>
+    <span>pl4y.store · banc FCCH — synthèse GMSK BT 0,3 et détection exécutées dans la page</span>
+    <span>Rs = 1625/6 kbit/s · FCCH = Rs/4</span>
+  </footer>
+</div>
+
+<script>
+"use strict";
+(function(){
+/* ---------------- constantes GSM ---------------- */
+var RS   = 1625000/6;          /* 270 833,33 sym/s */
+var SPS  = 4;
+var FS   = RS*SPS;             /* 1 083 333,33 Hz  */
+var FTONE= RS/4;               /* 67 708,33 Hz     */
+var N    = 1024;               /* fenêtre, échantillons */
+var NSYM = N/SPS;              /* 256 symboles */
+var BURST= 148;                /* symboles du burst FCCH */
+var LAG  = SPS;                /* retard d'un symbole */
+var TOL  = 0.60;               /* tolérance de phase, rad */
+var WIN  = 300;                /* fenêtre de décision, échantillons */
+var HIT  = 0.75;               /* fraction d'inliers exigée */
+var CORRSYM = 64;              /* longueur de la référence */
+var CORRLEN = CORRSYM*SPS;
+var CSTEP   = 2;
+var PUBTHR  = 0.34;            /* seuil de publication du pic */
+var FCCH_FN = [0,10,20,30,40];
+var SCH_FN  = [1,11,21,31,41];
+
+/* ---------------- couleurs (lues sur les tokens) ---------------- */
+var CS = getComputedStyle(document.documentElement);
+function tok(n){ return CS.getPropertyValue(n).trim(); }
+var C = {ink:tok('--ink'),muted:tok('--muted'),faint:tok('--faint'),line:tok('--line'),
+         lineSoft:tok('--line-soft'),accent:tok('--accent'),cyan:tok('--cyan'),
+         amber:tok('--amber'),pass:tok('--pass'),fault:tok('--fault'),panel:tok('--panel')};
+
+/* ---------------- outils numériques ---------------- */
+function erf(x){var s=x<0?-1:1;x=Math.abs(x);var t=1/(1+0.3275911*x);
+  var y=1-((((1.061405429*t-1.453152027)*t+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);
+  return s*y;}
+function qfn(x){return 0.5*(1-erf(x/Math.SQRT2));}
+
+/* impulsion de fréquence gaussienne, BT = 0,3, portée 4 symboles */
+var GSPAN=4, GLEN=GSPAN*SPS, gt=new Float64Array(GLEN), gsum=0;
+(function(){var k=2*Math.PI*0.3/Math.sqrt(Math.log(2));
+  for(var i=0;i<GLEN;i++){var t=i/SPS-GSPAN/2+0.5/SPS;
+    gt[i]=qfn(k*(t-0.5))-qfn(k*(t+0.5)); gsum+=gt[i];}
+  for(var j=0;j<GLEN;j++) gt[j]/=gsum;})();
+
+/* filtre de réception : sinc fenêtré, coupure ±135 kHz */
+var HLEN=17, h=new Float64Array(HLEN);
+(function(){var fc=0.125,s=0;
+  for(var i=0;i<HLEN;i++){var m=i-(HLEN-1)/2;
+    var v=(m===0)?2*fc:Math.sin(2*Math.PI*fc*m)/(Math.PI*m);
+    v*=0.54-0.46*Math.cos(2*Math.PI*i/(HLEN-1)); h[i]=v; s+=v;}
+  for(var j=0;j<HLEN;j++) h[j]/=s;})();
+
+var g1=null;
+function gauss(){ if(g1!==null){var v=g1;g1=null;return v;}
+  var u=0,w=0; while(u===0)u=Math.random(); w=Math.random();
+  var r=Math.sqrt(-2*Math.log(u)); g1=r*Math.sin(2*Math.PI*w); return r*Math.cos(2*Math.PI*w);}
+
+function fft(re,im){var n=re.length,i,j,bit,len,ang,wr,wi,cr,ci,k,ur,ui,vr,vi,hf,tr;
+  for(i=1,j=0;i<n;i++){bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;
+    if(i<j){tr=re[i];re[i]=re[j];re[j]=tr;tr=im[i];im[i]=im[j];im[j]=tr;}}
+  for(len=2;len<=n;len<<=1){ang=-2*Math.PI/len;wr=Math.cos(ang);wi=Math.sin(ang);hf=len>>1;
+    for(i=0;i<n;i+=len){cr=1;ci=0;
+      for(k=0;k<hf;k++){ur=re[i+k];ui=im[i+k];
+        vr=re[i+k+hf]*cr-im[i+k+hf]*ci; vi=re[i+k+hf]*ci+im[i+k+hf]*cr;
+        re[i+k]=ur+vr; im[i+k]=ui+vi; re[i+k+hf]=ur-vr; im[i+k+hf]=ui-vi;
+        tr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=tr;}}}}
+
+/* ---------------- tampons ---------------- */
+var TOTAL=N+GLEN;
+var dphi=new Float64Array(TOTAL), xr=new Float64Array(N), xi=new Float64Array(N);
+var yr=new Float64Array(N), yi=new Float64Array(N);
+var pd=new Float64Array(N), inl=new Uint8Array(N);
+var fr=new Float64Array(N), fi=new Float64Array(N), spec=new Float64Array(N);
+var refr=new Float64Array(CORRLEN), refi=new Float64Array(CORRLEN);
+(function(){for(var n=0;n<CORRLEN;n++){var a=2*Math.PI*FTONE*n/FS;refr[n]=Math.cos(a);refi[n]=Math.sin(a);}})();
+var NPOS=Math.floor((N-CORRLEN)/CSTEP)+1;
+var corr=new Float64Array(NPOS);
+
+/* ---------------- état ---------------- */
+var S={snr:8, foff:900, toa:23, bug:false, running:true, fn:0};
+var R={det:false, fest:0, toaEst:0, snrEst:0, peak:0, peakPos:0, pub:0, fcchFrame:true, winStart:0, winHit:0};
+var mfRes=new Array(51); for(var q=0;q<51;q++) mfRes[q]=null;
+
+/* ---------------- chaîne de traitement ---------------- */
+function synth(){
+  var isF = FCCH_FN.indexOf(S.fn%51)>=0;
+  R.fcchFrame=isF;
+  var k,n,i;
+  for(n=0;n<TOTAL;n++) dphi[n]=0;
+  var nsym=NSYM+GSPAN;
+  for(k=0;k<nsym;k++){
+    var a;
+    if(isF && k>=S.toa && k<S.toa+BURST) a=1;          /* FCCH : tous les bits à zéro */
+    else a=(Math.random()<0.5)?-1:1;                    /* bursts voisins */
+    var base=k*SPS, w=(Math.PI/2)*a;
+    for(i=0;i<GLEN;i++){var idx=base+i; if(idx<TOTAL) dphi[idx]+=w*gt[i];}
+  }
+  var ph=Math.random()*2*Math.PI;
+  var dw=2*Math.PI*S.foff/FS;
+  var sig=Math.sqrt(0.5/Math.pow(10,S.snr/10));
+  var off=Math.floor(GLEN/2);
+  for(n=0;n<N;n++){
+    ph+=dphi[n+off]+dw;
+    xr[n]=Math.cos(ph)+sig*gauss();
+    xi[n]=Math.sin(ph)+sig*gauss();
+  }
+  /* filtrage de réception */
+  var c=Math.floor((HLEN-1)/2);
+  for(n=0;n<N;n++){
+    var ar=0,ai=0;
+    for(i=0;i<HLEN;i++){var s=n-i+c; if(s>=0&&s<N){ar+=h[i]*xr[s];ai+=h[i]*xi[s];}}
+    yr[n]=ar; yi[n]=ai;
+  }
+}
+
+function detect(){
+  var n,tgt=Math.PI/2;
+  for(n=0;n<N;n++){pd[n]=0;inl[n]=0;}
+  for(n=LAG;n<N;n++){
+    var pr=yr[n]*yr[n-LAG]+yi[n]*yi[n-LAG];
+    var pi=yi[n]*yr[n-LAG]-yr[n]*yi[n-LAG];
+    var a=Math.atan2(pi,pr);
+    pd[n]=a;
+    inl[n]=(Math.abs(a-tgt)<TOL)?1:0;
+  }
+  var cnt=0;
+  for(n=LAG;n<LAG+WIN;n++) cnt+=inl[n];
+  var best=cnt,bs=LAG;
+  for(n=LAG+WIN;n<N;n++){cnt+=inl[n]-inl[n-WIN]; if(cnt>best){best=cnt;bs=n-WIN+1;}}
+  R.winStart=bs; R.winHit=best/WIN;
+  R.det = best/WIN >= HIT;
+  var sum=0,cn=0;
+  for(n=bs;n<bs+WIN&&n<N;n++) if(inl[n]){sum+=pd[n];cn++;}
+  var mean=cn?sum/cn:tgt;
+  var vs=0;
+  for(n=bs;n<bs+WIN&&n<N;n++) if(inl[n]) vs+=(pd[n]-mean)*(pd[n]-mean);
+  var vr2=cn>1?vs/(cn-1):1;
+  R.fest=(mean-tgt)*FS/(2*Math.PI*LAG);
+  R.toaEst=bs/SPS;
+  R.snrEst=10*Math.log10(1/Math.max(vr2,1e-6));
+}
+
+function spectrum(){
+  var n;
+  for(n=0;n<N;n++){var w=0.5-0.5*Math.cos(2*Math.PI*n/(N-1)); fr[n]=yr[n]*w; fi[n]=yi[n]*w;}
+  fft(fr,fi);
+  for(n=0;n<N;n++){var m=fr[n]*fr[n]+fi[n]*fi[n]; spec[n]=10*Math.log10(m/(N*N/4)+1e-12);}
+}
+
+/* corrélation contre la référence en DARAM 0x2c00 */
+function correlate(){
+  var p,n,best=0,bp=0;
+  for(p=0;p<NPOS;p++){
+    var o=p*CSTEP,ar=0,ai=0;
+    for(n=0;n<CORRLEN;n+=2){
+      var s=o+n;
+      ar+=yr[s]*refr[n]+yi[s]*refi[n];
+      ai+=yi[s]*refr[n]-yr[s]*refi[n];
+    }
+    var v=Math.sqrt(ar*ar+ai*ai)/(CORRLEN/2);
+    corr[p]=v;
+    if(v>best){best=v;bp=p;}
+  }
+  R.peak=best; R.peakPos=bp*CSTEP/SPS;
+  /* publication : case 0x5 mis-routé => l'accumulateur n'est jamais amorcé */
+  R.pub = S.bug ? 0 : (best>=PUBTHR ? Math.round(best*32767) : 0);
+}
+
+/* ---------------- canevas ---------------- */
+function mkScope(id){
+  var cv=document.getElementById(id), ctx=cv.getContext('2d'), w=0,hh=0;
+  function size(){
+    var r=cv.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
+    w=Math.max(r.width,10); hh=Math.max(r.height,10);
+    cv.width=Math.round(w*dpr); cv.height=Math.round(hh*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    redrawAll();                    /* un redimensionnement vide le canevas */
+  }
+  size();
+  if(window.ResizeObserver) new ResizeObserver(size).observe(cv);
+  else window.addEventListener('resize',size);
+  return {ctx:ctx,get w(){return w;},get h(){return hh;},size:size};
+}
+var READY=false;
+function redrawAll(){ if(!READY) return; drawPhase(); drawSpec(); drawCorr(); }
+var P=mkScope('cvPhase'), SP=mkScope('cvSpec'), CO=mkScope('cvCorr');
+var PAD={l:46,r:12,t:12,b:22};
+
+function frame(sc){
+  var c=sc.ctx,w=sc.w,h=sc.h;
+  c.clearRect(0,0,w,h);
+  c.fillStyle=C.panel; c.fillRect(0,0,w,h);
+  return {x0:PAD.l,x1:w-PAD.r,y0:PAD.t,y1:h-PAD.b};
+}
+function axes(c,b,yt,xt){
+  c.save();
+  c.strokeStyle=C.lineSoft; c.lineWidth=1;
+  c.font='10px "IBM Plex Mono", monospace'; c.fillStyle=C.faint;
+  var i;
+  for(i=0;i<yt.length;i++){
+    var y=Math.round(yt[i].y)+0.5;
+    c.beginPath(); c.moveTo(b.x0,y); c.lineTo(b.x1,y); c.stroke();
+    c.textAlign='right'; c.textBaseline='middle';
+    c.fillText(yt[i].t,b.x0-7,y);
+  }
+  for(i=0;i<xt.length;i++){
+    var x=Math.round(xt[i].x)+0.5;
+    c.beginPath(); c.moveTo(x,b.y0); c.lineTo(x,b.y1); c.stroke();
+    c.textAlign='center'; c.textBaseline='top';
+    c.fillText(xt[i].t,x,b.y1+5);
+  }
+  c.strokeStyle=C.line;
+  c.beginPath(); c.moveTo(b.x0+0.5,b.y0); c.lineTo(b.x0+0.5,b.y1); c.lineTo(b.x1,b.y1); c.stroke();
+  c.restore();
+}
+
+function drawPhase(){
+  var b=frame(P), c=P.ctx;
+  var sx=function(n){return b.x0+(n/N)*(b.x1-b.x0);};
+  var sy=function(v){return b.y1-((v+Math.PI)/(2*Math.PI))*(b.y1-b.y0);};
+  var yt=[{y:sy(Math.PI),t:'+π'},{y:sy(Math.PI/2),t:'+π/2'},{y:sy(0),t:'0'},{y:sy(-Math.PI/2),t:'−π/2'},{y:sy(-Math.PI),t:'−π'}];
+  var xt=[];
+  for(var s=0;s<=256;s+=64) xt.push({x:sx(s*SPS),t:s+(s===256?' sym':'')});
+  /* bande de tolérance */
+  c.fillStyle='rgba(122,162,247,.10)';
+  c.fillRect(b.x0,sy(Math.PI/2+TOL),b.x1-b.x0,sy(Math.PI/2-TOL)-sy(Math.PI/2+TOL));
+  axes(c,b,yt,xt);
+  /* fenêtre retenue */
+  var wx0=sx(R.winStart), wx1=sx(Math.min(R.winStart+WIN,N));
+  c.fillStyle=R.det?'rgba(72,192,140,.13)':'rgba(93,109,146,.10)';
+  c.fillRect(wx0,b.y0,wx1-wx0,b.y1-b.y0);
+  c.strokeStyle=R.det?'rgba(72,192,140,.55)':'rgba(93,109,146,.5)';
+  c.lineWidth=1; c.setLineDash([3,3]);
+  c.beginPath(); c.moveTo(Math.round(wx0)+0.5,b.y0); c.lineTo(Math.round(wx0)+0.5,b.y1);
+  c.moveTo(Math.round(wx1)+0.5,b.y0); c.lineTo(Math.round(wx1)+0.5,b.y1); c.stroke();
+  c.setLineDash([]);
+  /* nuage de phase */
+  for(var n=LAG;n<N;n++){
+    c.fillStyle=inl[n]?C.accent:C.faint;
+    c.globalAlpha=inl[n]?0.95:0.5;
+    c.fillRect(sx(n),sy(pd[n])-1,1.6,2);
+  }
+  c.globalAlpha=1;
+  /* cible +π/2 */
+  c.strokeStyle='rgba(122,162,247,.55)'; c.setLineDash([5,4]); c.lineWidth=1;
+  c.beginPath(); c.moveTo(b.x0,Math.round(sy(Math.PI/2))+0.5); c.lineTo(b.x1,Math.round(sy(Math.PI/2))+0.5); c.stroke();
+  c.setLineDash([]);
+}
+
+function drawSpec(){
+  var b=frame(SP), c=SP.ctx;
+  var TOPdb=6, BOTdb=-54;
+  var sx=function(f){return b.x0+((f+FS/2)/FS)*(b.x1-b.x0);};
+  var sy=function(d){return b.y1-((d-BOTdb)/(TOPdb-BOTdb))*(b.y1-b.y0);};
+  var yt=[],d;
+  for(d=0;d>=-54;d-=18) yt.push({y:sy(d),t:d+(d===0?' dB':'')});
+  var xt=[],f;
+  for(f=-400000;f<=400000;f+=200000) xt.push({x:sx(f),t:(f/1000)+(f===400000?' kHz':'')});
+  axes(c,b,yt,xt);
+  /* raie théorique */
+  var ft=FTONE+S.foff;
+  c.strokeStyle=C.amber; c.setLineDash([4,4]); c.lineWidth=1;
+  c.beginPath(); c.moveTo(Math.round(sx(ft))+0.5,b.y0); c.lineTo(Math.round(sx(ft))+0.5,b.y1); c.stroke();
+  c.setLineDash([]);
+  c.fillStyle=C.amber; c.font='10px "IBM Plex Mono", monospace'; c.textAlign='left'; c.textBaseline='top';
+  c.fillText('FCCH', Math.min(sx(ft)+5,b.x1-38), b.y0+3);
+  /* densité */
+  c.strokeStyle=C.cyan; c.lineWidth=1.4; c.beginPath();
+  var first=true;
+  for(var i=0;i<N;i++){
+    var k=(i+N/2)%N;               /* fftshift */
+    var fq=(i-N/2)*FS/N;
+    var y=Math.max(b.y0,Math.min(b.y1,sy(spec[k])));
+    if(first){c.moveTo(sx(fq),y);first=false;} else c.lineTo(sx(fq),y);
+  }
+  c.stroke();
+}
+
+function drawCorr(){
+  var b=frame(CO), c=CO.ctx;
+  var maxSym=(NPOS-1)*CSTEP/SPS;
+  var sx=function(s){return b.x0+(s/maxSym)*(b.x1-b.x0);};
+  var sy=function(v){return b.y1-(v/1.05)*(b.y1-b.y0);};
+  var yt=[{y:sy(1),t:'1,0'},{y:sy(0.75),t:'0,75'},{y:sy(0.5),t:'0,5'},{y:sy(0.25),t:'0,25'},{y:sy(0),t:'0'}];
+  var xt=[],s;
+  for(s=0;s<=192;s+=48) xt.push({x:sx(Math.min(s,maxSym)),t:s+(s===192?' sym':'')});
+  axes(c,b,yt,xt);
+  /* seuil */
+  c.strokeStyle='rgba(72,192,140,.5)'; c.setLineDash([5,4]); c.lineWidth=1;
+  c.beginPath(); c.moveTo(b.x0,Math.round(sy(PUBTHR))+0.5); c.lineTo(b.x1,Math.round(sy(PUBTHR))+0.5); c.stroke();
+  c.setLineDash([]);
+  /* trace nominale */
+  function trace(){c.beginPath();
+    for(var p=0;p<NPOS;p++){var x=sx(p*CSTEP/SPS),y=sy(corr[p]);
+      if(p===0)c.moveTo(x,y);else c.lineTo(x,y);} c.stroke();}
+  if(S.bug){
+    c.strokeStyle='rgba(138,153,186,.55)'; c.lineWidth=1.2; c.setLineDash([4,4]); trace(); c.setLineDash([]);
+    c.strokeStyle=C.fault; c.lineWidth=2.2;
+    c.beginPath(); c.moveTo(b.x0,Math.round(sy(0))-1.5); c.lineTo(b.x1,Math.round(sy(0))-1.5); c.stroke();
+    c.fillStyle=C.fault; c.font='600 11px "IBM Plex Mono", monospace'; c.textAlign='left'; c.textBaseline='top';
+    c.fillText('accumulateur jamais amorcé — A = 0', b.x0+8, b.y0+6);
+  }else{
+    c.strokeStyle=C.amber; c.lineWidth=1.8; trace();
+    /* pic */
+    var px=sx(R.peakPos), py=sy(R.peak);
+    c.fillStyle=C.amber; c.beginPath(); c.arc(px,py,3.6,0,6.284); c.fill();
+    c.strokeStyle=C.panel; c.lineWidth=2; c.beginPath(); c.arc(px,py,3.6,0,6.284); c.stroke();
+    c.fillStyle=C.ink; c.font='600 11px "IBM Plex Mono", monospace';
+    c.textAlign=px>b.x1-90?'right':'left'; c.textBaseline='bottom';
+    c.fillText(fmt(R.peak,2)+' @ '+Math.round(R.peakPos)+' sym', px+(px>b.x1-90?-8:8), py-7);
+  }
+}
+
+/* ---------------- affichage ---------------- */
+function fmt(v,d){return v.toFixed(d).replace('.',',');}
+function sgn(v,d){return (v>=0?'+':'−')+Math.abs(v).toFixed(d).replace('.',',');}
+var $=function(id){return document.getElementById(id);};
+
+function readouts(){
+  var isF=R.fcchFrame, det=R.det, pub=R.pub;
+  $('rdPhase').textContent = isF
+    ? fmt(R.winHit*100,0)+' % dans la bande · '+(det?'verrou':'pas de verrou')
+    : 'trafic — pas de raie attendue';
+  $('rdSpec').textContent = isF ? 'raie à '+fmt((FTONE+S.foff)/1000,3)+' kHz' : 'spectre GMSK plein';
+  $('rdCorr').textContent = S.bug ? 'publié : 0' : 'pic '+fmt(R.peak,2)+' · publié : '+pub;
+
+  var t=$('tDet');
+  t.textContent = pub;
+  t.className = 'v '+(pub>0?'ok':'ko');
+  $('tDetU').textContent = S.bug ? 'figé par le mis-décodage case 0x5'
+    : (pub>0?'mot Q15 publié par le DSP':(isF?'pic sous le seuil de publication':'aucune occasion FCCH sur cette trame'));
+
+  if(isF&&det){
+    var err=R.fest-S.foff;
+    $('tFoff').textContent=sgn(R.fest,0)+' Hz';
+    $('tFoff').className='v '+(Math.abs(err)<250?'neutral':'amb');
+    $('tFoffU').textContent='erreur '+sgn(err,0)+' Hz · '+fmt(Math.abs(R.fest)/900,2)+' ppm @ 900 MHz';
+    $('tToa').textContent=fmt(R.toaEst,1);
+    $('tToa').className='v '+(Math.abs(R.toaEst-S.toa)<3?'neutral':'amb');
+    $('tSnr').textContent=fmt(R.snrEst,1)+' dB';
+    $('tSnr').className='v neutral';
+  }else{
+    $('tFoff').textContent='—'; $('tFoff').className='v neutral';
+    $('tFoffU').textContent=isF?'pas de verrou de phase':'hors occasion FCCH';
+    $('tToa').textContent='—'; $('tToa').className='v neutral';
+    $('tSnr').textContent='—'; $('tSnr').className='v neutral';
+  }
+
+  /* chaîne firmware */
+  var steps=$('chain').children;
+  function set(i,cls,txt){steps[i].className='step '+cls; steps[i].querySelector('span.s span').textContent=txt;}
+  if(!isF){
+    set(0,'idle','trame sans FCCH'); set(1,'idle','en attente'); set(2,'idle','au repos');
+    set(3,'idle','rien à lire'); set(4,'idle','prochaine occasion');
+  }else{
+    set(0,'pass','burst présent');
+    set(1,det?'pass':'fail',det?'verrouillé':'bruit trop fort');
+    if(S.bug) set(2,'fail','accumulateur figé');
+    else set(2,pub>0?'pass':'fail',pub>0?'pic '+fmt(R.peak,2):'pic trop bas');
+    set(3,pub>0?'pass':'fail','d_fb_det = '+pub);
+    var ok=pub>0&&det&&R.snrEst>4;
+    set(4,ok?'pass':'fail',ok?'FBSB_CONF émis':'pas de FBSB_CONF');
+  }
+
+  /* pointeur AR5 */
+  $('ar5').textContent = S.bug ? '0x2a00' : '0x'+(0x2a00+((R.peakPos*4)|0)%296).toString(16);
+  $('ar5').style.color = S.bug ? C.fault : C.cyan;
+
+  /* bandeau */
+  var pf=$('pillFn');
+  var kind = FCCH_FN.indexOf(S.fn%51)>=0?'FCCH':(SCH_FN.indexOf(S.fn%51)>=0?'SCH':(S.fn%51===50?'IDLE':'CCCH'));
+  pf.lastChild.textContent='FN '+S.fn+' · TS0 · '+kind;
+  var pm=$('pillMode');
+  pm.className='pill '+(S.bug?'bad':'good');
+  pm.lastChild.textContent=S.bug?'case 0x5 — DADST décodé SFTA':'PROM page0 — décodage nominal';
+}
+
+/* ---------------- multitrame ---------------- */
+var cells=[];
+(function(){
+  var g=$('mfGrid');
+  for(var i=0;i<51;i++){
+    var d=document.createElement('div');
+    var cls='cell';
+    if(FCCH_FN.indexOf(i)>=0) cls+=' fcch'; else if(SCH_FN.indexOf(i)>=0) cls+=' sch';
+    d.className=cls;
+    d.textContent=(i%10===0||i===50)?i:'';
+    d.title='FN '+i;
+    var r=document.createElement('i'); r.className='res'; r.style.display='none';
+    d.appendChild(r); g.appendChild(d); cells.push(d);
+  }
+})();
+function paintMf(){
+  for(var i=0;i<51;i++){
+    var d=cells[i];
+    if(i===S.fn%51) d.classList.add('cur'); else d.classList.remove('cur');
+    var r=d.firstElementChild?d.querySelector('.res'):null;
+    if(!r) continue;
+    if(mfRes[i]===null){r.style.display='none';}
+    else{r.style.display='block'; r.className='res '+(mfRes[i]?'ok':'ko');}
+  }
+}
+
+/* ---------------- table de décodage ---------------- */
+var ROWS=[
+ {pc:'0xa076',op:'3060',ins:'LD coeff[DP:0x60],T',ok:{h:'(op&amp;FF00)==0x3000 · resolve_smem',e:'charge le tap dans T'},
+  bad:{h:'(op&amp;FF00)==0x3000 · resolve_smem',e:'charge le tap dans T'},bug:false},
+ {pc:'0xa077',op:'5a85',ins:'DADST *AR5,A',ok:{h:'famille double mot',e:'A += x·réf (I et Q d’un coup)'},
+  bad:{h:'case 0x5 → SFTA',e:'A décalé, aucun produit ajouté'},bug:true},
+ {pc:'0xa078',op:'5f95',ins:'DSADT *AR5+,B',ok:{h:'famille double mot',e:'B += x·réf, AR5 avance de 2'},
+  bad:{h:'case 0x5 → SFTL',e:'B décalé, post-modif *AR5+ perdue'},bug:true},
+ {pc:'0xa079',op:'8e94',ins:'CMPS A,*AR4+',ok:{h:'case 0x8 · resolve_smem',e:'range le max, AR4 avance'},
+  bad:{h:'case 0x8 · resolve_smem',e:'range un max qui vaut 0'},bug:false},
+ {pc:'0xa09b',op:'5fd5',ins:'DSADT *AR5+0%,B',ok:{h:'famille double mot · BK',e:'boucle circulaire sur 296 mots'},
+  bad:{h:'case 0x5 → SFTL',e:'BK ignoré, le buffer n’est jamais parcouru'},bug:true}
+];
+function paintTable(){
+  var tb=$('tbody'), out='';
+  for(var i=0;i<ROWS.length;i++){
+    var r=ROWS[i], bad=S.bug&&r.bug, d=bad?r.bad:r.ok;
+    out+='<tr class="'+(bad?'bugrow':'okrow')+'">'+
+      '<td class="m" style="color:var(--faint)">'+r.pc+'</td>'+
+      '<td class="m hx">'+r.op+'</td>'+
+      '<td class="m op">'+r.ins+'</td>'+
+      '<td class="m" style="color:var(--muted)">'+d.h+'</td>'+
+      '<td><span class="chip '+(bad?'f':'p')+'"><i class="dot"></i>'+d.e+'</span></td></tr>';
+  }
+  tb.innerHTML=out;
+}
+
+/* ---------------- boucle ---------------- */
+function step(){
+  synth(); detect(); spectrum(); correlate();
+  if(R.fcchFrame){
+    var ok=R.pub>0&&R.det&&R.snrEst>4;
+    mfRes[S.fn%51]=ok;
+  }
+  READY=true;
+  drawPhase(); drawSpec(); drawCorr(); readouts(); paintMf();
+}
+var last=0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(!S.running) return;
+  /* le recepteur balaie vite les trames de trafic et tient sur chaque occasion FCCH */
+  var hold=(FCCH_FN.indexOf(S.fn%51)>=0)?760:55;
+  if(ts-last<hold) return;
+  last=ts;
+  S.fn=(S.fn+1)%51;
+  step();
+}
+
+/* ---------------- commandes ---------------- */
+function bindRange(id,key,fmtr){
+  var el=$(id);
+  el.addEventListener('input',function(){
+    S[key]=parseFloat(el.value); fmtr();
+    if(!S.running) step(); else readouts();
+  });
+  fmtr();
+}
+bindRange('snr','snr',function(){$('vSnr').textContent=fmt(S.snr,1)+' dB';});
+bindRange('foff','foff',function(){
+  $('vFoff').textContent=sgn(S.foff,0)+' Hz';
+  $('hPpm').textContent=fmt(Math.abs(S.foff)/900,2)+' ppm @ 900 MHz';
+});
+bindRange('toa','toa',function(){$('vToa').textContent=S.toa+' sym';});
+
+$('bug').addEventListener('click',function(){
+  S.bug=!S.bug;
+  this.setAttribute('aria-pressed',S.bug?'true':'false');
+  $('bugTxt').textContent=S.bug?'DADST/DSADT → SFTA/SFTL':'DADST/DSADT → correct';
+  $('bugSub').textContent=S.bug?'case 0x5 mis-route la famille double mot':'calypso_c54x.c · famille double mot';
+  $('dspMod').classList.toggle('on',S.bug);
+  for(var i=0;i<51;i++) mfRes[i]=null;
+  paintTable(); step();
+});
+$('play').addEventListener('click',function(){
+  S.running=!S.running;
+  this.textContent=S.running?'Pause':'Lecture';
+  this.setAttribute('aria-pressed',S.running?'true':'false');
+  $('pillRun').className='pill '+(S.running?'live':'');
+  $('runTxt').textContent=S.running?'acquisition en cours':'acquisition en pause';
+});
+$('shot').addEventListener('click',function(){
+  S.running=false; $('play').textContent='Lecture'; $('play').setAttribute('aria-pressed','false');
+  $('pillRun').className='pill'; $('runTxt').textContent='acquisition en pause';
+  S.fn=FCCH_FN[Math.floor(Math.random()*5)];
+  step();
+});
+
+/* ---------------- démarrage : une image complète, puis la boucle ---------------- */
+if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  S.running=false;
+  $('play').textContent='Lecture'; $('play').setAttribute('aria-pressed','false');
+  $('pillRun').className='pill'; $('runTxt').textContent='acquisition en pause';
+}
+paintTable();
+S.fn=0;
+step();
+requestAnimationFrame(loop);
+})();
+</script>
